@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  # Tên service là 'postgres'
+  postgres:
+    image: postgres:16-alpine  # Dùng bản 16 (nhẹ và ổn định), hoặc thay bằng 'latest'
+    container_name: chemlearn_db_container # Đặt tên cho dễ tìm
+    restart: always # Tự khởi động lại nếu máy tính reset
+    environment:
+      POSTGRES_USER: admin           # Username đăng nhập
+      POSTGRES_PASSWORD: Nguyenanphu2005@ # Password (đừng dùng cái này cho production nhé)
+      POSTGRES_DB: chemlearn_db      # Tên Database sẽ được tạo tự động
+    ports:
+      - "5432:5432" # Map port 5432 của máy thật vào port 5432 của Docker
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Quan trọng: Để dữ liệu không bị mất khi tắt Docker
+
+# Khai báo volume để lưu dữ liệu bền vững
+volumes:
+  postgres_data:
