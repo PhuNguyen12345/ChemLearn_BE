@@ -1,6 +1,7 @@
 package com.example.chemlearn.util;
 
 import com.example.chemlearn.entity.Account;
+import com.example.chemlearn.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -23,12 +24,12 @@ public class JwtUtil {
         return Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateToken(Account account) {
+    public String generateToken(User user) {
 
         return Jwts.builder()
-                .setSubject(account.getUsername())   // ONE subject only
-                .claim("email", account.getEmail())
-                .claim("role", account.getRole().name())
+                .setSubject(user.getUsername())   // ONE subject only
+                .claim("email", user.getEmail())
+                .claim("role", user.getRole().name())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)

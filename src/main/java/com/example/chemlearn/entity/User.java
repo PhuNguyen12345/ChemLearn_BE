@@ -7,8 +7,13 @@ import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
 
 @Getter
 @Setter
@@ -19,7 +24,7 @@ import java.time.Instant;
 })
 @Inheritance(strategy = InheritanceType.JOINED)
 @DiscriminatorColumn(name = "role",  discriminatorType = DiscriminatorType.STRING)
-public class User {
+public abstract class User implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)
@@ -59,5 +64,43 @@ public class User {
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "updated_at")
     private Instant updatedAt;
+
+    // --- BẮT ĐẦU ĐOẠN CODE CẦN THÊM ---
+
+    // 1. Hàm quan trọng nhất: Khai báo quyền hạn
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        // Giả sử em có biến 'role' là Enum hoặc String trong class này
+        // Nếu role của em là String: return List.of(new SimpleGrantedAuthority(this.role));
+        // Nếu role là Enum:
+        return List.of(new SimpleGrantedAuthority("ROLE_" + this.role.name()));
+    }
+
+    // 2. Mật khẩu: Spring hỏi "Mật khẩu đâu?", em chỉ vào biến password của em
+    @Override
+    public String getPassword() {
+        return this.password;
+    }
+
+    // 3. Tên đăng nhập: Spring hỏi "Username đâu?", em chỉ vào biến username
+    @Override
+    public String getUsername() {
+        return this.username;
+    }
+
+    // 4. Các câu hỏi thủ tục (Trả về true hết để nick luôn dùng được)
+    @Override
+    public boolean isAccountNonExpired() { return true; }
+
+    @Override
+    public boolean isAccountNonLocked() { return true; }
+
+    @Override
+    public boolean isCredentialsNonExpired() { return true; }
+
+    @Override
+    public boolean isEnabled() { return true; }
+
+    // --- KẾT THÚC ĐOẠN CODE CẦN THÊM ---
 
 }

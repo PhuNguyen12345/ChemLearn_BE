@@ -44,10 +44,7 @@ public class SecurityConfig {
 public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http
             .csrf(csrf -> csrf.disable()) // Tắt CSRF để test Postman cho dễ
-            .authorizeHttpRequests(auth -> auth
-                    // Cho phép truy cập mọi API bắt đầu bằng /test/ mà không cần login
-                    .requestMatchers("/test/**").permitAll()
-                    .anyRequest().authenticated()
+            .authorizeHttpRequests(auth -> auth.anyRequest().permitAll()
             );
     return http.build();
 }

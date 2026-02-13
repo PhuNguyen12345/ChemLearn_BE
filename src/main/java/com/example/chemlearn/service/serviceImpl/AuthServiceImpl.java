@@ -4,8 +4,13 @@ import com.example.chemlearn.dtos.auth.AuthResponseDTO;
 import com.example.chemlearn.dtos.auth.LoginRequestDTO;
 import com.example.chemlearn.dtos.auth.RegisterRequestDTO;
 import com.example.chemlearn.entity.Account;
+import com.example.chemlearn.entity.Teacher;
+import com.example.chemlearn.entity.User;
 import com.example.chemlearn.enums.AccountRole;
+import com.example.chemlearn.enums.Role;
 import com.example.chemlearn.repository.AccountRepository;
+import com.example.chemlearn.repository.TeacherRepository;
+import com.example.chemlearn.repository.UserRepository;
 import com.example.chemlearn.service.AuthService;
 import com.example.chemlearn.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -15,9 +20,10 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
-    private final AccountRepository repo;
+    private final UserRepository repo;
     private final PasswordEncoder encoder;
     private final JwtUtil jwtUtil;
+    private final TeacherRepository teacherRepository;
 
     @Override
     public void register(RegisterRequestDTO dto) {
@@ -29,13 +35,12 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("Email exists");
         }
 
-        Account acc = new Account();
-        acc.setEmail(dto.getEmail());
-        acc.setUsername(dto.getUsername());
-        acc.setPassword(encoder.encode(dto.getPassword()));
-        acc.setRole(AccountRole.ROLE_STUDENT);
-
-        repo.save(acc);
+        Teacher teacher = new Teacher();
+        teacher.setEmail(dto.getEmail());
+        teacher.setUsername(dto.getUsername());
+        teacher.setPassword(encoder.encode(dto.getPassword()));
+        teacher.setRole(Role.TEACHER);
+        teacherRepository.save(teacher);
     }
 
     @Override
@@ -43,17 +48,17 @@ public class AuthServiceImpl implements AuthService {
 
         System.out.println("STEP 1: Login attempt");
 
-        Account acc = repo.findByUsername(dto.getUsername())
+        User user = repo.findByUsername(dto.getUsername())
                 .orElseThrow(() -> new RuntimeException("Invalid credentials"));
 
-        System.out.println("STEP 2: Account found");
-        System.out.println("  username = " + acc.getUsername());
-        System.out.println("  email    = " + acc.getEmail());
-        System.out.println("  role     = " + acc.getRole());
-        System.out.println("  enabled  = " + acc.isEnabled());
+        System.out.println("STEP 2: User found");
+        System.out.println("  username = " + user.getUsername());
+        System.out.println("  email    = " + user.getEmail());
+        System.out.println("  role     = " + user.getRole());
+        System.out.println("  enabled  = " + user.isEnabled());
 
         System.out.println("STEP 3: Checking password");
-        boolean match = encoder.matches(dto.getPassword(), acc.getPassword());
+        boolean match = encoder.matches(dto.getPassword(), user.getPassword());
         System.out.println("Password match = " + match);
 
         if (!match) {
@@ -61,15 +66,15 @@ public class AuthServiceImpl implements AuthService {
         }
 
         System.out.println("STEP 4: Generating JWT");
-        String token = jwtUtil.generateToken(acc);
+        String token = jwtUtil.generateToken(user);
 
         System.out.println("STEP 5: JWT generated");
 
         return new AuthResponseDTO(
                 token,
-                acc.getUsername(),
-                acc.getEmail(),
-                acc.getRole().name()
+                user.getUsername(),
+                user.getEmail(),
+                user.getRole().name()
         );
     }
 
