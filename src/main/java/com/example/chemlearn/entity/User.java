@@ -72,6 +72,9 @@ public abstract class User implements UserDetails {
     public Collection<? extends GrantedAuthority> getAuthorities() {
         // Giả sử em có biến 'role' là Enum hoặc String trong class này
         // Nếu role của em là String: return List.of(new SimpleGrantedAuthority(this.role));
+        if (this.role == null) {
+            return List.of();
+        }
         // Nếu role là Enum:
         return List.of(new SimpleGrantedAuthority("ROLE_" + this.role.name()));
     }

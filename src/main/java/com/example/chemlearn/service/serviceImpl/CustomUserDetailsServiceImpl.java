@@ -1,10 +1,7 @@
 package com.example.chemlearn.service.serviceImpl;
 
-import com.example.chemlearn.entity.Account;
-import com.example.chemlearn.repository.AccountRepository;
 import com.example.chemlearn.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;

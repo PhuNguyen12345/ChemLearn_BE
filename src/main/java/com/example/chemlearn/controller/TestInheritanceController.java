@@ -4,6 +4,7 @@ import com.example.chemlearn.entity.Teacher;
 import com.example.chemlearn.entity.User;
 import com.example.chemlearn.repository.TeacherRepository;
 import com.example.chemlearn.repository.UserRepository;
+import com.example.chemlearn.service.TeacherService;
 import org.aspectj.weaver.ast.Test;
 import org.springframework.web.bind.annotation.*;
 
@@ -12,10 +13,12 @@ import org.springframework.web.bind.annotation.*;
 public class TestInheritanceController {
     private UserRepository userRepository;
     private TeacherRepository teacherRepository;
+    private TeacherService teacherService;
 
-    public TestInheritanceController(UserRepository userRepository, TeacherRepository teacherRepository) {
+    public TestInheritanceController(UserRepository userRepository, TeacherRepository teacherRepository,  TeacherService teacherService) {
         this.userRepository = userRepository;
         this.teacherRepository = teacherRepository;
+        this.teacherService = teacherService;
     }
 
     // API 1: Tạo thử một Teacher
@@ -23,7 +26,7 @@ public class TestInheritanceController {
     public Teacher createTeacher(@RequestBody Teacher teacher) {
         // Lưu ý: Bạn chỉ cần save vào teacherRepository
         // JPA sẽ tự động cắt dữ liệu: phần chung vào bảng users, phần riêng vào bảng teachers
-        return teacherRepository.save(teacher);
+        return teacherService.createTeacher(teacher);
     }
 
     // API 2: Lấy thông tin từ UserRepository (Test tính đa hình)

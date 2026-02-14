@@ -1,6 +1,5 @@
 package com.example.chemlearn.util;
 
-import com.example.chemlearn.entity.Account;
 import com.example.chemlearn.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
