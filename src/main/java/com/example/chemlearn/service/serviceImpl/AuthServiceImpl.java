@@ -64,6 +64,7 @@ public class AuthServiceImpl implements AuthService {
         String token = jwtUtil.generateToken(acc);
 
         System.out.println("STEP 5: JWT generated");
+        System.out.println(token);
 
         return new AuthResponseDTO(
                 token,
@@ -73,4 +74,12 @@ public class AuthServiceImpl implements AuthService {
         );
     }
 
-}
+    @Override
+    public void logout(String token) {
+        System.out.println("LOGOUT: User logging out");
+        System.out.println("Token received: " + (token != null ? token.substring(0, Math.min(20, token.length())) + "..." : "null"));
+        
+        // Future enhancement: Add token to blacklist (Redis/Database)
+        // For now, logout is handled entirely on the frontend by clearing the token
+        // Backend validation relies on token signature and expiry
+    }

@@ -28,4 +28,17 @@ public class AuthController {
         System.out.println("Login controller hit!!!");
         return ResponseEntity.ok(authService.login(dto));
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        String token = null;
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            token = authHeader.substring(7);
+        }
+
+        authService.logout(token);
+        return ResponseEntity.ok("Logged out successfully");
+    }
 }
+
