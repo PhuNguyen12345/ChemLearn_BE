@@ -83,3 +83,4 @@ public class AuthServiceImpl implements AuthService {
         // For now, logout is handled entirely on the frontend by clearing the token
         // Backend validation relies on token signature and expiry
     }
+}
