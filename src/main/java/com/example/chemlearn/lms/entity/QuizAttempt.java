@@ -1,6 +1,7 @@
 package com.example.chemlearn.lms.entity;
 
 import com.example.chemlearn.core.entity.Student;
+import com.example.chemlearn.lms.enums.AttemptStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -37,8 +38,9 @@ public class QuizAttempt {
     @JoinColumn(name = "lesson_id")
     private Lesson lesson;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 50)
-    private String status;
+    private AttemptStatus status;
 
     @ColumnDefault("0")
     @Column(name = "score", precision = 5, scale = 2)

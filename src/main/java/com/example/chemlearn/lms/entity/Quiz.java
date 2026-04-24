@@ -1,6 +1,7 @@
 package com.example.chemlearn.lms.entity;
 
 import com.example.chemlearn.core.entity.Teacher;
+import com.example.chemlearn.lms.enums.QuizType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -28,8 +29,9 @@ public class Quiz {
     private String description;
 
     @ColumnDefault("'EXAM'")
+    @Enumerated(EnumType.STRING)
     @Column(name = "quiz_type", length = 50)
-    private String quizType;
+    private QuizType quizType;
 
     @Column(name = "duration_minutes")
     private Integer durationMinutes;

@@ -1,5 +1,6 @@
 package com.example.chemlearn.lms.entity;
 
+import com.example.chemlearn.lms.enums.QuestionType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -33,8 +34,9 @@ public class Question {
     private String content;
 
     @ColumnDefault("'SINGLE_CHOICE'")
+    @Enumerated(EnumType.STRING)
     @Column(name = "question_type", length = 50)
-    private String questionType;
+    private QuestionType questionType;
 
     @Column(name = "explanation", length = Integer.MAX_VALUE)
     private String explanation;
