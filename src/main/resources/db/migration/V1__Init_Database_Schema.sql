@@ -272,7 +272,8 @@ CREATE TABLE quests (
                         action_type VARCHAR(50) NOT NULL, -- 'DO_LAB', 'READ_LESSON', 'PERFECT_QUIZ'
                         target_value INTEGER NOT NULL,
                         reward_xp INTEGER NOT NULL,
-                        is_active BOOLEAN DEFAULT TRUE
+                        is_active BOOLEAN DEFAULT TRUE,
+                        category VARCHAR(20) NOT NULL CHECK (category IN ('DAILY_QUEST', 'MAIN_MISSION', 'ACHIEVEMENT'))
 );
 
 CREATE TABLE student_quests (

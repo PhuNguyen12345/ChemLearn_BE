@@ -1,9 +1,8 @@
 package com.example.chemlearn.lab.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.example.chemlearn.lab.enums.ItemType;
+import com.example.chemlearn.lab.enums.PhysicalState;
+import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,11 +18,13 @@ public class InventoryItem {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 50)
-    private String type;
+    private ItemType type;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "state", length = 20)
-    private String state;
+    private PhysicalState state;
 
     @Column(name = "description", length = Integer.MAX_VALUE)
     private String description;

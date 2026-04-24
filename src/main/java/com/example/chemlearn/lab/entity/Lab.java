@@ -1,5 +1,7 @@
 package com.example.chemlearn.lab.entity;
 
+import com.example.chemlearn.lab.enums.Difficulty;
+import com.example.chemlearn.lab.enums.LabType;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -27,11 +29,13 @@ public class Lab {
     @Column(name = "category", length = 50)
     private String category;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "difficulty", length = 20)
-    private String difficulty;
+    private Difficulty difficulty;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false, length = 50)
-    private String type;
+    private LabType type;
 
     @Column(name = "tag", length = 50)
     private String tag;

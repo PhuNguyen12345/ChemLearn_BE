@@ -1,6 +1,7 @@
 package com.example.chemlearn.gamification.entity;
 
 import com.example.chemlearn.core.entity.Student;
+import com.example.chemlearn.gamification.enums.XpSource;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -29,8 +30,9 @@ public class XpLog {
     @Column(name = "amount", nullable = false)
     private Integer amount;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "source", nullable = false, length = 50)
-    private String source;
+    private XpSource source;
 
     @Column(name = "description", length = Integer.MAX_VALUE)
     private String description;

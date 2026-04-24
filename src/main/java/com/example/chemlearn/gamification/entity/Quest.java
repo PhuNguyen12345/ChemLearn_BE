@@ -1,5 +1,6 @@
 package com.example.chemlearn.gamification.entity;
 
+import com.example.chemlearn.gamification.enums.QuestCategory;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -25,6 +26,10 @@ public class Quest {
 
     @Column(name = "target_value", nullable = false)
     private Integer targetValue;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", nullable = false, length = 50)
+    private QuestCategory category;
 
     @Column(name = "reward_xp", nullable = false)
     private Integer rewardXp;

@@ -1,5 +1,6 @@
 package com.example.chemlearn.core.entity;
 
+import com.example.chemlearn.core.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -33,8 +34,9 @@ public class User {
     @Column(name = "full_name", nullable = false, length = 100)
     private String fullName;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false, length = 20)
-    private String role;
+    private UserRole role;
 
     @Column(name = "avatar_url", length = Integer.MAX_VALUE)
     private String avatarUrl;
