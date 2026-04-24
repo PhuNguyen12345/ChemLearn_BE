@@ -84,6 +84,36 @@ public class TeacherController {
         return teacherService.getQuizQuestions(quizId, authentication.getName());
     }
 
+    @GetMapping("/question-bank")
+    public List<TeacherQuestionBankItemDTO> getQuestionBank(Authentication authentication) {
+        return teacherService.getQuestionBank(authentication.getName());
+    }
+
+    @PostMapping("/question-bank")
+    public TeacherQuestionBankItemDTO createQuestionBankItem(@Valid @RequestBody TeacherQuestionBankRequestDTO dto,
+                                                             Authentication authentication) {
+        return teacherService.createQuestionBankItem(dto, authentication.getName());
+    }
+
+    @PutMapping("/question-bank/{bankQuestionId}")
+    public TeacherQuestionBankItemDTO updateQuestionBankItem(@PathVariable Long bankQuestionId,
+                                                             @Valid @RequestBody TeacherQuestionBankRequestDTO dto,
+                                                             Authentication authentication) {
+        return teacherService.updateQuestionBankItem(bankQuestionId, dto, authentication.getName());
+    }
+
+    @DeleteMapping("/question-bank/{bankQuestionId}")
+    public void deleteQuestionBankItem(@PathVariable Long bankQuestionId, Authentication authentication) {
+        teacherService.deleteQuestionBankItem(bankQuestionId, authentication.getName());
+    }
+
+    @PostMapping("/quizzes/{quizId}/questions/from-bank/{bankQuestionId}")
+    public QuizQuestion addQuestionFromBank(@PathVariable Long quizId,
+                                            @PathVariable Long bankQuestionId,
+                                            Authentication authentication) {
+        return teacherService.addQuestionFromBank(quizId, bankQuestionId, authentication.getName());
+    }
+
     @PostMapping("/quizzes/{quizId}/questions")
     public QuizQuestion createQuizQuestion(@PathVariable Long quizId,
                                            @Valid @RequestBody TeacherQuizQuestionRequestDTO dto,
@@ -128,6 +158,16 @@ public class TeacherController {
     @GetMapping("/submissions")
     public List<TeacherSubmissionDTO> getSubmissions(Authentication authentication) {
         return teacherService.getSubmissions(authentication.getName());
+    }
+
+    @GetMapping("/classes")
+    public List<TeacherClassInfoDTO> getAssignedClasses(Authentication authentication) {
+        return teacherService.getAssignedClasses(authentication.getName());
+    }
+
+    @GetMapping("/students/{studentId}")
+    public TeacherStudentAccountDTO getStudentAccount(@PathVariable Long studentId, Authentication authentication) {
+        return teacherService.getStudentAccount(studentId, authentication.getName());
     }
 
     @GetMapping("/analytics/students")

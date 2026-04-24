@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -25,6 +26,9 @@ public class TeacherServiceImpl implements TeacherService {
     private final AssignmentRepository assignmentRepository;
     private final QuizAttemptRepository quizAttemptRepository;
     private final AccountRepository accountRepository;
+    private final QuestionBankItemRepository questionBankItemRepository;
+    private final ChemClassRepository chemClassRepository;
+    private final ClassStudentLinkRepository classStudentLinkRepository;
 
     @Override
     public List<Chapter> getChapters() {
@@ -147,6 +151,83 @@ public class TeacherServiceImpl implements TeacherService {
     }
 
     @Override
+    public List<TeacherQuestionBankItemDTO> getQuestionBank(String teacherUsername) {
+        Account teacher = getTeacherByUsername(teacherUsername);
+        return questionBankItemRepository.findByCreatedByIdOrderByCreatedAtDesc(teacher.getId())
+                .stream()
+                .map(this::toQuestionBankItemDto)
+                .toList();
+    }
+
+    @Override
+    public TeacherQuestionBankItemDTO createQuestionBankItem(TeacherQuestionBankRequestDTO dto, String teacherUsername) {
+        Account teacher = getTeacherByUsername(teacherUsername);
+
+        QuestionBankItem item = new QuestionBankItem();
+        item.setCreatedBy(teacher);
+        item.setPrompt(dto.getPrompt());
+        item.setOptionA(dto.getOptionA());
+        item.setOptionB(dto.getOptionB());
+        item.setOptionC(dto.getOptionC());
+        item.setOptionD(dto.getOptionD());
+        item.setCorrectOption(dto.getCorrectOption().toUpperCase());
+        item.setExplanation(dto.getExplanation());
+        item.setCreatedAt(LocalDateTime.now());
+
+        return toQuestionBankItemDto(questionBankItemRepository.save(item));
+    }
+
+    @Override
+    public TeacherQuestionBankItemDTO updateQuestionBankItem(Long bankQuestionId, TeacherQuestionBankRequestDTO dto, String teacherUsername) {
+        Account teacher = getTeacherByUsername(teacherUsername);
+
+        QuestionBankItem item = questionBankItemRepository.findByIdAndCreatedById(bankQuestionId, teacher.getId())
+                .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Question bank item not found"));
+
+        item.setPrompt(dto.getPrompt());
+        item.setOptionA(dto.getOptionA());
+        item.setOptionB(dto.getOptionB());
+        item.setOptionC(dto.getOptionC());
+        item.setOptionD(dto.getOptionD());
+        item.setCorrectOption(dto.getCorrectOption().toUpperCase());
+        item.setExplanation(dto.getExplanation());
+
+        return toQuestionBankItemDto(questionBankItemRepository.save(item));
+    }
+
+    @Override
+    public void deleteQuestionBankItem(Long bankQuestionId, String teacherUsername) {
+        Account teacher = getTeacherByUsername(teacherUsername);
+
+        QuestionBankItem item = questionBankItemRepository.findByIdAndCreatedById(bankQuestionId, teacher.getId())
+                .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Question bank item not found"));
+
+        questionBankItemRepository.delete(item);
+    }
+
+    @Override
+    public QuizQuestion addQuestionFromBank(Long quizId, Long bankQuestionId, String teacherUsername) {
+        Quiz quiz = getOwnedQuiz(quizId, teacherUsername);
+        Account teacher = getTeacherByUsername(teacherUsername);
+
+        QuestionBankItem item = questionBankItemRepository.findByIdAndCreatedById(bankQuestionId, teacher.getId())
+                .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Question bank item not found"));
+
+        QuizQuestion question = new QuizQuestion();
+        question.setQuiz(quiz);
+        question.setPrompt(item.getPrompt());
+        question.setOptionA(item.getOptionA());
+        question.setOptionB(item.getOptionB());
+        question.setOptionC(item.getOptionC());
+        question.setOptionD(item.getOptionD());
+        question.setCorrectOption(item.getCorrectOption());
+        question.setExplanation(item.getExplanation());
+        question.setDisplayOrder((int) quizQuestionRepository.countByQuizId(quiz.getId()));
+
+        return quizQuestionRepository.save(question);
+    }
+
+    @Override
     public QuizQuestion createQuizQuestion(Long quizId, TeacherQuizQuestionRequestDTO dto, String teacherUsername) {
         Quiz quiz = getOwnedQuiz(quizId, teacherUsername);
 
@@ -263,6 +344,62 @@ public class TeacherServiceImpl implements TeacherService {
                 .toList();
     }
 
+            @Override
+            public List<TeacherClassInfoDTO> getAssignedClasses(String teacherUsername) {
+            Account teacher = getTeacherByUsername(teacherUsername);
+
+            return chemClassRepository.findByTeacherIdOrderByNameAsc(teacher.getId())
+                .stream()
+                .map(classRoom -> {
+                    List<TeacherClassInfoDTO.StudentBrief> students = classStudentLinkRepository
+                        .findByClassRoomIdOrderByStudentUsernameAsc(classRoom.getId())
+                        .stream()
+                        .map(link -> new TeacherClassInfoDTO.StudentBrief(
+                            link.getStudent().getId(),
+                            link.getStudent().getUsername(),
+                            link.getStudent().getEmail(),
+                            "/teacher/students/" + link.getStudent().getId()
+                        ))
+                        .toList();
+
+                    return new TeacherClassInfoDTO(
+                        classRoom.getId(),
+                        classRoom.getName(),
+                        classRoom.getSchedule(),
+                        classRoom.getDescription(),
+                        students
+                    );
+                })
+                .toList();
+            }
+
+            @Override
+            public TeacherStudentAccountDTO getStudentAccount(Long studentId, String teacherUsername) {
+            Account teacher = getTeacherByUsername(teacherUsername);
+
+            if (!classStudentLinkRepository.existsByStudentIdAndClassRoomTeacherId(studentId, teacher.getId())) {
+                throw new CustomExceptions.BadRequestException("Student is not assigned to your classes");
+            }
+
+            Account student = accountRepository.findByIdAndRole(studentId, AccountRole.ROLE_STUDENT)
+                .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Student not found"));
+
+            List<String> classes = classStudentLinkRepository.findByStudentIdAndClassRoomTeacherId(studentId, teacher.getId())
+                .stream()
+                .map(link -> link.getClassRoom().getName())
+                .distinct()
+                .sorted(String.CASE_INSENSITIVE_ORDER)
+                .toList();
+
+            return new TeacherStudentAccountDTO(
+                student.getId(),
+                student.getUsername(),
+                student.getEmail(),
+                student.isEnabled(),
+                classes
+            );
+            }
+
     @Override
     public List<TeacherStudentPerformanceDTO> getStudentPerformance(String teacherUsername) {
         Account teacher = getTeacherByUsername(teacherUsername);
@@ -350,5 +487,19 @@ public class TeacherServiceImpl implements TeacherService {
         if (quiz.getCreatedBy() == null || !quiz.getCreatedBy().getId().equals(teacher.getId())) {
             throw new CustomExceptions.BadRequestException("Cannot access quiz not owned by teacher");
         }
+    }
+
+    private TeacherQuestionBankItemDTO toQuestionBankItemDto(QuestionBankItem item) {
+        return new TeacherQuestionBankItemDTO(
+                item.getId(),
+                item.getPrompt(),
+                item.getOptionA(),
+                item.getOptionB(),
+                item.getOptionC(),
+                item.getOptionD(),
+                item.getCorrectOption(),
+                item.getExplanation(),
+                item.getCreatedAt()
+        );
     }
 }

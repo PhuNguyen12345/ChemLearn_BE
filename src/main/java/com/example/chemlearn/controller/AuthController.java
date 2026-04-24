@@ -4,6 +4,7 @@ import com.example.chemlearn.dtos.auth.AuthResponseDTO;
 import com.example.chemlearn.dtos.auth.LoginRequestDTO;
 import com.example.chemlearn.dtos.auth.RegisterRequestDTO;
 import com.example.chemlearn.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,7 +18,7 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequestDTO dto) {
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequestDTO dto) {
         authService.register(dto);
         return ResponseEntity.ok("Registered successfully");
     }

@@ -32,6 +32,16 @@ public interface TeacherService {
 
     List<QuizQuestion> getQuizQuestions(Long quizId, String teacherUsername);
 
+    List<TeacherQuestionBankItemDTO> getQuestionBank(String teacherUsername);
+
+    TeacherQuestionBankItemDTO createQuestionBankItem(TeacherQuestionBankRequestDTO dto, String teacherUsername);
+
+    TeacherQuestionBankItemDTO updateQuestionBankItem(Long bankQuestionId, TeacherQuestionBankRequestDTO dto, String teacherUsername);
+
+    void deleteQuestionBankItem(Long bankQuestionId, String teacherUsername);
+
+    QuizQuestion addQuestionFromBank(Long quizId, Long bankQuestionId, String teacherUsername);
+
     QuizQuestion createQuizQuestion(Long quizId, TeacherQuizQuestionRequestDTO dto, String teacherUsername);
 
     QuizQuestion updateQuizQuestion(Long questionId, TeacherQuizQuestionRequestDTO dto, String teacherUsername);
@@ -47,6 +57,10 @@ public interface TeacherService {
     void deleteAssignment(Long assignmentId, String teacherUsername);
 
     List<TeacherSubmissionDTO> getSubmissions(String teacherUsername);
+
+    List<TeacherClassInfoDTO> getAssignedClasses(String teacherUsername);
+
+    TeacherStudentAccountDTO getStudentAccount(Long studentId, String teacherUsername);
 
     List<TeacherStudentPerformanceDTO> getStudentPerformance(String teacherUsername);
 

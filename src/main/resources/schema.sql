@@ -53,6 +53,34 @@ CREATE TABLE IF NOT EXISTS quizzes (
     created_by BIGINT REFERENCES accounts(id)
 );
 
+CREATE TABLE IF NOT EXISTS classes (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(120) NOT NULL,
+    schedule VARCHAR(200),
+    description TEXT,
+    teacher_id BIGINT REFERENCES accounts(id)
+);
+
+CREATE TABLE IF NOT EXISTS class_students (
+    id BIGSERIAL PRIMARY KEY,
+    class_id BIGINT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    student_id BIGINT NOT NULL REFERENCES accounts(id),
+    UNIQUE (class_id, student_id)
+);
+
+CREATE TABLE IF NOT EXISTS question_bank_items (
+    id BIGSERIAL PRIMARY KEY,
+    created_by BIGINT NOT NULL REFERENCES accounts(id),
+    prompt TEXT NOT NULL,
+    option_a TEXT NOT NULL,
+    option_b TEXT NOT NULL,
+    option_c TEXT NOT NULL,
+    option_d TEXT NOT NULL,
+    correct_option VARCHAR(1) NOT NULL,
+    explanation TEXT,
+    created_at TIMESTAMP NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS quiz_questions (
     id BIGSERIAL PRIMARY KEY,
     quiz_id BIGINT NOT NULL REFERENCES quizzes(id),

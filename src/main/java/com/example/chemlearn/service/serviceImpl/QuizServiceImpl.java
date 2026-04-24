@@ -79,6 +79,19 @@ public class QuizServiceImpl implements QuizService {
         Account student = accountRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Student account not found"));
 
+        QuizAttempt activeAttempt = quizAttemptRepository
+            .findFirstByQuizIdAndStudentIdAndStatusOrderByStartedAtDesc(quizId, student.getId(), AttemptStatus.IN_PROGRESS)
+            .orElse(null);
+
+        if (activeAttempt != null) {
+            return new StartQuizAttemptResponseDTO(
+                activeAttempt.getId(),
+                quiz.getId(),
+                activeAttempt.getStatus(),
+                activeAttempt.getStartedAt()
+            );
+        }
+
         QuizAttempt attempt = new QuizAttempt();
         attempt.setQuiz(quiz);
         attempt.setStudent(student);
