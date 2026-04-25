@@ -6,6 +6,7 @@ import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
 
 import java.time.Instant;
+import java.util.*;
 import java.util.UUID;
 
 @Getter
@@ -34,5 +35,15 @@ public class Chapter {
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "created_at")
     private Instant createdAt;
+
+    @Column(name = "published")
+    private Boolean published;
+
+    @ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(name = "updated_at")
+    private Instant updatedAt;
+
+    @OneToMany(mappedBy = "chapter", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Lesson> lessons = new ArrayList<>();
 
 }

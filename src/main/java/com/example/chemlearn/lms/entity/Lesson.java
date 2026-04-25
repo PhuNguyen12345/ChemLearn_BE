@@ -9,6 +9,7 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.Instant;
+import java.util.*;
 import java.util.UUID;
 
 @Getter
@@ -55,8 +56,14 @@ public class Lesson {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    @Column(name = "published")
+    private Boolean published;
+
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "updated_at")
     private Instant updatedAt;
 
+    @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Question> questions = new ArrayList<>();
 }
+

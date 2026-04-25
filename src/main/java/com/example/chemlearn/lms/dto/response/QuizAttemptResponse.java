@@ -1,0 +1,27 @@
+package com.example.chemlearn.lms.dto.response;
+
+import com.example.chemlearn.lms.enums.AttemptStatus;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.UUID;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class QuizAttemptResponse {
+    private UUID id;
+    private UUID studentId;
+    private UUID quizId;
+    private UUID lessonId;
+    private AttemptStatus status;
+    private BigDecimal score;
+    private Integer totalQuestions;
+    private Integer correctAnswers;
+    private Instant startedAt;
+    private Instant submittedAt;
+}
+

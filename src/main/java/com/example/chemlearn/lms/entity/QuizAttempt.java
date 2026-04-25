@@ -61,4 +61,14 @@ public class QuizAttempt {
     @Column(name = "submitted_at")
     private Instant submittedAt;
 
+    @PrePersist
+    @PreUpdate
+    private void validateBelongsTo() {
+        boolean hasQuiz = quiz != null;
+        boolean hasLesson = lesson != null;
+        if ((hasQuiz && hasLesson) || (!hasQuiz && !hasLesson)) {
+            throw new IllegalArgumentException("QuizAttempt must belong to exactly one: Quiz OR Lesson");
+        }
+    }
+
 }
