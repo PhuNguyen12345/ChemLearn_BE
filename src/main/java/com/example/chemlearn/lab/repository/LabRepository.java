@@ -1,4 +1,9 @@
 package com.example.chemlearn.lab.repository;
 
-public interface LabRepository {
+import com.example.chemlearn.lab.entity.Lab;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.UUID;
+
+public interface LabRepository extends JpaRepository<Lab, UUID> {
 }
