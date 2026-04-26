@@ -1,6 +1,7 @@
 package com.example.chemlearn.lms.entity;
 
 import com.example.chemlearn.lab.entity.Lab;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -63,6 +64,7 @@ public class Lesson {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Question> questions = new ArrayList<>();
 }

@@ -11,51 +11,51 @@ public interface TeacherService {
 
     Chapter createChapter(TeacherChapterRequestDTO dto);
 
-    Chapter updateChapter(Long chapterId, TeacherChapterRequestDTO dto);
+    Chapter updateChapter(UUID chapterId, TeacherChapterRequestDTO dto);
 
-    void deleteChapter(Long chapterId);
+    void deleteChapter(UUID chapterId);
 
     List<Lesson> getLessons();
 
     Lesson createLesson(TeacherLessonRequestDTO dto);
 
-    Lesson updateLesson(Long lessonId, TeacherLessonRequestDTO dto);
+    Lesson updateLesson(UUID lessonId, TeacherLessonRequestDTO dto);
 
-    void deleteLesson(Long lessonId);
+    void deleteLesson(UUID lessonId);
 
     List<Quiz> getQuizzes(String teacherUsername);
 
     Quiz createQuiz(TeacherQuizRequestDTO dto, String teacherUsername);
 
-    Quiz updateQuiz(Long quizId, TeacherQuizRequestDTO dto, String teacherUsername);
+    Quiz updateQuiz(UUID quizId, TeacherQuizRequestDTO dto, String teacherUsername);
 
-    void deleteQuiz(Long quizId, String teacherUsername);
+    void deleteQuiz(UUID quizId, String teacherUsername);
 
-    List<QuizQuestion> getQuizQuestions(Long quizId, String teacherUsername);
+    List<QuizQuestion> getQuizQuestions(UUID quizId, String teacherUsername);
 
     List<TeacherQuestionBankItemDTO> getQuestionBank(String teacherUsername);
 
     TeacherQuestionBankItemDTO createQuestionBankItem(TeacherQuestionBankRequestDTO dto, String teacherUsername);
 
-    TeacherQuestionBankItemDTO updateQuestionBankItem(Long bankQuestionId, TeacherQuestionBankRequestDTO dto, String teacherUsername);
+    TeacherQuestionBankItemDTO updateQuestionBankItem(UUID bankQuestionId, TeacherQuestionBankRequestDTO dto, String teacherUsername);
 
-    void deleteQuestionBankItem(Long bankQuestionId, String teacherUsername);
+    void deleteQuestionBankItem(UUID bankQuestionId, String teacherUsername);
 
-    QuizQuestion addQuestionFromBank(Long quizId, Long bankQuestionId, String teacherUsername);
+    QuizQuestion addQuestionFromBank(UUID quizId, UUID bankQuestionId, String teacherUsername);
 
-    QuizQuestion createQuizQuestion(Long quizId, TeacherQuizQuestionRequestDTO dto, String teacherUsername);
+    QuizQuestion createQuizQuestion(UUID quizId, TeacherQuizQuestionRequestDTO dto, String teacherUsername);
 
-    QuizQuestion updateQuizQuestion(Long questionId, TeacherQuizQuestionRequestDTO dto, String teacherUsername);
+    QuizQuestion updateQuizQuestion(UUID questionId, TeacherQuizQuestionRequestDTO dto, String teacherUsername);
 
-    void deleteQuizQuestion(Long questionId, String teacherUsername);
+    void deleteQuizQuestion(UUID questionId, String teacherUsername);
 
     List<Assignment> getAssignments(String teacherUsername);
 
     Assignment createAssignment(TeacherAssignmentRequestDTO dto, String teacherUsername);
 
-    Assignment updateAssignment(Long assignmentId, TeacherAssignmentRequestDTO dto, String teacherUsername);
+    Assignment updateAssignment(UUID assignmentId, TeacherAssignmentRequestDTO dto, String teacherUsername);
 
-    void deleteAssignment(Long assignmentId, String teacherUsername);
+    void deleteAssignment(UUID assignmentId, String teacherUsername);
 
     List<TeacherSubmissionDTO> getSubmissions(String teacherUsername);
 

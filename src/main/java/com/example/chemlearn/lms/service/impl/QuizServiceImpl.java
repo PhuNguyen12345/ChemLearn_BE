@@ -103,6 +103,9 @@ public class QuizServiceImpl implements QuizService {
         attempt.setQuiz(quiz);
         attempt.setStudent(student);
         attempt.setStatus(AttemptStatus.IN_PROGRESS);
+        attempt.setScore(BigDecimal.ZERO);
+        attempt.setTotalQuestions(0);
+        attempt.setCorrectAnswers(0);
         attempt.setStartedAt(Instant.now());
         quizAttemptRepository.save(attempt);
 

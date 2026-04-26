@@ -17,6 +17,8 @@ public interface AccountService {
 
     AccountResponseDTO update(UUID id, UpdateAccountDTO dto);
 
+    AccountResponseDTO deactivate(UUID id);
+
     void delete(UUID id);
 }
 

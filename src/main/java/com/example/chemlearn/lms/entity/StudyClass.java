@@ -25,6 +25,12 @@ public class StudyClass {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
+    @Column(name = "schedule", length = 200)
+    private String schedule;
+
+    @Column(name = "description", length = Integer.MAX_VALUE)
+    private String description;
+
     @Column(name = "grade_level", nullable = false)
     private Integer gradeLevel;
 

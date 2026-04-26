@@ -31,12 +31,12 @@ public class TeacherController {
     }
 
     @PutMapping("/chapters/{chapterId}")
-    public Chapter updateChapter(@PathVariable Long chapterId, @Valid @RequestBody TeacherChapterRequestDTO dto) {
+    public Chapter updateChapter(@PathVariable UUID chapterId, @Valid @RequestBody TeacherChapterRequestDTO dto) {
         return teacherService.updateChapter(chapterId, dto);
     }
 
     @DeleteMapping("/chapters/{chapterId}")
-    public void deleteChapter(@PathVariable Long chapterId) {
+    public void deleteChapter(@PathVariable UUID chapterId) {
         teacherService.deleteChapter(chapterId);
     }
 
@@ -51,12 +51,12 @@ public class TeacherController {
     }
 
     @PutMapping("/lessons/{lessonId}")
-    public Lesson updateLesson(@PathVariable Long lessonId, @Valid @RequestBody TeacherLessonRequestDTO dto) {
+    public Lesson updateLesson(@PathVariable UUID lessonId, @Valid @RequestBody TeacherLessonRequestDTO dto) {
         return teacherService.updateLesson(lessonId, dto);
     }
 
     @DeleteMapping("/lessons/{lessonId}")
-    public void deleteLesson(@PathVariable Long lessonId) {
+    public void deleteLesson(@PathVariable UUID lessonId) {
         teacherService.deleteLesson(lessonId);
     }
 
@@ -71,17 +71,17 @@ public class TeacherController {
     }
 
     @PutMapping("/quizzes/{quizId}")
-    public Quiz updateQuiz(@PathVariable Long quizId, @Valid @RequestBody TeacherQuizRequestDTO dto, Authentication authentication) {
+    public Quiz updateQuiz(@PathVariable UUID quizId, @Valid @RequestBody TeacherQuizRequestDTO dto, Authentication authentication) {
         return teacherService.updateQuiz(quizId, dto, authentication.getName());
     }
 
     @DeleteMapping("/quizzes/{quizId}")
-    public void deleteQuiz(@PathVariable Long quizId, Authentication authentication) {
+    public void deleteQuiz(@PathVariable UUID quizId, Authentication authentication) {
         teacherService.deleteQuiz(quizId, authentication.getName());
     }
 
     @GetMapping("/quizzes/{quizId}/questions")
-    public List<QuizQuestion> getQuizQuestions(@PathVariable Long quizId, Authentication authentication) {
+    public List<QuizQuestion> getQuizQuestions(@PathVariable UUID quizId, Authentication authentication) {
         return teacherService.getQuizQuestions(quizId, authentication.getName());
     }
 
@@ -97,40 +97,40 @@ public class TeacherController {
     }
 
     @PutMapping("/question-bank/{bankQuestionId}")
-    public TeacherQuestionBankItemDTO updateQuestionBankItem(@PathVariable Long bankQuestionId,
+    public TeacherQuestionBankItemDTO updateQuestionBankItem(@PathVariable UUID bankQuestionId,
                                                              @Valid @RequestBody TeacherQuestionBankRequestDTO dto,
                                                              Authentication authentication) {
         return teacherService.updateQuestionBankItem(bankQuestionId, dto, authentication.getName());
     }
 
     @DeleteMapping("/question-bank/{bankQuestionId}")
-    public void deleteQuestionBankItem(@PathVariable Long bankQuestionId, Authentication authentication) {
+    public void deleteQuestionBankItem(@PathVariable UUID bankQuestionId, Authentication authentication) {
         teacherService.deleteQuestionBankItem(bankQuestionId, authentication.getName());
     }
 
     @PostMapping("/quizzes/{quizId}/questions/from-bank/{bankQuestionId}")
-    public QuizQuestion addQuestionFromBank(@PathVariable Long quizId,
-                                            @PathVariable Long bankQuestionId,
+    public QuizQuestion addQuestionFromBank(@PathVariable UUID quizId,
+                                            @PathVariable UUID bankQuestionId,
                                             Authentication authentication) {
         return teacherService.addQuestionFromBank(quizId, bankQuestionId, authentication.getName());
     }
 
     @PostMapping("/quizzes/{quizId}/questions")
-    public QuizQuestion createQuizQuestion(@PathVariable Long quizId,
+    public QuizQuestion createQuizQuestion(@PathVariable UUID quizId,
                                            @Valid @RequestBody TeacherQuizQuestionRequestDTO dto,
                                            Authentication authentication) {
         return teacherService.createQuizQuestion(quizId, dto, authentication.getName());
     }
 
     @PutMapping("/quiz-questions/{questionId}")
-    public QuizQuestion updateQuizQuestion(@PathVariable Long questionId,
+    public QuizQuestion updateQuizQuestion(@PathVariable UUID questionId,
                                            @Valid @RequestBody TeacherQuizQuestionRequestDTO dto,
                                            Authentication authentication) {
         return teacherService.updateQuizQuestion(questionId, dto, authentication.getName());
     }
 
     @DeleteMapping("/quiz-questions/{questionId}")
-    public void deleteQuizQuestion(@PathVariable Long questionId, Authentication authentication) {
+    public void deleteQuizQuestion(@PathVariable UUID questionId, Authentication authentication) {
         teacherService.deleteQuizQuestion(questionId, authentication.getName());
     }
 
@@ -145,14 +145,14 @@ public class TeacherController {
     }
 
     @PutMapping("/assignments/{assignmentId}")
-    public Assignment updateAssignment(@PathVariable Long assignmentId,
+    public Assignment updateAssignment(@PathVariable UUID assignmentId,
                                        @Valid @RequestBody TeacherAssignmentRequestDTO dto,
                                        Authentication authentication) {
         return teacherService.updateAssignment(assignmentId, dto, authentication.getName());
     }
 
     @DeleteMapping("/assignments/{assignmentId}")
-    public void deleteAssignment(@PathVariable Long assignmentId, Authentication authentication) {
+    public void deleteAssignment(@PathVariable UUID assignmentId, Authentication authentication) {
         teacherService.deleteAssignment(assignmentId, authentication.getName());
     }
 

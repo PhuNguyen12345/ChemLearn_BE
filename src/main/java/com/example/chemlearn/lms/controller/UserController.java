@@ -6,7 +6,6 @@ import com.example.chemlearn.lms.dto.core.UpdateAccountDTO;
 import com.example.chemlearn.lms.service.AccountService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -15,10 +14,10 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/accounts")
+@RequestMapping("/api/users")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor()
-public class AccountController {
+public class UserController {
 
     private final AccountService service;
 
@@ -43,6 +42,11 @@ public class AccountController {
             @PathVariable UUID id,
             @Valid @RequestBody UpdateAccountDTO dto) {
         return service.update(id, dto);
+    }
+
+    @PatchMapping("/{id}/deactivate")
+    public AccountResponseDTO deactivate(@PathVariable UUID id) {
+        return service.deactivate(id);
     }
 
     @DeleteMapping("/{id}")

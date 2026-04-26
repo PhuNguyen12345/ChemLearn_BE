@@ -10,6 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/classes")
@@ -30,12 +31,12 @@ public class AdminClassController {
     }
 
     @PutMapping("/{classId}")
-    public AdminClassResponseDTO updateClass(@PathVariable Long classId, @Valid @RequestBody AdminClassRequestDTO dto) {
+    public AdminClassResponseDTO updateClass(@PathVariable UUID classId, @Valid @RequestBody AdminClassRequestDTO dto) {
         return adminClassService.updateClass(classId, dto);
     }
 
     @DeleteMapping("/{classId}")
-    public ResponseEntity<Void> deleteClass(@PathVariable Long classId) {
+    public ResponseEntity<Void> deleteClass(@PathVariable UUID classId) {
         adminClassService.deleteClass(classId);
         return ResponseEntity.noContent().build();
     }

@@ -1,6 +1,5 @@
 package com.example.chemlearn.lms.dto.teacher;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
@@ -19,7 +18,6 @@ public class TeacherAssignmentRequestDTO {
     @NotNull
     private UUID studentId;
 
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
     private Instant dueAt;
 }
 

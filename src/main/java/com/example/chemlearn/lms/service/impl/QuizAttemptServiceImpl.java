@@ -22,6 +22,15 @@ public class QuizAttemptServiceImpl implements QuizAttemptService {
         if (attempt.getStatus() == null) {
             attempt.setStatus(AttemptStatus.IN_PROGRESS);
         }
+        if (attempt.getScore() == null) {
+            attempt.setScore(java.math.BigDecimal.ZERO);
+        }
+        if (attempt.getTotalQuestions() == null) {
+            attempt.setTotalQuestions(0);
+        }
+        if (attempt.getCorrectAnswers() == null) {
+            attempt.setCorrectAnswers(0);
+        }
         return quizAttemptRepository.save(attempt);
     }
 
