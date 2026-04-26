@@ -1,13 +1,15 @@
 package com.example.chemlearn.lms.service.impl;
 
-import com.example.chemlearn.core.entity.Account;
+import com.example.chemlearn.core.entity.User;
+import com.example.chemlearn.core.enums.UserRole;
 import com.example.chemlearn.lms.dto.core.AccountResponseDTO;
 import com.example.chemlearn.lms.dto.core.CreateAccountDTO;
 import com.example.chemlearn.lms.dto.core.UpdateAccountDTO;
-import com.example.chemlearn.lms.enums.AccountRole;
 import com.example.chemlearn.lms.exception.CustomExceptions;
-import com.example.chemlearn.lms.repository.AccountRepository;
+import com.example.chemlearn.lms.repository.UserRepository;
 import com.example.chemlearn.lms.service.AccountService;
+
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,7 +21,7 @@ import static com.example.chemlearn.util.PasswordUtil.hash;
 @Service
 @RequiredArgsConstructor
 public class AccountServiceImpl implements AccountService {
-    private final AccountRepository repo;
+    private final UserRepository repo;
 
     @Override
     public List<AccountResponseDTO> findAll() {
@@ -28,9 +30,9 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     public AccountResponseDTO findById(UUID id) {
-        Account acc = repo.findById(id)
+        User user = repo.findById(id)
                 .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Account not found"));
-        return new AccountResponseDTO(acc);
+        return new AccountResponseDTO(user);
     }
 
     @Override
@@ -38,25 +40,36 @@ public class AccountServiceImpl implements AccountService {
         if (repo.existsByUsername(dto.getUsername())) {
             throw new CustomExceptions.BadRequestException("Username already exists");
         }
-        Account acc = new Account();
-        acc.setUsername(dto.getUsername());
-        acc.setEmail(dto.getEmail());
-        acc.setPassword(hash(dto.getPassword()));
-        acc.setRole(dto.getRole() != null ? dto.getRole() : AccountRole.ROLE_STUDENT);
-        acc.setEnabled(true);
-        return new AccountResponseDTO(repo.save(acc));
+        User user = new User();
+        user.setUsername(dto.getUsername());
+        user.setEmail(dto.getEmail());
+        user.setFullName(dto.getFullName());
+        user.setPassword(hash(dto.getPassword()));
+
+        //TODO: auto assign a pfp for newly created user
+        user.setAvatarUrl(null);
+
+        user.setRole(dto.getRole() != null ? dto.getRole() : UserRole.ROLE_STUDENT);
+        user.setCreatedAt(Instant.now());
+        user.setUpdatedAt(null);
+
+        user.setIsActive(true);
+        return new AccountResponseDTO(repo.save(user));
     }
 
     @Override
     public AccountResponseDTO update(UUID id, UpdateAccountDTO dto) {
-        Account acc = repo.findById(id)
+        User user = repo.findById(id)
                 .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Account not found"));
-        if (dto.getUsername() != null) acc.setUsername(dto.getUsername());
-        if (dto.getEmail() != null) acc.setEmail(dto.getEmail());
-        if (dto.getPassword() != null) acc.setPassword(hash(dto.getPassword()));
-        if (dto.getEnabled() != null) acc.setEnabled(dto.getEnabled());
-        if (dto.getRole() != null) acc.setRole(dto.getRole());
-        return new AccountResponseDTO(repo.save(acc));
+        if (dto.getUsername() != null) user.setUsername(dto.getUsername());
+        if (dto.getEmail() != null) user.setEmail(dto.getEmail());
+        if (dto.getPassword() != null) user.setPassword(hash(dto.getPassword()));
+        if (dto.getFullName() != null) user.setFullName(dto.getFullName());
+        if (dto.getEnabled() != null) user.setIsActive(dto.getEnabled());
+        if (dto.getAvatarUrl() != null) user.setAvatarUrl(dto.getAvatarUrl());
+        if (dto.getRole() != null) user.setRole(dto.getRole());
+        user.setUpdatedAt(Instant.now());
+        return new AccountResponseDTO(repo.save(user));
     }
 
     @Override

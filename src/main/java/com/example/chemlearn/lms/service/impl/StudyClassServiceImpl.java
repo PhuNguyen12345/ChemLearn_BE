@@ -7,13 +7,15 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class StudyClassServiceImpl implements StudyClassService {
-    @Autowired
-    private StudyClassRepository studyClassRepository;
+    private final StudyClassRepository studyClassRepository;
 
     @Override
     public StudyClass create(StudyClass studyClass) {

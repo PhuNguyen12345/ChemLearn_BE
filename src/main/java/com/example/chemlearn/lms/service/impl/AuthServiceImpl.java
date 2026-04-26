@@ -1,15 +1,17 @@
 package com.example.chemlearn.lms.service.impl;
 
-import com.example.chemlearn.core.entity.Account;
+import com.example.chemlearn.core.entity.User;
+import com.example.chemlearn.core.enums.UserRole;
 import com.example.chemlearn.lms.dto.core.auth.AuthResponseDTO;
 import com.example.chemlearn.lms.dto.core.auth.LoginRequestDTO;
 import com.example.chemlearn.lms.dto.core.auth.RegisterRequestDTO;
-import com.example.chemlearn.lms.enums.AccountRole;
-import com.example.chemlearn.lms.repository.AccountRepository;
+import com.example.chemlearn.lms.repository.UserRepository;
 import com.example.chemlearn.lms.service.AuthService;
 import com.example.chemlearn.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.time.Instant;
 
 import static com.example.chemlearn.util.PasswordUtil.hash;
 import static com.example.chemlearn.util.PasswordUtil.matches;
@@ -17,7 +19,7 @@ import static com.example.chemlearn.util.PasswordUtil.matches;
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
-    private final AccountRepository repo;
+    private final UserRepository repo;
     private final JwtUtil jwtUtil;
 
     @Override
@@ -28,17 +30,24 @@ public class AuthServiceImpl implements AuthService {
         if (repo.existsByEmail(dto.getEmail())) {
             throw new RuntimeException("Email exists");
         }
-        Account acc = new Account();
-        acc.setEmail(dto.getEmail());
-        acc.setUsername(dto.getUsername());
-        acc.setPassword(hash(dto.getPassword()));
-        acc.setRole(AccountRole.ROLE_STUDENT);
-        repo.save(acc);
+        User user = new User();
+        user.setEmail(dto.getEmail());
+        user.setUsername(dto.getUsername());
+        user.setPassword(hash(dto.getPassword()));
+        String fullName = dto.getFullName() == null ? null : dto.getFullName().trim();
+        user.setFullName((fullName == null || fullName.isBlank()) ? dto.getUsername() : fullName);
+        user.setRole(UserRole.ROLE_STUDENT);
+        user.setCreatedAt(Instant.now());
+        user.setUpdatedAt(Instant.now());
+        user.setIsActive(true);
+        //TODO: auto assign avatar
+        user.setAvatarUrl(null);
+        repo.save(user);
     }
 
     @Override
     public AuthResponseDTO login(LoginRequestDTO dto) {
-        Account acc = repo.findByUsername(dto.getUsername())
+        User acc = repo.findByUsername(dto.getUsername())
                 .orElseThrow(() -> new RuntimeException("Invalid credentials"));
         if (!matches(dto.getPassword(), acc.getPassword())) {
             throw new RuntimeException("Invalid credentials");

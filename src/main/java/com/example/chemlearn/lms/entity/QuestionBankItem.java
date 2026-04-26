@@ -1,5 +1,6 @@
 package com.example.chemlearn.lms.entity;
 
+import com.example.chemlearn.core.entity.User;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -8,8 +9,6 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
-
-import com.example.chemlearn.core.entity.Account;
 
 @Entity
 @Getter
@@ -24,7 +23,7 @@ public class QuestionBankItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     @JsonIgnore
-    private Account createdBy;
+    private User createdBy;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String prompt;

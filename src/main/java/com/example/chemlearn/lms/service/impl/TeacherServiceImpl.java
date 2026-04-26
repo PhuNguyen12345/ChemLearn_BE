@@ -1,6 +1,5 @@
 package com.example.chemlearn.lms.service.impl;
 
-import com.example.chemlearn.core.entity.Account;
 import com.example.chemlearn.lms.dto.teacher.TeacherAssignmentRequestDTO;
 import com.example.chemlearn.lms.dto.teacher.TeacherChapterRequestDTO;
 import com.example.chemlearn.lms.dto.teacher.TeacherClassInfoDTO;
@@ -15,13 +14,10 @@ import com.example.chemlearn.lms.dto.teacher.TeacherStudentPerformanceDTO;
 import com.example.chemlearn.lms.dto.teacher.TeacherSubmissionDTO;
 import com.example.chemlearn.lms.entity.Assignment;
 import com.example.chemlearn.lms.entity.Chapter;
-import com.example.chemlearn.lms.entity.ClassStudentLink;
 import com.example.chemlearn.lms.entity.Lesson;
-import com.example.chemlearn.lms.entity.QuestionBankItem;
 import com.example.chemlearn.lms.entity.Quiz;
-import com.example.chemlearn.lms.entity.QuizAttempt;
 import com.example.chemlearn.lms.entity.QuizQuestion;
-import com.example.chemlearn.lms.repository.AccountRepository;
+import com.example.chemlearn.lms.repository.UserRepository;
 import com.example.chemlearn.lms.repository.AssignmentRepository;
 import com.example.chemlearn.lms.repository.ChapterRepository;
 import com.example.chemlearn.lms.repository.ClassStudentLinkRepository;
@@ -46,7 +42,7 @@ public class TeacherServiceImpl implements TeacherService {
     private final QuizQuestionRepository quizQuestionRepository;
     private final AssignmentRepository assignmentRepository;
     private final QuizAttemptRepository quizAttemptRepository;
-    private final AccountRepository accountRepository;
+    private final UserRepository userRepository;
     private final QuestionBankItemRepository questionBankItemRepository;
     private final ClassStudentLinkRepository classStudentLinkRepository;
 

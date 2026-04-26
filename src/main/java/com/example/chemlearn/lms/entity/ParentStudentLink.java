@@ -2,13 +2,13 @@ package com.example.chemlearn.lms.entity;
 import com.example.chemlearn.core.entity.Student;
 import com.example.chemlearn.core.entity.Parent;
 
+import com.example.chemlearn.core.entity.User;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import com.example.chemlearn.core.entity.Account;
 
 import java.util.UUID;
 
@@ -28,11 +28,11 @@ public class ParentStudentLink {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_id", nullable = false)
     @JsonIgnore
-    private Account parent;
+    private User parent;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id", nullable = false)
     @JsonIgnore
-    private Account student;
+    private User student;
 }
 

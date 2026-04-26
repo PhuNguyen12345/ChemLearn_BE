@@ -1,6 +1,6 @@
 package com.example.chemlearn.lms.dto.core;
 
-import com.example.chemlearn.lms.enums.AccountRole;
+import com.example.chemlearn.core.enums.UserRole;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -14,6 +14,10 @@ public class CreateAccountDTO {
     @Size(min = 4, max = 30)
     private String username;
 
+    @Size(min = 3, max = 100)
+    @NotBlank
+    private String fullName;
+
     @Email
     @NotBlank
     private String email;
@@ -25,7 +29,7 @@ public class CreateAccountDTO {
     private String password;
 
     private Boolean enabled;
-    private AccountRole role;
+    private UserRole role;
 }
 
 

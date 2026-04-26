@@ -49,4 +49,22 @@ public class User {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
+    @Column(name = "is_active")
+    private Boolean isActive;
+
+    @PrePersist
+    private void prePersist() {
+        Instant now = Instant.now();
+        if (createdAt == null) createdAt = now;
+        if (updatedAt == null) updatedAt = now;
+        if (isActive == null) isActive = true;
+        if (fullName == null || fullName.isBlank()) fullName = username;
+    }
+
+    @PreUpdate
+    private void preUpdate() {
+        updatedAt = Instant.now();
+        if (isActive == null) isActive = true;
+    }
+
 }

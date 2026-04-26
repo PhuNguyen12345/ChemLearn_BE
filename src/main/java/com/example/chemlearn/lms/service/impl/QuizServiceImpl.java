@@ -1,7 +1,7 @@
 package com.example.chemlearn.lms.service.impl;
 
-import com.example.chemlearn.core.entity.Account;
 import com.example.chemlearn.core.entity.Student;
+import com.example.chemlearn.core.entity.User;
 import com.example.chemlearn.lms.dto.quiz.QuizAnswerDTO;
 import com.example.chemlearn.lms.dto.quiz.QuizDetailDTO;
 import com.example.chemlearn.lms.dto.quiz.QuizListItemDTO;
@@ -15,7 +15,7 @@ import com.example.chemlearn.lms.entity.QuizQuestion;
 import com.example.chemlearn.lms.enums.AttemptStatus;
 import com.example.chemlearn.lms.enums.QuizType;
 import com.example.chemlearn.lms.exception.CustomExceptions;
-import com.example.chemlearn.lms.repository.AccountRepository;
+import com.example.chemlearn.lms.repository.UserRepository;
 import com.example.chemlearn.lms.repository.AttemptAnswerRepository;
 import com.example.chemlearn.lms.repository.QuizAttemptRepository;
 import com.example.chemlearn.lms.repository.QuizQuestionRepository;
@@ -39,7 +39,7 @@ public class QuizServiceImpl implements QuizService {
     private final QuizQuestionRepository quizQuestionRepository;
     private final QuizAttemptRepository quizAttemptRepository;
     private final AttemptAnswerRepository attemptAnswerRepository;
-    private final AccountRepository accountRepository;
+    private final UserRepository userRepository;
 
     @Override
     public List<QuizListItemDTO> getFreeQuizzes() {
@@ -80,7 +80,7 @@ public class QuizServiceImpl implements QuizService {
     @Override
     @Transactional
     public StartQuizAttemptResponseDTO startAttempt(UUID quizId, String username) {
-        Account studentAccount = accountRepository.findByUsername(username)
+        User studentAccount = userRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Student account not found"));
         Quiz quiz = quizRepository.findByIdAndPublishedTrue(quizId)
                 .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Quiz not found"));
@@ -116,7 +116,7 @@ public class QuizServiceImpl implements QuizService {
     @Override
     @Transactional
     public QuizSubmitResponseDTO submitAttempt(UUID attemptId, QuizSubmitRequestDTO requestDTO, String username) {
-        Account studentAccount = accountRepository.findByUsername(username)
+        User studentAccount = userRepository.findByUsername(username)
                 .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Student account not found"));
         QuizAttempt attempt = quizAttemptRepository.findByIdAndStudentId(attemptId, studentAccount.getId())
                 .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Attempt not found"));

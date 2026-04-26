@@ -1,5 +1,6 @@
 package com.example.chemlearn.lms.entity;
 
+import com.example.chemlearn.core.entity.User;
 import com.example.chemlearn.lms.enums.AssignmentStatus;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
@@ -9,8 +10,6 @@ import lombok.Setter;
 
 import java.time.Instant;
 import java.util.UUID;
-
-import com.example.chemlearn.core.entity.Account;
 
 @Entity
 @Getter
@@ -33,12 +32,12 @@ public class Assignment {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "teacher_id", nullable = false)
     @JsonIgnore
-    private Account teacher;
+    private User teacher;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "student_id", nullable = false)
     @JsonIgnore
-    private Account student;
+    private User student;
 
     @Column(name = "due_at")
     private Instant dueAt;
