@@ -8,6 +8,7 @@ import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
+import java.util.*;
 import java.util.UUID;
 
 @Getter
@@ -45,4 +46,17 @@ public class Question {
     @Column(name = "order_index")
     private Integer orderIndex;
 
+    @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Answer> answers = new ArrayList<>();
+
+    @PrePersist
+    @PreUpdate
+    private void validateBelongsTo() {
+        boolean hasLesson = lesson != null;
+        boolean hasQuiz = quiz != null;
+        if ((hasLesson && hasQuiz) || (!hasLesson && !hasQuiz)) {
+            throw new IllegalArgumentException("Question must belong to exactly one: Lesson OR Quiz");
+        }
+    }
 }
+

@@ -46,4 +46,14 @@ public class StudyClassAssignment {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    @PrePersist
+    @PreUpdate
+    private void validateAssignmentTarget() {
+        boolean hasLab = lab != null;
+        boolean hasQuiz = quiz != null;
+        if ((hasLab && hasQuiz) || (!hasLab && !hasQuiz)) {
+            throw new IllegalArgumentException("StudyClassAssignment must target exactly one: Lab OR Quiz");
+        }
+    }
+
 }

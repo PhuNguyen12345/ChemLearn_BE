@@ -10,6 +10,7 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.Instant;
+import java.util.*;
 import java.util.UUID;
 
 @Getter
@@ -45,4 +46,9 @@ public class Quiz {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    @Column(name = "published")
+    private Boolean published;
+
+    @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Question> questions = new ArrayList<>();
 }

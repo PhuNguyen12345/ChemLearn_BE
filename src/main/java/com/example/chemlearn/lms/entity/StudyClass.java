@@ -9,6 +9,7 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.Instant;
+import java.util.*;
 import java.util.UUID;
 
 @Getter
@@ -23,6 +24,12 @@ public class StudyClass {
 
     @Column(name = "name", nullable = false, length = 100)
     private String name;
+
+    @Column(name = "schedule", length = 200)
+    private String schedule;
+
+    @Column(name = "description", length = Integer.MAX_VALUE)
+    private String description;
 
     @Column(name = "grade_level", nullable = false)
     private Integer gradeLevel;
@@ -40,4 +47,10 @@ public class StudyClass {
     @Column(name = "updated_at")
     private Instant updatedAt;
 
+    @OneToMany(mappedBy = "studyClassField", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<StudyClassEnrollment> enrollments = new ArrayList<>();
+
+    @OneToMany(mappedBy = "studyClassField", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<StudyClassAssignment> assignments = new ArrayList<>();
 }
+
