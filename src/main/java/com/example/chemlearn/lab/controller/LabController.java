@@ -11,7 +11,6 @@ import com.example.chemlearn.lab.service.LabService;
 import com.example.chemlearn.util.SecurityUtils;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 

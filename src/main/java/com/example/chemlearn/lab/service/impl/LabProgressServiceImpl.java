@@ -9,7 +9,6 @@ import com.example.chemlearn.lab.repository.LabRepository;
 import com.example.chemlearn.lab.repository.UserLabProgressRepository;
 import com.example.chemlearn.lab.service.LabProgressService;
 import com.example.chemlearn.lms.repository.StudentRepository;
-import com.example.chemlearn.lms.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,7 +44,7 @@ public class LabProgressServiceImpl implements LabProgressService {
         else {
             //get initial data
             workspaceData = defaultConfig.getInitialWorkspace();
-        };
+        }
         return LabPlayResponse.builder()
                 .labId(labId)
                 .title(lab.getTitle())
