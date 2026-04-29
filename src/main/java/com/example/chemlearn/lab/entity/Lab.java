@@ -59,4 +59,34 @@ public class Lab {
     @Column(name = "created_at")
     private Instant createdAt;
 
+    @Column(name = "author_id")
+    private UUID authorId;
+
+    @ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(name = "updated_at")
+    private Instant updatedAt;
+
+    @OneToOne(mappedBy = "lab", cascade = CascadeType.ALL)
+    private LabConfiguration labConfiguration;
+
+    @Override
+    public String toString() {
+        return "Lab{" +
+                "id=" + id +
+                ", title='" + title + '\'' +
+                ", description='" + description + '\'' +
+                ", category=" + category +
+                ", difficulty=" + difficulty +
+                ", type=" + type +
+                ", tag='" + tag + '\'' +
+                ", gradient='" + gradient + '\'' +
+                ", iconColor='" + iconColor + '\'' +
+                ", thumbnailUrl='" + thumbnailUrl + '\'' +
+                ", maxScore=" + maxScore +
+                ", createdAt=" + createdAt +
+                ", authorId=" + authorId +
+                ", updatedAt=" + updatedAt +
+                ", labConfiguration=" + labConfiguration +
+                '}';
+    }
 }

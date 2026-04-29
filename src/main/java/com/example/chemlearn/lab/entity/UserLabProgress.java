@@ -77,4 +77,23 @@ public class UserLabProgress {
     @Column(name = "last_edited_at")
     private Instant lastEditedAt;
 
+    @Override
+    public String toString() {
+        return "UserLabProgress{" +
+                "id=" + id +
+                ", student=" + student +
+                ", lab=" + lab +
+                ", status='" + status + '\'' +
+                ", progressPercent=" + progressPercent +
+                ", currentScore=" + currentScore +
+                ", completedActions=" + completedActions +
+                ", currentWorkspace=" + currentWorkspace +
+                ", viewport=" + viewport +
+                ", thumbnailUrl='" + thumbnailUrl + '\'' +
+                ", isFinished=" + isFinished +
+                ", startedAt=" + startedAt +
+                ", submittedAt=" + submittedAt +
+                ", lastEditedAt=" + lastEditedAt +
+                '}';
+    }
 }

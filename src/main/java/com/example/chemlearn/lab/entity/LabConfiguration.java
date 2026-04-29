@@ -22,9 +22,8 @@ public class LabConfiguration {
     @Column(name = "id", nullable = false)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "lab_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lab_id", referencedColumnName = "id", nullable = false, unique = true)
     private Lab lab;
 
     @Column(name = "config")
