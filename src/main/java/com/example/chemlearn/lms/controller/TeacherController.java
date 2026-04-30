@@ -20,9 +20,45 @@ public class TeacherController {
 
     private final TeacherService teacherService;
 
+    @GetMapping("/classes")
+    public List<TeacherClassInfoDTO> getAssignedClasses(Authentication authentication) {
+        return teacherService.getAssignedClasses(authentication.getName());
+    }
+
+    @PostMapping("/classes")
+    public TeacherClassInfoDTO createClass(@Valid @RequestBody TeacherClassRequestDTO dto, Authentication authentication) {
+        return teacherService.createClass(dto, authentication.getName());
+    }
+
+    @PutMapping("/classes/{classId}")
+    public TeacherClassInfoDTO updateClass(@PathVariable UUID classId,
+                                           @Valid @RequestBody TeacherClassRequestDTO dto,
+                                           Authentication authentication) {
+        return teacherService.updateClass(classId, dto, authentication.getName());
+    }
+
+    @DeleteMapping("/classes/{classId}")
+    public void deleteClass(@PathVariable UUID classId, Authentication authentication) {
+        teacherService.deleteClass(classId, authentication.getName());
+    }
+
     @GetMapping("/chapters")
     public List<Chapter> getChapters() {
         return teacherService.getChapters();
+    }
+
+    @PostMapping("/classes/{classId}/chapters/{chapterId}")
+    public void addChapterToClass(@PathVariable java.util.UUID classId,
+                                  @PathVariable java.util.UUID chapterId,
+                                  Authentication authentication) {
+        teacherService.addChapterToClass(classId, chapterId, authentication.getName());
+    }
+
+    @DeleteMapping("/classes/{classId}/chapters/{chapterId}")
+    public void removeChapterFromClass(@PathVariable java.util.UUID classId,
+                                       @PathVariable java.util.UUID chapterId,
+                                       Authentication authentication) {
+        teacherService.removeChapterFromClass(classId, chapterId, authentication.getName());
     }
 
     @PostMapping("/chapters")
@@ -159,11 +195,6 @@ public class TeacherController {
     @GetMapping("/submissions")
     public List<TeacherSubmissionDTO> getSubmissions(Authentication authentication) {
         return teacherService.getSubmissions(authentication.getName());
-    }
-
-    @GetMapping("/classes")
-    public List<TeacherClassInfoDTO> getAssignedClasses(Authentication authentication) {
-        return teacherService.getAssignedClasses(authentication.getName());
     }
 
     @GetMapping("/students/{studentId}")

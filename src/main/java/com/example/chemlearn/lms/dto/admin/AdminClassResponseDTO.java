@@ -13,6 +13,7 @@ public class AdminClassResponseDTO {
     private String name;
     private String schedule;
     private String description;
+    private String classCode;
     private TeacherBrief teacher;
     private List<StudentBrief> students;
 

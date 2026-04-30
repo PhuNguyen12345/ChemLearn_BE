@@ -48,4 +48,8 @@ public class Chapter {
     @OneToMany(mappedBy = "chapter", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Lesson> lessons = new ArrayList<>();
 
+    @JsonIgnore
+    @ManyToMany(mappedBy = "chapters")
+    private List<StudyClass> studyClasses = new ArrayList<>();
+
 }

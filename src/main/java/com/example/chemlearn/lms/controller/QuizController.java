@@ -20,13 +20,13 @@ public class QuizController {
     private final QuizService quizService;
 
     @GetMapping("/free")
-    public List<QuizListItemDTO> getFreeQuizzes() {
-        return quizService.getFreeQuizzes();
+    public List<QuizListItemDTO> getFreeQuizzes(Authentication authentication) {
+        return quizService.getFreeQuizzes(authentication.getName());
     }
 
     @GetMapping("/{quizId}")
-    public QuizDetailDTO getQuiz(@PathVariable UUID quizId) {
-        return quizService.getQuizDetail(quizId);
+    public QuizDetailDTO getQuiz(@PathVariable UUID quizId, Authentication authentication) {
+        return quizService.getQuizDetail(quizId, authentication.getName());
     }
 
     @PostMapping("/{quizId}/attempts")

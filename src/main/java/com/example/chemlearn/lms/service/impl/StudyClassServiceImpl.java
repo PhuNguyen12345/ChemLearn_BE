@@ -3,6 +3,7 @@ package com.example.chemlearn.lms.service.impl;
 import com.example.chemlearn.lms.entity.StudyClass;
 import com.example.chemlearn.lms.repository.StudyClassRepository;
 import com.example.chemlearn.lms.service.StudyClassService;
+import com.example.chemlearn.lms.service.StudyClassCodeGenerator;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -16,12 +17,16 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class StudyClassServiceImpl implements StudyClassService {
     private final StudyClassRepository studyClassRepository;
+    private final StudyClassCodeGenerator studyClassCodeGenerator;
 
     @Override
     public StudyClass create(StudyClass studyClass) {
         Instant now = Instant.now();
         studyClass.setCreatedAt(now);
         studyClass.setUpdatedAt(now);
+        if (studyClass.getClassCode() == null || studyClass.getClassCode().isBlank()) {
+            studyClass.setClassCode(studyClassCodeGenerator.generateUniqueCode());
+        }
         return studyClassRepository.save(studyClass);
     }
 

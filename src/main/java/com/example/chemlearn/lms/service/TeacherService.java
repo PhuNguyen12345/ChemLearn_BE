@@ -7,6 +7,14 @@ import java.util.List;
 import java.util.UUID;
 
 public interface TeacherService {
+    List<TeacherClassInfoDTO> getAssignedClasses(String teacherUsername);
+
+    TeacherClassInfoDTO createClass(TeacherClassRequestDTO dto, String teacherUsername);
+
+    TeacherClassInfoDTO updateClass(UUID classId, TeacherClassRequestDTO dto, String teacherUsername);
+
+    void deleteClass(UUID classId, String teacherUsername);
+
     List<Chapter> getChapters();
 
     Chapter createChapter(TeacherChapterRequestDTO dto);
@@ -59,12 +67,12 @@ public interface TeacherService {
 
     List<TeacherSubmissionDTO> getSubmissions(String teacherUsername);
 
-    List<TeacherClassInfoDTO> getAssignedClasses(String teacherUsername);
-
     TeacherStudentAccountDTO getStudentAccount(UUID studentId, String teacherUsername);
 
     List<TeacherStudentPerformanceDTO> getStudentPerformance(String teacherUsername);
 
     TeacherDashboardSummaryDTO getSummary(String teacherUsername);
+    void addChapterToClass(java.util.UUID classId, java.util.UUID chapterId, String teacherUsername);
+    void removeChapterFromClass(java.util.UUID classId, java.util.UUID chapterId, String teacherUsername);
 }
 

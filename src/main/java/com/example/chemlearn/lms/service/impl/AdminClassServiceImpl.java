@@ -11,6 +11,7 @@ import com.example.chemlearn.lms.repository.ClassStudentLinkRepository;
 import com.example.chemlearn.lms.repository.StudyClassRepository;
 import com.example.chemlearn.lms.repository.UserRepository;
 import com.example.chemlearn.lms.service.AdminClassService;
+import com.example.chemlearn.lms.service.StudyClassCodeGenerator;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ public class AdminClassServiceImpl implements AdminClassService {
     private final StudyClassRepository studyClassRepository;
     private final ClassStudentLinkRepository classStudentLinkRepository;
     private final UserRepository userRepository;
+    private final StudyClassCodeGenerator studyClassCodeGenerator;
     private final EntityManager entityManager;
 
     @Override
@@ -43,6 +45,7 @@ public class AdminClassServiceImpl implements AdminClassService {
     public AdminClassResponseDTO createClass(AdminClassRequestDTO dto) {
         StudyClass studyClass = new StudyClass();
         applyClassFields(studyClass, dto);
+        studyClass.setClassCode(studyClassCodeGenerator.generateUniqueCode());
         StudyClass saved = studyClassRepository.save(studyClass);
         syncStudents(saved, dto.getStudentIds());
         return toResponse(saved);
@@ -130,6 +133,7 @@ public class AdminClassServiceImpl implements AdminClassService {
                 studyClass.getName(),
             studyClass.getSchedule(),
             studyClass.getDescription(),
+                studyClass.getClassCode(),
                 teacherBrief,
                 students);
     }

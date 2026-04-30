@@ -6,12 +6,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface StudyClassAssignmentService {
-    StudyClassAssignment create(StudyClassAssignment assignment);
-    Optional<StudyClassAssignment> findById(UUID id);
-    List<StudyClassAssignment> findAll();
-    List<StudyClassAssignment> findByClassId(UUID classId);
-    List<StudyClassAssignment> findByQuizId(UUID quizId);
-    List<StudyClassAssignment> findByLabId(UUID labId);
-    StudyClassAssignment update(UUID id, StudyClassAssignment assignment);
-    void delete(UUID id);
+    StudyClassAssignment create(StudyClassAssignment assignment, String teacherUsername);
+    Optional<StudyClassAssignment> findById(UUID id, String teacherUsername);
+    List<StudyClassAssignment> findAll(String teacherUsername);
+    List<StudyClassAssignment> findByClassId(UUID classId, String teacherUsername);
+    List<StudyClassAssignment> findByQuizId(UUID quizId, String teacherUsername);
+    List<StudyClassAssignment> findByLabId(UUID labId, String teacherUsername);
+    StudyClassAssignment update(UUID id, StudyClassAssignment assignment, String teacherUsername);
+    void delete(UUID id, String teacherUsername);
 }

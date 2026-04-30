@@ -7,6 +7,8 @@ import com.example.chemlearn.lms.service.StudyClassAssignmentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,30 +18,42 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/lms/class-assignments")
 @CrossOrigin(origins = "*")
+@PreAuthorize("hasRole('TEACHER')")
 public class StudyClassAssignmentController {
 
     @Autowired
     private StudyClassAssignmentService assignmentService;
 
     @PostMapping
-    public ResponseEntity<StudyClassAssignmentResponse> create(@RequestBody StudyClassAssignmentRequest request) {
+    public ResponseEntity<StudyClassAssignmentResponse> create(@RequestBody StudyClassAssignmentRequest request,
+                                                               Authentication authentication) {
         StudyClassAssignment assignment = new StudyClassAssignment();
+        assignment.setStudyClassField(new com.example.chemlearn.lms.entity.StudyClass());
+        assignment.getStudyClassField().setId(request.getClassId());
         assignment.setTitle(request.getTitle());
+        if (request.getQuizId() != null) {
+            assignment.setQuiz(new com.example.chemlearn.lms.entity.Quiz());
+            assignment.getQuiz().setId(request.getQuizId());
+        }
+        if (request.getLabId() != null) {
+            assignment.setLab(new com.example.chemlearn.lab.entity.Lab());
+            assignment.getLab().setId(request.getLabId());
+        }
         assignment.setDueDate(request.getDueDate());
-        StudyClassAssignment created = assignmentService.create(assignment);
+        StudyClassAssignment created = assignmentService.create(assignment, authentication.getName());
         return ResponseEntity.status(HttpStatus.CREATED).body(mapToResponse(created));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<StudyClassAssignmentResponse> findById(@PathVariable UUID id) {
-        return assignmentService.findById(id)
+    public ResponseEntity<StudyClassAssignmentResponse> findById(@PathVariable UUID id, Authentication authentication) {
+        return assignmentService.findById(id, authentication.getName())
                 .map(assignment -> ResponseEntity.ok(mapToResponse(assignment)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping
-    public ResponseEntity<List<StudyClassAssignmentResponse>> findAll() {
-        List<StudyClassAssignmentResponse> assignments = assignmentService.findAll()
+    public ResponseEntity<List<StudyClassAssignmentResponse>> findAll(Authentication authentication) {
+        List<StudyClassAssignmentResponse> assignments = assignmentService.findAll(authentication.getName())
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -47,8 +61,8 @@ public class StudyClassAssignmentController {
     }
 
     @GetMapping("/class/{classId}")
-    public ResponseEntity<List<StudyClassAssignmentResponse>> findByClassId(@PathVariable UUID classId) {
-        List<StudyClassAssignmentResponse> assignments = assignmentService.findByClassId(classId)
+    public ResponseEntity<List<StudyClassAssignmentResponse>> findByClassId(@PathVariable UUID classId, Authentication authentication) {
+        List<StudyClassAssignmentResponse> assignments = assignmentService.findByClassId(classId, authentication.getName())
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -56,8 +70,8 @@ public class StudyClassAssignmentController {
     }
 
     @GetMapping("/quiz/{quizId}")
-    public ResponseEntity<List<StudyClassAssignmentResponse>> findByQuizId(@PathVariable UUID quizId) {
-        List<StudyClassAssignmentResponse> assignments = assignmentService.findByQuizId(quizId)
+    public ResponseEntity<List<StudyClassAssignmentResponse>> findByQuizId(@PathVariable UUID quizId, Authentication authentication) {
+        List<StudyClassAssignmentResponse> assignments = assignmentService.findByQuizId(quizId, authentication.getName())
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -65,8 +79,8 @@ public class StudyClassAssignmentController {
     }
 
     @GetMapping("/lab/{labId}")
-    public ResponseEntity<List<StudyClassAssignmentResponse>> findByLabId(@PathVariable UUID labId) {
-        List<StudyClassAssignmentResponse> assignments = assignmentService.findByLabId(labId)
+    public ResponseEntity<List<StudyClassAssignmentResponse>> findByLabId(@PathVariable UUID labId, Authentication authentication) {
+        List<StudyClassAssignmentResponse> assignments = assignmentService.findByLabId(labId, authentication.getName())
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -74,17 +88,29 @@ public class StudyClassAssignmentController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<StudyClassAssignmentResponse> update(@PathVariable UUID id, @RequestBody StudyClassAssignmentRequest request) {
+    public ResponseEntity<StudyClassAssignmentResponse> update(@PathVariable UUID id,
+                                                               @RequestBody StudyClassAssignmentRequest request,
+                                                               Authentication authentication) {
         StudyClassAssignment assignment = new StudyClassAssignment();
+        assignment.setStudyClassField(new com.example.chemlearn.lms.entity.StudyClass());
+        assignment.getStudyClassField().setId(request.getClassId());
         assignment.setTitle(request.getTitle());
+        if (request.getQuizId() != null) {
+            assignment.setQuiz(new com.example.chemlearn.lms.entity.Quiz());
+            assignment.getQuiz().setId(request.getQuizId());
+        }
+        if (request.getLabId() != null) {
+            assignment.setLab(new com.example.chemlearn.lab.entity.Lab());
+            assignment.getLab().setId(request.getLabId());
+        }
         assignment.setDueDate(request.getDueDate());
-        StudyClassAssignment updated = assignmentService.update(id, assignment);
+        StudyClassAssignment updated = assignmentService.update(id, assignment, authentication.getName());
         return ResponseEntity.ok(mapToResponse(updated));
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        assignmentService.delete(id);
+    public ResponseEntity<Void> delete(@PathVariable UUID id, Authentication authentication) {
+        assignmentService.delete(id, authentication.getName());
         return ResponseEntity.noContent().build();
     }
 

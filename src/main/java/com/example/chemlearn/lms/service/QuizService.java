@@ -6,9 +6,9 @@ import java.util.List;
 import java.util.UUID;
 
 public interface QuizService {
-    List<QuizListItemDTO> getFreeQuizzes();
+    List<QuizListItemDTO> getFreeQuizzes(String studentUsername);
 
-    QuizDetailDTO getQuizDetail(UUID quizId);
+    QuizDetailDTO getQuizDetail(UUID quizId, String studentUsername);
 
     StartQuizAttemptResponseDTO startAttempt(UUID quizId, String username);
 

@@ -83,6 +83,7 @@ public class StudyClassController {
         return new StudyClassResponse(
                 studyClass.getId(),
                 studyClass.getName(),
+            studyClass.getClassCode(),
                 studyClass.getGradeLevel(),
                 studyClass.getTeacher() != null ? studyClass.getTeacher().getId() : null,
                 studyClass.getCreatedAt(),

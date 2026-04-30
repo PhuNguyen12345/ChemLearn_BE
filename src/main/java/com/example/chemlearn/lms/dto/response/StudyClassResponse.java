@@ -13,6 +13,7 @@ import java.util.UUID;
 public class StudyClassResponse {
     private UUID id;
     private String name;
+    private String classCode;
     private Integer gradeLevel;
     private UUID teacherId;
     private Instant createdAt;

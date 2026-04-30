@@ -56,9 +56,16 @@ CREATE TABLE IF NOT EXISTS quizzes (
 CREATE TABLE IF NOT EXISTS classes (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(120) NOT NULL,
+    class_code VARCHAR(6) NOT NULL UNIQUE,
     schedule VARCHAR(200),
     description TEXT,
     teacher_id BIGINT REFERENCES accounts(id)
+);
+
+CREATE TABLE IF NOT EXISTS class_chapters (
+    class_id BIGINT NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    chapter_id BIGINT NOT NULL REFERENCES chapters(id) ON DELETE CASCADE,
+    PRIMARY KEY (class_id, chapter_id)
 );
 
 CREATE TABLE IF NOT EXISTS class_students (

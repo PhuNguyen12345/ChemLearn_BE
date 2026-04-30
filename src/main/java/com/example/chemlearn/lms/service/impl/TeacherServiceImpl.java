@@ -5,6 +5,7 @@ import com.example.chemlearn.core.entity.User;
 import com.example.chemlearn.core.enums.UserRole;
 import com.example.chemlearn.lms.dto.teacher.TeacherAssignmentRequestDTO;
 import com.example.chemlearn.lms.dto.teacher.TeacherChapterRequestDTO;
+import com.example.chemlearn.lms.dto.teacher.TeacherClassRequestDTO;
 import com.example.chemlearn.lms.dto.teacher.TeacherClassInfoDTO;
 import com.example.chemlearn.lms.dto.teacher.TeacherDashboardSummaryDTO;
 import com.example.chemlearn.lms.dto.teacher.TeacherLessonRequestDTO;
@@ -23,6 +24,7 @@ import com.example.chemlearn.lms.entity.QuestionBankItem;
 import com.example.chemlearn.lms.entity.Quiz;
 import com.example.chemlearn.lms.entity.QuizAttempt;
 import com.example.chemlearn.lms.entity.QuizQuestion;
+import com.example.chemlearn.lms.entity.StudyClass;
 import com.example.chemlearn.lms.repository.UserRepository;
 import com.example.chemlearn.lms.repository.AssignmentRepository;
 import com.example.chemlearn.lms.repository.ChapterRepository;
@@ -34,6 +36,7 @@ import com.example.chemlearn.lms.repository.QuizQuestionRepository;
 import com.example.chemlearn.lms.repository.QuizRepository;
 import com.example.chemlearn.lms.repository.StudyClassRepository;
 import com.example.chemlearn.lms.service.TeacherService;
+import com.example.chemlearn.lms.service.StudyClassCodeGenerator;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -61,7 +64,88 @@ public class TeacherServiceImpl implements TeacherService {
     private final QuestionBankItemRepository questionBankItemRepository;
     private final ClassStudentLinkRepository classStudentLinkRepository;
     private final StudyClassRepository studyClassRepository;
+    private final StudyClassCodeGenerator studyClassCodeGenerator;
     private final EntityManager entityManager;
+
+    @Override
+    public List<TeacherClassInfoDTO> getAssignedClasses(String teacherUsername) {
+        UUID teacherId = requireTeacherUser(teacherUsername).getId();
+
+        Map<UUID, List<TeacherClassInfoDTO.StudentBrief>> studentsByClassId = classStudentLinkRepository
+            .findByClassRoomTeacherIdOrderByClassRoomNameAsc(teacherId)
+            .stream()
+            .collect(java.util.stream.Collectors.groupingBy(
+                link -> link.getClassRoom().getId(),
+                LinkedHashMap::new,
+                java.util.stream.Collectors.mapping(
+                    link -> new TeacherClassInfoDTO.StudentBrief(
+                        link.getStudent().getId(),
+                        link.getStudent().getUsername(),
+                        link.getStudent().getEmail(),
+                        "/admin/users/" + link.getStudent().getId()),
+                    java.util.stream.Collectors.toList())
+            ));
+
+        return studyClassRepository.findByTeacherId(teacherId)
+            .stream()
+            .map(classRoom -> new TeacherClassInfoDTO(
+                classRoom.getId(),
+                classRoom.getName(),
+                classRoom.getSchedule(),
+                classRoom.getDescription(),
+                classRoom.getClassCode(),
+                studentsByClassId.getOrDefault(classRoom.getId(), List.of()),
+                (classRoom.getChapters() != null ? classRoom.getChapters() : List.<Chapter>of())
+                    .stream()
+                    .map(ch -> new com.example.chemlearn.lms.dto.response.ChapterResponse(
+                        ch.getId(),
+                        ch.getTitle(),
+                        ch.getDescription(),
+                        ch.getGradeLevel(),
+                        ch.getOrderIndex(),
+                        ch.getCreatedAt(),
+                        ch.getUpdatedAt()))
+                    .toList()))
+            .toList();
+    }
+
+    @Override
+    public TeacherClassInfoDTO createClass(TeacherClassRequestDTO dto, String teacherUsername) {
+        User teacherUser = requireTeacherUser(teacherUsername);
+        StudyClass studyClass = new StudyClass();
+        studyClass.setName(dto.getName());
+        studyClass.setSchedule(dto.getSchedule());
+        studyClass.setDescription(dto.getDescription());
+        studyClass.setGradeLevel(dto.getGradeLevel() == null ? 10 : dto.getGradeLevel());
+        studyClass.setClassCode(studyClassCodeGenerator.generateUniqueCode());
+        studyClass.setTeacher(entityManager.getReference(Teacher.class, teacherUser.getId()));
+        Instant now = Instant.now();
+        studyClass.setCreatedAt(now);
+        studyClass.setUpdatedAt(now);
+        return toTeacherClassInfo(studyClassRepository.save(studyClass));
+    }
+
+    @Override
+    public TeacherClassInfoDTO updateClass(UUID classId, TeacherClassRequestDTO dto, String teacherUsername) {
+        UUID teacherId = requireTeacherUser(teacherUsername).getId();
+        StudyClass studyClass = requireOwnedClass(classId, teacherId);
+        studyClass.setName(dto.getName());
+        studyClass.setSchedule(dto.getSchedule());
+        studyClass.setDescription(dto.getDescription());
+        if (dto.getGradeLevel() != null) {
+            studyClass.setGradeLevel(dto.getGradeLevel());
+        }
+        studyClass.setUpdatedAt(Instant.now());
+        return toTeacherClassInfo(studyClassRepository.save(studyClass));
+    }
+
+    @Override
+    public void deleteClass(UUID classId, String teacherUsername) {
+        UUID teacherId = requireTeacherUser(teacherUsername).getId();
+        StudyClass studyClass = requireOwnedClass(classId, teacherId);
+        classStudentLinkRepository.deleteByClassRoomId(classId);
+        studyClassRepository.delete(studyClass);
+    }
 
     @Override public List<Chapter> getChapters() { return chapterRepository.findAll(); }
 
@@ -313,6 +397,9 @@ public class TeacherServiceImpl implements TeacherService {
         Quiz quiz = requireOwnedQuiz(dto.getQuizId(), teacherId);
         User student = userRepository.findByIdAndRole(dto.getStudentId(), UserRole.ROLE_STUDENT)
                 .orElseThrow(() -> new RuntimeException("Student not found"));
+        if (!classStudentLinkRepository.existsByStudentIdAndClassRoomTeacherId(student.getId(), teacherId)) {
+            throw new RuntimeException("Student is not enrolled in one of your classes");
+        }
 
         Assignment assignment = new Assignment();
         assignment.setTitle(dto.getTitle());
@@ -335,6 +422,9 @@ public class TeacherServiceImpl implements TeacherService {
         Quiz quiz = requireOwnedQuiz(dto.getQuizId(), teacherId);
         User student = userRepository.findByIdAndRole(dto.getStudentId(), UserRole.ROLE_STUDENT)
                 .orElseThrow(() -> new RuntimeException("Student not found"));
+        if (!classStudentLinkRepository.existsByStudentIdAndClassRoomTeacherId(student.getId(), teacherId)) {
+            throw new RuntimeException("Student is not enrolled in one of your classes");
+        }
 
         assignment.setTitle(dto.getTitle());
         assignment.setQuiz(quiz);
@@ -367,36 +457,6 @@ public class TeacherServiceImpl implements TeacherService {
                 toIntScore(attempt.getScore()),
                 attempt.getStatus(),
                 attempt.getSubmittedAt()))
-            .toList();
-        }
-
-        @Override
-        public List<TeacherClassInfoDTO> getAssignedClasses(String teacherUsername) {
-        UUID teacherId = requireTeacherUser(teacherUsername).getId();
-
-        Map<UUID, List<TeacherClassInfoDTO.StudentBrief>> studentsByClassId = classStudentLinkRepository
-            .findByClassRoomTeacherIdOrderByClassRoomNameAsc(teacherId)
-            .stream()
-            .collect(java.util.stream.Collectors.groupingBy(
-                link -> link.getClassRoom().getId(),
-                LinkedHashMap::new,
-                java.util.stream.Collectors.mapping(
-                    link -> new TeacherClassInfoDTO.StudentBrief(
-                        link.getStudent().getId(),
-                        link.getStudent().getUsername(),
-                        link.getStudent().getEmail(),
-                        "/admin/users/" + link.getStudent().getId()),
-                    java.util.stream.Collectors.toList())
-            ));
-
-        return studyClassRepository.findByTeacherId(teacherId)
-            .stream()
-            .map(classRoom -> new TeacherClassInfoDTO(
-                classRoom.getId(),
-                classRoom.getName(),
-                classRoom.getSchedule(),
-                classRoom.getDescription(),
-                studentsByClassId.getOrDefault(classRoom.getId(), List.of())))
             .toList();
         }
 
@@ -519,6 +579,61 @@ public class TeacherServiceImpl implements TeacherService {
             throw new RuntimeException("You are not allowed to modify this quiz");
         }
         return quiz;
+    }
+
+    private StudyClass requireOwnedClass(UUID classId, UUID teacherId) {
+        StudyClass studyClass = studyClassRepository.findById(classId)
+                .orElseThrow(() -> new RuntimeException("Class not found"));
+        UUID ownerId = studyClass.getTeacher() == null ? null : studyClass.getTeacher().getId();
+        if (ownerId == null || !ownerId.equals(teacherId)) {
+            throw new RuntimeException("You are not allowed to modify this class");
+        }
+        return studyClass;
+    }
+
+    private TeacherClassInfoDTO toTeacherClassInfo(StudyClass studyClass) {
+        return new TeacherClassInfoDTO(
+                studyClass.getId(),
+                studyClass.getName(),
+                studyClass.getSchedule(),
+                studyClass.getDescription(),
+                studyClass.getClassCode(),
+            classStudentLinkRepository.findByClassRoomIdOrderByStudentUsernameAsc(studyClass.getId())
+                .stream()
+                .map(link -> new TeacherClassInfoDTO.StudentBrief(
+                    link.getStudent().getId(),
+                    link.getStudent().getUsername(),
+                    link.getStudent().getEmail(),
+                    "/admin/users/" + link.getStudent().getId()))
+                .toList(),
+            studyClass.getChapters() == null ? List.of() : studyClass.getChapters()
+                .stream()
+                .map(ch -> new com.example.chemlearn.lms.dto.response.ChapterResponse(
+                    ch.getId(), ch.getTitle(), ch.getDescription(), ch.getGradeLevel(), ch.getOrderIndex(), ch.getCreatedAt(), ch.getUpdatedAt()))
+                .toList());
+    }
+
+    @Override
+    public void addChapterToClass(java.util.UUID classId, java.util.UUID chapterId, String teacherUsername) {
+        java.util.UUID teacherId = requireTeacherUser(teacherUsername).getId();
+        StudyClass studyClass = requireOwnedClass(classId, teacherId);
+        Chapter chapter = chapterRepository.findById(chapterId)
+                .orElseThrow(() -> new RuntimeException("Chapter not found"));
+        if (!studyClass.getChapters().contains(chapter)) {
+            studyClass.getChapters().add(chapter);
+            studyClassRepository.save(studyClass);
+        }
+    }
+
+    @Override
+    public void removeChapterFromClass(java.util.UUID classId, java.util.UUID chapterId, String teacherUsername) {
+        java.util.UUID teacherId = requireTeacherUser(teacherUsername).getId();
+        StudyClass studyClass = requireOwnedClass(classId, teacherId);
+        Chapter chapter = chapterRepository.findById(chapterId)
+                .orElseThrow(() -> new RuntimeException("Chapter not found"));
+        if (studyClass.getChapters().removeIf(c -> c.getId().equals(chapter.getId()))) {
+            studyClassRepository.save(studyClass);
+        }
     }
 
     private TeacherQuestionBankItemDTO toQuestionBankDto(QuestionBankItem item) {

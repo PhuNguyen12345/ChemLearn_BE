@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.util.List;
+import com.example.chemlearn.lms.dto.response.ChapterResponse;
 import java.util.UUID;
 
 @Data
@@ -13,7 +14,9 @@ public class TeacherClassInfoDTO {
     private String name;
     private String schedule;
     private String description;
+    private String classCode;
     private List<StudentBrief> students;
+    private List<ChapterResponse> chapters;
 
     @Data
     @AllArgsConstructor

@@ -31,6 +31,9 @@ public class StudyClass {
     @Column(name = "description", length = Integer.MAX_VALUE)
     private String description;
 
+    @Column(name = "class_code", nullable = false, unique = true, length = 6)
+    private String classCode;
+
     @Column(name = "grade_level", nullable = false)
     private Integer gradeLevel;
 
@@ -52,5 +55,11 @@ public class StudyClass {
 
     @OneToMany(mappedBy = "studyClassField", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<StudyClassAssignment> assignments = new ArrayList<>();
+    
+    @ManyToMany
+    @JoinTable(name = "class_chapters",
+            joinColumns = @JoinColumn(name = "class_id"),
+            inverseJoinColumns = @JoinColumn(name = "chapter_id"))
+    private List<Chapter> chapters = new ArrayList<>();
 }
 

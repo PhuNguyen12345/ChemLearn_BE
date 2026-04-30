@@ -10,4 +10,5 @@ public interface ClassStudentLinkRepository extends JpaRepository<ClassStudentLi
     List<ClassStudentLink> findByStudentIdAndClassRoomTeacherId(UUID studentId, UUID teacherId);
     boolean existsByStudentIdAndClassRoomTeacherId(UUID studentId, UUID teacherId);
     void deleteByClassRoomId(UUID classId);
+    List<ClassStudentLink> findByStudentId(UUID studentId);
 }
