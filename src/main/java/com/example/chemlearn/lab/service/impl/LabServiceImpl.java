@@ -40,7 +40,10 @@ public class LabServiceImpl implements LabService {
         }
 
         else if (type == LabType.ASSIGNMENT) {
-            labPage = Page.empty();
+            if (!userRepository.existsById(authorId)) {
+                throw new RuntimeException("Không tìm thấy người dùng có id tương ứng.");
+            }
+            labPage = labRepository.findMyAssignmentLabs(authorId, keyword, category, pageable);
         }
         else {
             labPage = labRepository.findPremadeLabs(keyword, category, pageable);

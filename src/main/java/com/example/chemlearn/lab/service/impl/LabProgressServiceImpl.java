@@ -9,6 +9,7 @@ import com.example.chemlearn.lab.repository.LabRepository;
 import com.example.chemlearn.lab.repository.UserLabProgressRepository;
 import com.example.chemlearn.lab.service.LabProgressService;
 import com.example.chemlearn.lms.repository.StudentRepository;
+import com.example.chemlearn.lms.repository.StudyClassAssignmentRepository;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ public class LabProgressServiceImpl implements LabProgressService {
     private LabRepository labRepository;
     private UserLabProgressRepository labProgressRepository;
     private StudentRepository studentRepository;
+    private StudyClassAssignmentRepository studyClassAssignmentRepository;
 
     @Override
     public LabPlayResponse playLab(UUID labId, UUID studentId) {
@@ -78,6 +80,8 @@ public class LabProgressServiceImpl implements LabProgressService {
             progress.setIsFinished(false);
         }
 
+        progress.setStatus("IN_PROGRESS");
+
         //2. Update newest data to frontend
         progress.setCurrentWorkspace(request.getCurrentWorkspace());
         progress.setViewport(request.getViewport());
@@ -103,6 +107,11 @@ public class LabProgressServiceImpl implements LabProgressService {
             throw new RuntimeException("Bài thí nghiệm này đã được nộp trước đó.");
         }
 
+        //check if it is an assignment
+        if (!studyClassAssignmentRepository.isAssignment(labId, studentId)) {
+            throw new RuntimeException("Chỉ có bài tập mới có thể nộp.");
+        }
+
         //final logic
         progress.setIsFinished(true);
         progress.setStatus("COMPLETED");
@@ -120,11 +129,17 @@ public class LabProgressServiceImpl implements LabProgressService {
     @Override
     @Transactional
     public void resetLab(UUID studentId, UUID labId) {
-        boolean isExistProgress =  labProgressRepository.findByStudentIdAndLabId(studentId, labId).isPresent();
+        Optional<UserLabProgress> progressOpt = labProgressRepository.findByStudentIdAndLabId(studentId, labId);
         //Check if exist progress
-        if (!isExistProgress) {
+        if (progressOpt.isEmpty()) {
             throw new RuntimeException("Bạn chưa có tiến trình nào ở bài Lab này để xoá.");
         }
+        
+        UserLabProgress progress = progressOpt.get();
+        if (Boolean.TRUE.equals(progress.getIsFinished()) && studyClassAssignmentRepository.isAssignment(labId, studentId)) {
+            throw new RuntimeException("Bạn không thể làm lại bài tập đã nộp.");
+        }
+
         labProgressRepository.deleteByStudentIdAndLabId(studentId, labId);
     }
 }

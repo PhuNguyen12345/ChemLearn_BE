@@ -35,4 +35,18 @@ public interface LabRepository extends JpaRepository<Lab, UUID> {
             @Param("category") LabCategory category,
             Pageable pageable
     );
+
+    // ASSIGNMENT for particular user
+    @Query("SELECT DISTINCT l FROM Lab l " +
+           "JOIN StudyClassAssignment sca ON sca.lab = l " +
+           "JOIN StudyClassEnrollment sce ON sce.studyClassField = sca.studyClassField " +
+           "WHERE sce.student.id = :studentId " +
+           "AND (:keyword IS NULL OR LOWER(l.title) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "AND (:category IS NULL OR l.category = :category)")
+    Page<Lab> findMyAssignmentLabs(
+            @Param("studentId") UUID studentId,
+            @Param("keyword") String keyword,
+            @Param("category") LabCategory category,
+            Pageable pageable
+    );
 }
