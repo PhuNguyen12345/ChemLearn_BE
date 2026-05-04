@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -17,4 +18,9 @@ public class LabPlayResponse {
     private String type;
     private Object workspace;
     private Object config;
+    private Integer currentScore;
+    private Integer progressPercent;
+    private String status;
+    private Object viewport;
+    private List<String> completedActions;
 }

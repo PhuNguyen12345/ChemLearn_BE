@@ -16,5 +16,8 @@ public class SaveProgressRequest {
     // Viewport
     private Map<String, Object> viewport;
     //List of completed actions
-    private List<Map<String, Object>> completedActions;
+    private List<String> completedActions;
+    private Integer currentScore;
+    private Integer progressPercent;
+    private String status;
 }

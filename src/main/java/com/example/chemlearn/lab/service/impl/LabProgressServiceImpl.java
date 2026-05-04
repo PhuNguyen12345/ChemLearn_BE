@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 @Slf4j
@@ -39,9 +40,21 @@ public class LabProgressServiceImpl implements LabProgressService {
 
         //Merge logic to decide which workspace to enter
         Object workspaceData;
+        Object viewportData = null;
+        List<String> completedActions = null;
+        Integer currentScore = 0;
+        Integer progressPercent = 0;
+        String status = "UNCOMPLETED";
+
         //Check if request for continue progress
         if (progressOpt.isPresent()) {
-            workspaceData = progressOpt.get().getCurrentWorkspace();
+            UserLabProgress p = progressOpt.get();
+            workspaceData = p.getCurrentWorkspace();
+            viewportData = p.getViewport();
+            completedActions = p.getCompletedActions();
+            currentScore = p.getCurrentScore() != null ? p.getCurrentScore() : 0;
+            progressPercent = p.getProgressPercent() != null ? p.getProgressPercent() : 0;
+            status = p.getStatus() != null ? p.getStatus() : "UNCOMPLETED";
         }
         else {
             //get initial data
@@ -53,6 +66,11 @@ public class LabProgressServiceImpl implements LabProgressService {
                 .type(lab.getType().toString())
                 .workspace(workspaceData)
                 .config(defaultConfig.getConfig())
+                .currentScore(currentScore)
+                .progressPercent(progressPercent)
+                .status(status)
+                .viewport(viewportData)
+                .completedActions(completedActions)
                 .build();
     }
 
@@ -88,6 +106,16 @@ public class LabProgressServiceImpl implements LabProgressService {
 
         if (request.getCompletedActions() != null) {
             progress.setCompletedActions(request.getCompletedActions());
+        }
+
+        if (request.getCurrentScore() != null) {
+            progress.setCurrentScore(request.getCurrentScore());
+        }
+        if (request.getProgressPercent() != null) {
+            progress.setProgressPercent(request.getProgressPercent());
+        }
+        if (request.getStatus() != null) {
+            progress.setStatus(request.getStatus());
         }
 
         //set last edited time

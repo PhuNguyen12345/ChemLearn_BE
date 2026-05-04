@@ -49,7 +49,7 @@ public class UserLabProgress {
 
     @Column(name = "completed_actions")
     @JdbcTypeCode(SqlTypes.JSON)
-    private List<Map<String, Object>> completedActions;
+    private List<String> completedActions;
 
     @Column(name = "current_workspace")
     @JdbcTypeCode(SqlTypes.JSON)
