@@ -13,4 +13,10 @@ public class CustomExceptions {
         }
     }
 
+    public static class UnauthorizedException extends RuntimeException {
+        public UnauthorizedException(String msg) {
+            super(msg);
+        }
+    }
+
 }

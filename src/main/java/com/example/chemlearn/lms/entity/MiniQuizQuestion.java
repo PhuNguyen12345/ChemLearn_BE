@@ -6,6 +6,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import com.example.chemlearn.core.entity.User;
+
 import java.util.UUID;
 
 @Entity
@@ -43,4 +45,8 @@ public class MiniQuizQuestion {
 
     @Column(columnDefinition = "TEXT")
     private String explanation;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
+    private User createdBy;
 }
