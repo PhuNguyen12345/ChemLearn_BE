@@ -5,15 +5,17 @@ import com.example.chemlearn.core.enums.UserRole;
 import com.example.chemlearn.lms.dto.parent.ParentAssessmentDTO;
 import com.example.chemlearn.lms.dto.parent.ParentChildDTO;
 import com.example.chemlearn.lms.dto.parent.ParentChildPerformanceDTO;
-import com.example.chemlearn.lms.entity.Assignment;
+import com.example.chemlearn.lms.entity.ClassStudentLink;
 import com.example.chemlearn.lms.entity.ParentStudentLink;
 import com.example.chemlearn.lms.entity.QuizAttempt;
-import com.example.chemlearn.lms.enums.AssignmentStatus;
+import com.example.chemlearn.lms.entity.StudyClassAssignment;
+import com.example.chemlearn.lms.enums.AttemptStatus;
 import com.example.chemlearn.lms.exception.CustomExceptions;
 import com.example.chemlearn.lms.repository.UserRepository;
-import com.example.chemlearn.lms.repository.AssignmentRepository;
+import com.example.chemlearn.lms.repository.ClassStudentLinkRepository;
 import com.example.chemlearn.lms.repository.ParentStudentLinkRepository;
 import com.example.chemlearn.lms.repository.QuizAttemptRepository;
+import com.example.chemlearn.lms.repository.StudyClassAssignmentRepository;
 import com.example.chemlearn.lms.service.ParentService;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -30,7 +32,8 @@ public class ParentServiceImpl implements ParentService {
         private final UserRepository userRepository;
         private final ParentStudentLinkRepository parentStudentLinkRepository;
         private final QuizAttemptRepository quizAttemptRepository;
-        private final AssignmentRepository assignmentRepository;
+        private final ClassStudentLinkRepository classStudentLinkRepository;
+        private final StudyClassAssignmentRepository studyClassAssignmentRepository;
 
         @Override
         public List<ParentChildDTO> getChildren(String parentUsername) {
@@ -46,9 +49,24 @@ public class ParentServiceImpl implements ParentService {
         public ParentChildPerformanceDTO getChildPerformance(String parentUsername, UUID childId) {
             User child = getOwnedChild(parentUsername, childId);
                 List<QuizAttempt> attempts = quizAttemptRepository.findByStudentIdOrderByStartedAtDesc(child.getId());
-                List<Assignment> assignments = assignmentRepository.findByStudentIdOrderByIdDesc(child.getId());
+                                List<UUID> classIds = classStudentLinkRepository.findByStudentId(child.getId()).stream()
+                                                                .map(link -> link.getClassRoom().getId())
+                                                                .toList();
+                                List<StudyClassAssignment> assignments = classIds.isEmpty()
+                                                                ? List.of()
+                                                                : studyClassAssignmentRepository.findByStudyClassField_IdIn(classIds).stream()
+                                                                                                .filter(assignment -> assignment.getQuiz() != null)
+                                                                                                .toList();
+                                java.util.Set<UUID> completedQuizIds = attempts.stream()
+                                                                .filter(attempt -> attempt.getQuiz() != null)
+                                                                .filter(attempt -> attempt.getStatus() == AttemptStatus.COMPLETED
+                                                                                                || attempt.getStatus() == AttemptStatus.NEEDS_GRADING)
+                                                                .map(attempt -> attempt.getQuiz().getId())
+                                                                .collect(java.util.stream.Collectors.toSet());
                 int averageScore = attempts.isEmpty() ? 0 : (int) Math.round(attempts.stream().mapToInt(a -> a.getScore() == null ? 0 : a.getScore().intValue()).average().orElse(0));
-                long completedAssignments = assignments.stream().filter(a -> a.getStatus() == AssignmentStatus.SUBMITTED || a.getStatus() == AssignmentStatus.REVIEWED).count();
+                                long completedAssignments = assignments.stream()
+                                                                .filter(a -> a.getQuiz() != null && completedQuizIds.contains(a.getQuiz().getId()))
+                                                                .count();
                 return new ParentChildPerformanceDTO(child.getId(), child.getUsername(), attempts.size(), averageScore, (long) assignments.size(), completedAssignments);
         }
 
@@ -56,11 +74,36 @@ public class ParentServiceImpl implements ParentService {
         public List<ParentAssessmentDTO> getChildAssessments(String parentUsername, UUID childId) {
             User child = getOwnedChild(parentUsername, childId);
                 List<ParentAssessmentDTO> items = new ArrayList<>();
-                for (QuizAttempt attempt : quizAttemptRepository.findByStudentIdOrderByStartedAtDesc(child.getId())) {
+                List<QuizAttempt> attempts = quizAttemptRepository.findByStudentIdOrderByStartedAtDesc(child.getId());
+                for (QuizAttempt attempt : attempts) {
                         items.add(new ParentAssessmentDTO("QUIZ", attempt.getQuiz() == null ? null : attempt.getQuiz().getTitle(), attempt.getScore(), attempt.getStatus().name(), attempt.getSubmittedAt() != null ? attempt.getSubmittedAt() : attempt.getStartedAt()));
                 }
-                for (Assignment assignment : assignmentRepository.findByStudentIdOrderByIdDesc(child.getId())) {
-                        items.add(new ParentAssessmentDTO("ASSIGNMENT", assignment.getTitle(), null, assignment.getStatus().name(), assignment.getDueAt()));
+
+                List<UUID> classIds = classStudentLinkRepository.findByStudentId(child.getId()).stream()
+                                .map(ClassStudentLink::getClassRoom)
+                                .filter(java.util.Objects::nonNull)
+                                .map(classRoom -> classRoom.getId())
+                                .toList();
+                java.util.Set<UUID> completedQuizIds = attempts.stream()
+                                .filter(attempt -> attempt.getQuiz() != null)
+                                .filter(attempt -> attempt.getStatus() == AttemptStatus.COMPLETED
+                                                || attempt.getStatus() == AttemptStatus.NEEDS_GRADING)
+                                .map(attempt -> attempt.getQuiz().getId())
+                                .collect(java.util.stream.Collectors.toSet());
+
+                List<StudyClassAssignment> classAssignments = classIds.isEmpty()
+                                ? List.of()
+                                : studyClassAssignmentRepository.findByStudyClassField_IdIn(classIds);
+
+                for (StudyClassAssignment assignment : classAssignments) {
+                        if (assignment.getQuiz() == null) {
+                                continue;
+                        }
+
+                        String status = completedQuizIds.contains(assignment.getQuiz().getId())
+                                ? "COMPLETED"
+                                : (assignment.getDueDate() != null && assignment.getDueDate().isBefore(Instant.now()) ? "OVERDUE" : "ACTIVE");
+                        items.add(new ParentAssessmentDTO("ASSIGNMENT", assignment.getTitle(), null, status, assignment.getDueDate()));
                 }
                 items.sort((left, right) -> {
                         Instant leftDate = left.getDate();

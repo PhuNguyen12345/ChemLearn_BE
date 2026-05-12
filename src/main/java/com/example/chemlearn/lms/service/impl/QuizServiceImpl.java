@@ -10,11 +10,7 @@ import com.example.chemlearn.lms.dto.quiz.QuizQuestionDTO;
 import com.example.chemlearn.lms.dto.quiz.QuizSubmitRequestDTO;
 import com.example.chemlearn.lms.dto.quiz.QuizSubmitResponseDTO;
 import com.example.chemlearn.lms.dto.quiz.StartQuizAttemptResponseDTO;
-import com.example.chemlearn.lms.entity.Quiz;
-import com.example.chemlearn.lms.entity.QuizAttempt;
-import com.example.chemlearn.lms.entity.QuizQuestion;
-import com.example.chemlearn.lms.entity.ClassStudentLink;
-import com.example.chemlearn.lms.entity.StudyClassAssignment;
+import com.example.chemlearn.lms.entity.*;
 import com.example.chemlearn.lms.enums.AttemptStatus;
 import com.example.chemlearn.lms.enums.QuizType;
 import com.example.chemlearn.lms.exception.CustomExceptions;
@@ -28,10 +24,11 @@ import com.example.chemlearn.lms.repository.StudyClassAssignmentRepository;
 import com.example.chemlearn.lms.service.QuizService;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -51,8 +48,8 @@ public class QuizServiceImpl implements QuizService {
 
     @Override
         public List<QuizListItemDTO> getFreeQuizzes(String studentUsername) {
-                User studentUser = requireStudentUser(studentUsername);
-                return findVisibleQuizzes(studentUser.getId()).stream()
+            requireStudentUser(studentUsername);
+            return quizRepository.findByPublishedTrueAndQuizTypeOrderByIdAsc(QuizType.FREE).stream()
                 .map(quiz -> new QuizListItemDTO(
                         quiz.getId(),
                         quiz.getTitle(),
@@ -70,6 +67,7 @@ public class QuizServiceImpl implements QuizService {
         List<QuizQuestionDTO> questions = quizQuestionRepository.findByQuizIdOrderByDisplayOrderAsc(quizId).stream()
                 .map(question -> new QuizQuestionDTO(
                         question.getId(),
+                        question.getQuestionType(),
                         question.getPrompt(),
                         question.getOptionA(),
                         question.getOptionB(),
@@ -91,6 +89,17 @@ public class QuizServiceImpl implements QuizService {
     public StartQuizAttemptResponseDTO startAttempt(UUID quizId, String username) {
         User studentAccount = requireStudentUser(username);
         Quiz quiz = requireVisibleQuiz(quizId, studentAccount.getId());
+
+        if (isExamQuiz(quiz) && hasCompletedAttempt(quizId, studentAccount.getId())) {
+            throw new CustomExceptions.BadRequestException("This exam can only be submitted once");
+        }
+
+        if (isAssignmentQuiz(quiz)) {
+            Instant dueAt = resolveStudentQuizDueAt(quizId, studentAccount.getId());
+            if (dueAt != null && Instant.now().isAfter(dueAt)) {
+                throw new CustomExceptions.BadRequestException("This assignment is past the deadline");
+            }
+        }
 
         QuizAttempt activeAttempt = quizAttemptRepository
                 .findFirstByQuizIdAndStudentIdAndStatusOrderByStartedAtDesc(quizId, studentAccount.getId(), AttemptStatus.IN_PROGRESS)
@@ -133,23 +142,76 @@ public class QuizServiceImpl implements QuizService {
             throw new CustomExceptions.BadRequestException("Attempt is already submitted");
         }
 
+        Quiz quiz = attempt.getQuiz();
+        if (quiz != null && isAssignmentQuiz(quiz)) {
+            Instant dueAt = resolveStudentQuizDueAt(quiz.getId(), studentAccount.getId());
+            if (dueAt != null && Instant.now().isAfter(dueAt)) {
+                throw new CustomExceptions.BadRequestException("This assignment is past the deadline");
+            }
+        }
+
         List<QuizQuestion> quizQuestions = quizQuestionRepository.findByQuizIdOrderByDisplayOrderAsc(attempt.getQuiz().getId());
         Map<UUID, String> correctOptions = quizQuestions.stream()
                 .collect(Collectors.toMap(QuizQuestion::getId, question -> question.getCorrectOption().toUpperCase(), (left, right) -> right, HashMap::new));
 
+        Map<UUID, com.example.chemlearn.lms.enums.QuestionType> questionTypes = quizQuestions.stream()
+                .collect(Collectors.toMap(QuizQuestion::getId, QuizQuestion::getQuestionType, (left, right) -> right, HashMap::new));
+
         int total = quizQuestions.size();
         int correct = 0;
+        boolean hasEssay = false;
+
         for (QuizAnswerDTO answer : requestDTO.getAnswers()) {
-            String expected = correctOptions.get(answer.getQuestionId());
-            if (expected != null && expected.equalsIgnoreCase(answer.getSelectedOption())) {
-                correct++;
+            QuizQuestion quizQuestion = quizQuestions.stream()
+                .filter(q -> q.getId().equals(answer.getQuestionId()))
+                .findFirst()
+                .orElse(null);
+            
+            if (quizQuestion == null) continue;
+
+            AttemptAnswer attemptAnswer = new AttemptAnswer();
+            attemptAnswer.setAttempt(attempt);
+            attemptAnswer.setQuizQuestion(quizQuestion);
+            attemptAnswer.setSelectedOption(answer.getSelectedOption());
+            
+            com.example.chemlearn.lms.enums.QuestionType type = quizQuestion.getQuestionType();
+            if (type == com.example.chemlearn.lms.enums.QuestionType.ESSAY) {
+                hasEssay = true;
+                attemptAnswer.setIsCorrect(false);
+            } else {
+                String expected = quizQuestion.getCorrectOption();
+                boolean isAnswerCorrect = false;
+                if (expected != null && answer.getSelectedOption() != null) {
+                    if (type == com.example.chemlearn.lms.enums.QuestionType.MULTIPLE_CHOICE) {
+                        String[] expectedParts = expected.toUpperCase().split(",");
+                        String[] answerParts = answer.getSelectedOption().toUpperCase().split(",");
+                        java.util.Arrays.sort(expectedParts);
+                        java.util.Arrays.sort(answerParts);
+                        if (java.util.Arrays.equals(expectedParts, answerParts)) {
+                            isAnswerCorrect = true;
+                        }
+                    } else if (expected.equalsIgnoreCase(answer.getSelectedOption())) {
+                        isAnswerCorrect = true;
+                    }
+                }
+                attemptAnswer.setIsCorrect(isAnswerCorrect);
+                if (isAnswerCorrect) {
+                    correct++;
+                }
             }
+            attemptAnswerRepository.save(attemptAnswer);
         }
 
         attempt.setCorrectAnswers(correct);
         attempt.setTotalQuestions(total);
         attempt.setScore(total == 0 ? BigDecimal.ZERO : BigDecimal.valueOf((correct * 100.0) / total));
-        attempt.setStatus(AttemptStatus.COMPLETED);
+        
+        if (hasEssay && (attempt.getQuiz() == null || attempt.getQuiz().getQuizType() != QuizType.FREE)) {
+            attempt.setStatus(AttemptStatus.NEEDS_GRADING);
+        } else {
+            attempt.setStatus(AttemptStatus.COMPLETED);
+        }
+        
         attempt.setSubmittedAt(Instant.now());
         quizAttemptRepository.save(attempt);
 
@@ -174,46 +236,55 @@ public class QuizServiceImpl implements QuizService {
     private Quiz requireVisibleQuiz(UUID quizId, UUID studentId) {
         Quiz quiz = quizRepository.findByIdAndPublishedTrue(quizId)
                 .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Quiz not found"));
+        if (quiz.getQuizType() == QuizType.FREE) {
+            return quiz;
+        }
         if (!isVisibleToStudent(quizId, studentId)) {
             throw new CustomExceptions.ResourceNotFoundException("Quiz not found");
         }
         return quiz;
     }
 
-    private List<Quiz> findVisibleQuizzes(UUID studentId) {
-        List<UUID> classIds = classStudentLinkRepository.findByStudentId(studentId)
-                .stream()
-                .map(ClassStudentLink::getClassRoom)
-                .filter(java.util.Objects::nonNull)
-                .map(StudyClass -> StudyClass.getId())
-                .toList();
-        if (classIds.isEmpty()) {
-            return List.of();
-        }
-
-        Map<UUID, Quiz> quizzesById = assignmentRepository.findByStudyClassField_IdIn(classIds)
-                .stream()
-                .map(StudyClassAssignment::getQuiz)
-                .filter(quiz -> quiz != null && Boolean.TRUE.equals(quiz.getPublished()))
-                .collect(Collectors.toMap(Quiz::getId, quiz -> quiz, (left, right) -> left, LinkedHashMap::new));
-        return List.copyOf(quizzesById.values());
+    private boolean isVisibleToStudent(UUID quizId, UUID studentId) {
+        return resolveStudentQuizAssignment(quizId, studentId).isPresent();
     }
 
-    private boolean isVisibleToStudent(UUID quizId, UUID studentId) {
+    private boolean isExamQuiz(Quiz quiz) {
+        return quiz.getQuizType() == QuizType.EXAM;
+    }
+
+    private boolean isAssignmentQuiz(Quiz quiz) {
+        return quiz.getQuizType() == QuizType.ASSIGNMENT || quiz.getQuizType() == QuizType.MINI_QUIZ;
+    }
+
+    private boolean hasCompletedAttempt(UUID quizId, UUID studentId) {
+        return quizAttemptRepository
+                .findFirstByQuizIdAndStudentIdAndStatusOrderByStartedAtDesc(quizId, studentId, AttemptStatus.COMPLETED)
+                .isPresent();
+    }
+
+    private Instant resolveStudentQuizDueAt(UUID quizId, UUID studentId) {
+        return resolveStudentQuizAssignment(quizId, studentId)
+                .map(StudyClassAssignment::getDueDate)
+                .orElse(null);
+    }
+
+    private java.util.Optional<StudyClassAssignment> resolveStudentQuizAssignment(UUID quizId, UUID studentId) {
         List<UUID> classIds = classStudentLinkRepository.findByStudentId(studentId)
                 .stream()
                 .map(ClassStudentLink::getClassRoom)
-                .filter(java.util.Objects::nonNull)
-                .map(StudyClass -> StudyClass.getId())
+                .filter(Objects::nonNull)
+                .map(classRoom -> classRoom.getId())
                 .toList();
         if (classIds.isEmpty()) {
-            return false;
+            return java.util.Optional.empty();
         }
 
         return assignmentRepository.findByStudyClassField_IdIn(classIds)
                 .stream()
-                .anyMatch(assignment -> assignment.getQuiz() != null
-                        && quizId.equals(assignment.getQuiz().getId())
-                        && Boolean.TRUE.equals(assignment.getQuiz().getPublished()));
+            .filter(assignment -> assignment.getQuiz() != null
+                && quizId.equals(assignment.getQuiz().getId())
+                && Boolean.TRUE.equals(assignment.getQuiz().getPublished()))
+            .max(Comparator.comparing(StudyClassAssignment::getCreatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
     }
 }

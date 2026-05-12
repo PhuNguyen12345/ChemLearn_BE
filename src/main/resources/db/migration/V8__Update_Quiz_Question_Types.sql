@@ -1,0 +1,29 @@
+ALTER TABLE question_bank_items 
+ADD COLUMN IF NOT EXISTS question_type VARCHAR(50) NOT NULL DEFAULT 'SINGLE_CHOICE';
+
+ALTER TABLE question_bank_items 
+ALTER COLUMN correct_option TYPE VARCHAR(255),
+ALTER COLUMN correct_option DROP NOT NULL;
+
+ALTER TABLE question_bank_items 
+ALTER COLUMN option_a DROP NOT NULL,
+ALTER COLUMN option_b DROP NOT NULL,
+ALTER COLUMN option_c DROP NOT NULL,
+ALTER COLUMN option_d DROP NOT NULL;
+
+ALTER TABLE quiz_questions 
+ADD COLUMN IF NOT EXISTS question_type VARCHAR(50) NOT NULL DEFAULT 'SINGLE_CHOICE';
+
+ALTER TABLE quiz_questions 
+ALTER COLUMN correct_option TYPE VARCHAR(255),
+ALTER COLUMN correct_option DROP NOT NULL;
+
+ALTER TABLE quiz_questions 
+ALTER COLUMN option_a DROP NOT NULL,
+ALTER COLUMN option_b DROP NOT NULL,
+ALTER COLUMN option_c DROP NOT NULL,
+ALTER COLUMN option_d DROP NOT NULL;
+
+ALTER TABLE attempt_answers
+ALTER COLUMN selected_option TYPE TEXT,
+ALTER COLUMN selected_option DROP NOT NULL;

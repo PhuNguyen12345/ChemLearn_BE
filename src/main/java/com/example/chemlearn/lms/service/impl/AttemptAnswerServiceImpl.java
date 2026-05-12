@@ -46,9 +46,9 @@ public class AttemptAnswerServiceImpl implements AttemptAnswerService {
     }
 
     @Override
-    public List<AttemptAnswer> findByQuestionId(UUID questionId) {
+    public List<AttemptAnswer> findByQuizQuestionId(UUID questionId) {
         return attemptAnswerRepository.findAll().stream()
-                .filter(answer -> answer.getQuestion() != null && questionId.equals(answer.getQuestion().getId()))
+                .filter(answer -> answer.getQuizQuestion() != null && questionId.equals(answer.getQuizQuestion().getId()))
                 .toList();
     }
 
@@ -57,7 +57,8 @@ public class AttemptAnswerServiceImpl implements AttemptAnswerService {
         AttemptAnswer existing = findById(id)
                 .orElseThrow(() -> new RuntimeException("AttemptAnswer not found"));
         if (attemptAnswer.getIsCorrect() != null) existing.setIsCorrect(attemptAnswer.getIsCorrect());
-        if (attemptAnswer.getSelectedAnswer() != null) existing.setSelectedAnswer(attemptAnswer.getSelectedAnswer());
+        if (attemptAnswer.getSelectedOption() != null) existing.setSelectedOption(attemptAnswer.getSelectedOption());
+        if (attemptAnswer.getQuizQuestion() != null) existing.setQuizQuestion(attemptAnswer.getQuizQuestion());
         return attemptAnswerRepository.save(existing);
     }
 

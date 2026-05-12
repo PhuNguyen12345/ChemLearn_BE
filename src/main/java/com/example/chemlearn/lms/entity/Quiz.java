@@ -1,5 +1,6 @@
 package com.example.chemlearn.lms.entity;
 
+import com.example.chemlearn.lms.entity.StudyClass;
 import com.example.chemlearn.core.entity.Teacher;
 import com.example.chemlearn.lms.enums.QuizType;
 import jakarta.persistence.*;
@@ -12,6 +13,9 @@ import org.hibernate.annotations.OnDeleteAction;
 import java.time.Instant;
 import java.util.*;
 import java.util.UUID;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Getter
 @Setter
@@ -29,7 +33,7 @@ public class Quiz {
     @Column(name = "description", length = Integer.MAX_VALUE)
     private String description;
 
-    @ColumnDefault("'EXAM'")
+    @ColumnDefault("'FREE'")
     @Enumerated(EnumType.STRING)
     @Column(name = "quiz_type", length = 50)
     private QuizType quizType;
@@ -37,9 +41,16 @@ public class Quiz {
     @Column(name = "duration_minutes")
     private Integer durationMinutes;
 
+    @Column(name = "start_time")
+    private Instant startTime;
+
+    @Column(name = "end_time")
+    private Instant endTime;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.SET_NULL)
     @JoinColumn(name = "created_by")
+    @JsonIgnoreProperties({"users", "hibernateLazyInitializer", "handler"})
     private Teacher createdBy;
 
     @ColumnDefault("CURRENT_TIMESTAMP")
@@ -49,6 +60,19 @@ public class Quiz {
     @Column(name = "published")
     private Boolean published;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @OnDelete(action = OnDeleteAction.SET_NULL)
+    @JoinColumn(name = "class_id")
+    @JsonIgnore
+    private StudyClass studyClass;
+
     @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<Question> questions = new ArrayList<>();
+
+    @Transient
+    @JsonProperty("classId")
+    public UUID getClassId() {
+        return studyClass != null ? studyClass.getId() : null;
+    }
 }

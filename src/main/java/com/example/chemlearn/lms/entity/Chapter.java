@@ -1,10 +1,13 @@
 package com.example.chemlearn.lms.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.example.chemlearn.lms.enums.MaterialScope;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import com.example.chemlearn.core.entity.User;
 
@@ -53,6 +56,16 @@ public class Chapter {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "updated_by")
     private User updatedBy;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "material_scope", nullable = false, length = 30)
+    private MaterialScope materialScope = MaterialScope.GLOBAL;
+
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @OnDelete(action = OnDeleteAction.SET_NULL)
+    @JoinColumn(name = "owner_class_id")
+    private StudyClass ownerClass;
 
     @JsonIgnore
     @OneToMany(mappedBy = "chapter", cascade = CascadeType.ALL, orphanRemoval = true)

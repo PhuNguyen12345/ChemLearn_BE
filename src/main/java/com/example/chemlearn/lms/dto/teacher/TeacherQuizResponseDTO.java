@@ -1,33 +1,21 @@
 package com.example.chemlearn.lms.dto.teacher;
 
 import com.example.chemlearn.lms.enums.QuizType;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Data
-public class TeacherQuizRequestDTO {
-    @NotBlank
+public class TeacherQuizResponseDTO {
+    private UUID id;
     private String title;
-
     private String description;
-
-    @NotNull
     private QuizType quizType;
-
     private Integer durationMinutes;
-
     private Instant startTime;
-
     private Instant endTime;
-
     private Boolean published;
-
-    @NotNull
+    private Instant createdAt;
     private UUID classId;
 }
-
-

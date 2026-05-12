@@ -1,5 +1,6 @@
 package com.example.chemlearn.lms.service.impl;
 
+import com.example.chemlearn.core.enums.UserRole;
 import com.example.chemlearn.lms.dto.study.LessonDetailDTO;
 import com.example.chemlearn.lms.dto.study.LessonSummaryDTO;
 import com.example.chemlearn.lms.dto.study.MiniQuizAnswerDTO;
@@ -10,6 +11,7 @@ import com.example.chemlearn.lms.dto.study.StudyChapterDTO;
 import com.example.chemlearn.lms.entity.Chapter;
 import com.example.chemlearn.lms.entity.Lesson;
 import com.example.chemlearn.lms.entity.MiniQuizQuestion;
+import com.example.chemlearn.lms.enums.MaterialScope;
 import com.example.chemlearn.lms.exception.CustomExceptions;
 import com.example.chemlearn.lms.repository.ChapterRepository;
 import com.example.chemlearn.lms.repository.LessonRepository;
@@ -30,12 +32,16 @@ public class StudyServiceImpl implements StudyService {
 
         @Override
         public List<StudyChapterDTO> getChaptersWithLessons() {
-                return chapterRepository.findByPublishedTrueOrderByOrderIndexAsc().stream()
+                return chapterRepository.findByPublishedTrueAndMaterialScopeOrderByOrderIndexAsc(MaterialScope.GLOBAL)
+                                .stream()
                                 .map(chapter -> new StudyChapterDTO(
                                                 chapter.getId(),
                                                 chapter.getTitle(),
                                                 chapter.getDescription(),
-                                                lessonRepository.findByChapterIdAndPublishedTrueOrderByOrderIndexAsc(chapter.getId()).stream()
+                                                lessonRepository.findByChapterIdAndPublishedTrueAndMaterialScopeOrderByOrderIndexAsc(
+                                                                chapter.getId(),
+                                                                MaterialScope.GLOBAL)
+                                                                .stream()
                                                                 .map(lesson -> new LessonSummaryDTO(lesson.getId(), lesson.getTitle(), lesson.getDurationMinutes()))
                                                                 .toList()))
                                 .toList();
@@ -43,8 +49,7 @@ public class StudyServiceImpl implements StudyService {
 
         @Override
         public LessonDetailDTO getLessonDetail(UUID lessonId) {
-                Lesson lesson = lessonRepository.findByIdAndPublishedTrue(lessonId)
-                                .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Lesson not found"));
+                Lesson lesson = getVisibleStudyLessonOrThrow(lessonId);
                 List<MiniQuizQuestionDTO> miniQuestions = miniQuizQuestionRepository.findByLessonIdOrderByIdAsc(lessonId).stream()
                                 .map(question -> new MiniQuizQuestionDTO(question.getId(), question.getPrompt(), question.getOptionA(), question.getOptionB(), question.getOptionC(), question.getOptionD()))
                                 .toList();
@@ -53,6 +58,7 @@ public class StudyServiceImpl implements StudyService {
 
         @Override
         public MiniQuizSubmitResponseDTO submitMiniQuiz(UUID lessonId, MiniQuizSubmitRequestDTO requestDTO) {
+                getVisibleStudyLessonOrThrow(lessonId);
                 List<MiniQuizQuestion> questions = miniQuizQuestionRepository.findByLessonIdOrderByIdAsc(lessonId);
                 if (questions.isEmpty()) {
                         throw new CustomExceptions.BadRequestException("This lesson does not have a mini quiz");
@@ -76,5 +82,19 @@ public class StudyServiceImpl implements StudyService {
                 int score = Math.round((correct * 100.0f) / total);
                 boolean passed = score >= 70;
                 return new MiniQuizSubmitResponseDTO(total, correct, score, passed);
+        }
+
+        private Lesson getVisibleStudyLessonOrThrow(UUID lessonId) {
+                Lesson lesson = lessonRepository.findByIdAndPublishedTrueAndMaterialScope(
+                                                lessonId,
+                                                MaterialScope.GLOBAL)
+                                .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Lesson not found"));
+
+                if (!Boolean.TRUE.equals(lesson.getChapter().getPublished())
+                                || lesson.getChapter().getMaterialScope() != MaterialScope.GLOBAL) {
+                        throw new CustomExceptions.ResourceNotFoundException("Lesson not found");
+                }
+
+                return lesson;
         }
 }

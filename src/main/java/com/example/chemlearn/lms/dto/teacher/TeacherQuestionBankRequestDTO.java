@@ -1,27 +1,23 @@
 package com.example.chemlearn.lms.dto.teacher;
 
+import com.example.chemlearn.lms.enums.QuestionType;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
 @Data
 public class TeacherQuestionBankRequestDTO {
+    private QuestionType questionType = QuestionType.SINGLE_CHOICE;
     @NotBlank
     private String prompt;
 
-    @NotBlank
     private String optionA;
 
-    @NotBlank
     private String optionB;
 
-    @NotBlank
     private String optionC;
 
-    @NotBlank
     private String optionD;
 
-    @Pattern(regexp = "^[ABCD]$", message = "correctOption must be one of A,B,C,D")
     private String correctOption;
 
     private String explanation;

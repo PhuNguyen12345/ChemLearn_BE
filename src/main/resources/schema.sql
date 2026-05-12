@@ -49,8 +49,11 @@ CREATE TABLE IF NOT EXISTS quizzes (
     description TEXT,
     quiz_type VARCHAR(30) NOT NULL,
     duration_minutes INTEGER,
+    start_time TIMESTAMP,
+    end_time TIMESTAMP,
     published BOOLEAN NOT NULL DEFAULT TRUE,
-    created_by BIGINT REFERENCES accounts(id)
+    created_by BIGINT REFERENCES accounts(id),
+    class_id BIGINT REFERENCES classes(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS classes (
@@ -75,15 +78,30 @@ CREATE TABLE IF NOT EXISTS class_students (
     UNIQUE (class_id, student_id)
 );
 
+CREATE TABLE IF NOT EXISTS class_assignments (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    class_id UUID NOT NULL REFERENCES classes(id) ON DELETE CASCADE,
+    title VARCHAR(200) NOT NULL,
+    lab_id UUID REFERENCES lab(id) ON DELETE CASCADE,
+    quiz_id UUID REFERENCES quizzes(id) ON DELETE CASCADE,
+    due_date TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_assignment_target CHECK (
+        (lab_id IS NOT NULL AND quiz_id IS NULL) OR
+        (lab_id IS NULL AND quiz_id IS NOT NULL)
+    )
+);
+
 CREATE TABLE IF NOT EXISTS question_bank_items (
     id BIGSERIAL PRIMARY KEY,
     created_by BIGINT NOT NULL REFERENCES accounts(id),
+    question_type VARCHAR(50) NOT NULL DEFAULT 'SINGLE_CHOICE',
     prompt TEXT NOT NULL,
-    option_a TEXT NOT NULL,
-    option_b TEXT NOT NULL,
-    option_c TEXT NOT NULL,
-    option_d TEXT NOT NULL,
-    correct_option VARCHAR(1) NOT NULL,
+    option_a TEXT,
+    option_b TEXT,
+    option_c TEXT,
+    option_d TEXT,
+    correct_option VARCHAR(255),
     explanation TEXT,
     created_at TIMESTAMP NOT NULL
 );
@@ -91,12 +109,13 @@ CREATE TABLE IF NOT EXISTS question_bank_items (
 CREATE TABLE IF NOT EXISTS quiz_questions (
     id BIGSERIAL PRIMARY KEY,
     quiz_id BIGINT NOT NULL REFERENCES quizzes(id),
+    question_type VARCHAR(50) NOT NULL DEFAULT 'SINGLE_CHOICE',
     prompt TEXT NOT NULL,
-    option_a TEXT NOT NULL,
-    option_b TEXT NOT NULL,
-    option_c TEXT NOT NULL,
-    option_d TEXT NOT NULL,
-    correct_option VARCHAR(1) NOT NULL,
+    option_a TEXT,
+    option_b TEXT,
+    option_c TEXT,
+    option_d TEXT,
+    correct_option VARCHAR(255),
     explanation TEXT,
     display_order INTEGER NOT NULL DEFAULT 0
 );
@@ -117,18 +136,8 @@ CREATE TABLE IF NOT EXISTS attempt_answers (
     id BIGSERIAL PRIMARY KEY,
     attempt_id BIGINT NOT NULL REFERENCES quiz_attempts(id),
     question_id BIGINT NOT NULL REFERENCES quiz_questions(id),
-    selected_option VARCHAR(1) NOT NULL,
+    selected_option TEXT,
     correct BOOLEAN NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS assignments (
-    id BIGSERIAL PRIMARY KEY,
-    title VARCHAR(200) NOT NULL,
-    quiz_id BIGINT NOT NULL REFERENCES quizzes(id),
-    teacher_id BIGINT NOT NULL REFERENCES accounts(id),
-    student_id BIGINT NOT NULL REFERENCES accounts(id),
-    due_at TIMESTAMP,
-    status VARCHAR(30) NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS parent_student_links (

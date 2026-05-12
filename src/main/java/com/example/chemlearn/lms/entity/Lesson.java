@@ -1,6 +1,7 @@
 package com.example.chemlearn.lms.entity;
 
 import com.example.chemlearn.lab.entity.Lab;
+import com.example.chemlearn.lms.enums.MaterialScope;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -73,6 +74,15 @@ public class Lesson {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "updated_by")
     private User updatedBy;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "material_scope", nullable = false, length = 30)
+    private MaterialScope materialScope = MaterialScope.GLOBAL;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @OnDelete(action = OnDeleteAction.SET_NULL)
+    @JoinColumn(name = "owner_class_id")
+    private StudyClass ownerClass;
 
     @JsonIgnore
     @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)

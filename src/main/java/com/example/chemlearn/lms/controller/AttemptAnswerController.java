@@ -64,7 +64,7 @@ public class AttemptAnswerController {
 
     @GetMapping("/question/{questionId}")
     public ResponseEntity<List<AttemptAnswerResponse>> findByQuestionId(@PathVariable UUID questionId) {
-        List<AttemptAnswerResponse> answers = attemptAnswerService.findByQuestionId(questionId)
+        List<AttemptAnswerResponse> answers = attemptAnswerService.findByQuizQuestionId(questionId)
                 .stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -88,8 +88,8 @@ public class AttemptAnswerController {
         return new AttemptAnswerResponse(
                 attemptAnswer.getId(),
                 attemptAnswer.getAttempt() != null ? attemptAnswer.getAttempt().getId() : null,
-                attemptAnswer.getQuestion() != null ? attemptAnswer.getQuestion().getId() : null,
-                attemptAnswer.getSelectedAnswer() != null ? attemptAnswer.getSelectedAnswer().getId() : null,
+                attemptAnswer.getQuizQuestion() != null ? attemptAnswer.getQuizQuestion().getId() : null,
+                attemptAnswer.getSelectedOption() != null ? attemptAnswer.getSelectedOption() : null,
                 attemptAnswer.getIsCorrect()
         );
     }

@@ -13,7 +13,7 @@ public class AttemptAnswerResponse {
     private UUID id;
     private UUID attemptId;
     private UUID questionId;
-    private UUID selectedAnswerId;
+    private String selectedAnswer;
     private Boolean isCorrect;
 }
 

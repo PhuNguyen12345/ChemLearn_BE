@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Data
@@ -15,6 +16,8 @@ public class QuizRequest {
     private String description;
     private QuizType quizType;
     private Integer durationMinutes;
+    private Instant startTime;
+    private Instant endTime;
     private UUID createdByTeacherId;
 }
 

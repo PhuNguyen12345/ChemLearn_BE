@@ -43,8 +43,8 @@ public class TeacherController {
     }
 
     @GetMapping("/chapters")
-    public List<Chapter> getChapters() {
-        return teacherService.getChapters();
+    public List<TeacherChapterResponseDTO> getChapters(Authentication authentication) {
+        return teacherService.getChapters(authentication.getName());
     }
 
     @PostMapping("/classes/{classId}/chapters/{chapterId}")
@@ -62,52 +62,52 @@ public class TeacherController {
     }
 
     @PostMapping("/chapters")
-    public Chapter createChapter(@Valid @RequestBody TeacherChapterRequestDTO dto) {
-        return teacherService.createChapter(dto);
+    public TeacherChapterResponseDTO createChapter(@Valid @RequestBody TeacherChapterRequestDTO dto, Authentication authentication) {
+        return teacherService.createChapter(dto, authentication.getName());
     }
 
     @PutMapping("/chapters/{chapterId}")
-    public Chapter updateChapter(@PathVariable UUID chapterId, @Valid @RequestBody TeacherChapterRequestDTO dto) {
-        return teacherService.updateChapter(chapterId, dto);
+    public TeacherChapterResponseDTO updateChapter(@PathVariable UUID chapterId, @Valid @RequestBody TeacherChapterRequestDTO dto, Authentication authentication) {
+        return teacherService.updateChapter(chapterId, dto, authentication.getName());
     }
 
     @DeleteMapping("/chapters/{chapterId}")
-    public void deleteChapter(@PathVariable UUID chapterId) {
-        teacherService.deleteChapter(chapterId);
+    public void deleteChapter(@PathVariable UUID chapterId, Authentication authentication) {
+        teacherService.deleteChapter(chapterId, authentication.getName());
     }
 
     @GetMapping("/lessons")
-    public List<Lesson> getLessons() {
-        return teacherService.getLessons();
+    public List<TeacherLessonResponseDTO> getLessons(Authentication authentication) {
+        return teacherService.getLessons(authentication.getName());
     }
 
     @PostMapping("/lessons")
-    public Lesson createLesson(@Valid @RequestBody TeacherLessonRequestDTO dto) {
-        return teacherService.createLesson(dto);
+    public TeacherLessonResponseDTO createLesson(@Valid @RequestBody TeacherLessonRequestDTO dto, Authentication authentication) {
+        return teacherService.createLesson(dto, authentication.getName());
     }
 
     @PutMapping("/lessons/{lessonId}")
-    public Lesson updateLesson(@PathVariable UUID lessonId, @Valid @RequestBody TeacherLessonRequestDTO dto) {
-        return teacherService.updateLesson(lessonId, dto);
+    public TeacherLessonResponseDTO updateLesson(@PathVariable UUID lessonId, @Valid @RequestBody TeacherLessonRequestDTO dto, Authentication authentication) {
+        return teacherService.updateLesson(lessonId, dto, authentication.getName());
     }
 
     @DeleteMapping("/lessons/{lessonId}")
-    public void deleteLesson(@PathVariable UUID lessonId) {
-        teacherService.deleteLesson(lessonId);
+    public void deleteLesson(@PathVariable UUID lessonId, Authentication authentication) {
+        teacherService.deleteLesson(lessonId, authentication.getName());
     }
 
     @GetMapping("/quizzes")
-    public List<Quiz> getQuizzes(Authentication authentication) {
+    public List<TeacherQuizResponseDTO> getQuizzes(Authentication authentication) {
         return teacherService.getQuizzes(authentication.getName());
     }
 
     @PostMapping("/quizzes")
-    public Quiz createQuiz(@Valid @RequestBody TeacherQuizRequestDTO dto, Authentication authentication) {
+    public TeacherQuizResponseDTO createQuiz(@Valid @RequestBody TeacherQuizRequestDTO dto, Authentication authentication) {
         return teacherService.createQuiz(dto, authentication.getName());
     }
 
     @PutMapping("/quizzes/{quizId}")
-    public Quiz updateQuiz(@PathVariable UUID quizId, @Valid @RequestBody TeacherQuizRequestDTO dto, Authentication authentication) {
+    public TeacherQuizResponseDTO updateQuiz(@PathVariable UUID quizId, @Valid @RequestBody TeacherQuizRequestDTO dto, Authentication authentication) {
         return teacherService.updateQuiz(quizId, dto, authentication.getName());
     }
 
@@ -171,17 +171,17 @@ public class TeacherController {
     }
 
     @GetMapping("/assignments")
-    public List<Assignment> getAssignments(Authentication authentication) {
+    public List<TeacherAssignmentDTO> getAssignments(Authentication authentication) {
         return teacherService.getAssignments(authentication.getName());
     }
 
     @PostMapping("/assignments")
-    public Assignment createAssignment(@Valid @RequestBody TeacherAssignmentRequestDTO dto, Authentication authentication) {
+    public TeacherAssignmentDTO createAssignment(@Valid @RequestBody TeacherAssignmentRequestDTO dto, Authentication authentication) {
         return teacherService.createAssignment(dto, authentication.getName());
     }
 
     @PutMapping("/assignments/{assignmentId}")
-    public Assignment updateAssignment(@PathVariable UUID assignmentId,
+    public TeacherAssignmentDTO updateAssignment(@PathVariable UUID assignmentId,
                                        @Valid @RequestBody TeacherAssignmentRequestDTO dto,
                                        Authentication authentication) {
         return teacherService.updateAssignment(assignmentId, dto, authentication.getName());
@@ -205,6 +205,16 @@ public class TeacherController {
     @GetMapping("/analytics/students")
     public List<TeacherStudentPerformanceDTO> getStudentPerformance(Authentication authentication) {
         return teacherService.getStudentPerformance(authentication.getName());
+    }
+
+    @GetMapping("/submissions/{attemptId}")
+    public TeacherSubmissionDetailDTO getSubmissionDetail(@PathVariable UUID attemptId, Authentication authentication) {
+        return teacherService.getSubmissionDetail(attemptId, authentication.getName());
+    }
+
+    @PostMapping("/submissions/{attemptId}/grade")
+    public void gradeSubmission(@PathVariable UUID attemptId, @RequestBody TeacherGradeRequestDTO dto, Authentication authentication) {
+        teacherService.gradeSubmission(attemptId, dto, authentication.getName());
     }
 
     @GetMapping("/summary")

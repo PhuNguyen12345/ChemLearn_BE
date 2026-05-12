@@ -25,15 +25,12 @@ public class AttemptAnswer {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "question_id", nullable = false)
-    private Question question;
+    @JoinColumn(name = "quiz_question_id", nullable = false)
+    private QuizQuestion quizQuestion;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.SET_NULL)
-    @JoinColumn(name = "selected_answer_id")
-    private Answer selectedAnswer;
+    @Column(name = "selected_option", columnDefinition = "TEXT")
+    private String selectedOption;
 
     @Column(name = "is_correct", nullable = false)
     private Boolean isCorrect = false;
-
 }

@@ -1,23 +1,18 @@
 package com.example.chemlearn.lms.dto.teacher;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Data
-public class TeacherAssignmentRequestDTO {
-    @NotBlank
+@AllArgsConstructor
+public class TeacherAssignmentDTO {
+    private UUID id;
     private String title;
-
-    @NotNull
     private UUID quizId;
-
-    @NotNull
     private UUID classId;
-
     private Instant dueDate;
+    private String status;
 }
-

@@ -15,27 +15,21 @@ public interface TeacherService {
 
     void deleteClass(UUID classId, String teacherUsername);
 
-    List<Chapter> getChapters();
+    List<TeacherChapterResponseDTO> getChapters(String teacherUsername);
+    TeacherChapterResponseDTO createChapter(TeacherChapterRequestDTO dto, String teacherUsername);
+    TeacherChapterResponseDTO updateChapter(UUID chapterId, TeacherChapterRequestDTO dto, String teacherUsername);
+    void deleteChapter(UUID chapterId, String teacherUsername);
 
-    Chapter createChapter(TeacherChapterRequestDTO dto);
+    List<TeacherLessonResponseDTO> getLessons(String teacherUsername);
+    TeacherLessonResponseDTO createLesson(TeacherLessonRequestDTO dto, String teacherUsername);
+    TeacherLessonResponseDTO updateLesson(UUID lessonId, TeacherLessonRequestDTO dto, String teacherUsername);
+    void deleteLesson(UUID lessonId, String teacherUsername);
 
-    Chapter updateChapter(UUID chapterId, TeacherChapterRequestDTO dto);
+    List<TeacherQuizResponseDTO> getQuizzes(String teacherUsername);
 
-    void deleteChapter(UUID chapterId);
+    TeacherQuizResponseDTO createQuiz(TeacherQuizRequestDTO dto, String teacherUsername);
 
-    List<Lesson> getLessons();
-
-    Lesson createLesson(TeacherLessonRequestDTO dto);
-
-    Lesson updateLesson(UUID lessonId, TeacherLessonRequestDTO dto);
-
-    void deleteLesson(UUID lessonId);
-
-    List<Quiz> getQuizzes(String teacherUsername);
-
-    Quiz createQuiz(TeacherQuizRequestDTO dto, String teacherUsername);
-
-    Quiz updateQuiz(UUID quizId, TeacherQuizRequestDTO dto, String teacherUsername);
+    TeacherQuizResponseDTO updateQuiz(UUID quizId, TeacherQuizRequestDTO dto, String teacherUsername);
 
     void deleteQuiz(UUID quizId, String teacherUsername);
 
@@ -57,11 +51,11 @@ public interface TeacherService {
 
     void deleteQuizQuestion(UUID questionId, String teacherUsername);
 
-    List<Assignment> getAssignments(String teacherUsername);
+    List<TeacherAssignmentDTO> getAssignments(String teacherUsername);
 
-    Assignment createAssignment(TeacherAssignmentRequestDTO dto, String teacherUsername);
+    TeacherAssignmentDTO createAssignment(TeacherAssignmentRequestDTO dto, String teacherUsername);
 
-    Assignment updateAssignment(UUID assignmentId, TeacherAssignmentRequestDTO dto, String teacherUsername);
+    TeacherAssignmentDTO updateAssignment(UUID assignmentId, TeacherAssignmentRequestDTO dto, String teacherUsername);
 
     void deleteAssignment(UUID assignmentId, String teacherUsername);
 
@@ -72,6 +66,8 @@ public interface TeacherService {
     List<TeacherStudentPerformanceDTO> getStudentPerformance(String teacherUsername);
 
     TeacherDashboardSummaryDTO getSummary(String teacherUsername);
+    TeacherSubmissionDetailDTO getSubmissionDetail(UUID attemptId, String teacherUsername);
+    void gradeSubmission(UUID attemptId, TeacherGradeRequestDTO dto, String teacherUsername);
     void addChapterToClass(java.util.UUID classId, java.util.UUID chapterId, String teacherUsername);
     void removeChapterFromClass(java.util.UUID classId, java.util.UUID chapterId, String teacherUsername);
 }

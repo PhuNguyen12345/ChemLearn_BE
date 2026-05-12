@@ -5,18 +5,23 @@ import com.example.chemlearn.lms.dto.quiz.QuizListItemDTO;
 import com.example.chemlearn.lms.dto.response.ChapterResponse;
 import com.example.chemlearn.lms.dto.response.StudyClassAssignmentResponse;
 import com.example.chemlearn.lms.dto.response.StudyClassResponse;
+import com.example.chemlearn.lms.dto.study.LessonDetailDTO;
+import com.example.chemlearn.lms.dto.study.LessonSummaryDTO;
 import com.example.chemlearn.lms.service.StudentClassService;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 @RestController
 @RequestMapping("/api/student/classes")
@@ -55,8 +60,28 @@ public class StudentClassController {
         return studentClassService.joinClassByCode(authentication.getName(), request.getClassCode());
     }
 
+    @DeleteMapping("/{classId}/leave")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void leaveClass(@PathVariable java.util.UUID classId, Authentication authentication) {
+        studentClassService.leaveClass(authentication.getName(), classId);
+    }
+
     @GetMapping("/{classId}/chapters")
     public List<ChapterResponse> getClassChapters(@PathVariable java.util.UUID classId, Authentication authentication) {
         return studentClassService.getChaptersForClass(authentication.getName(), classId);
+    }
+
+    @GetMapping("/{classId}/chapters/{chapterId}/lessons")
+    public List<LessonSummaryDTO> getClassChapterLessons(@PathVariable java.util.UUID classId,
+                                                          @PathVariable java.util.UUID chapterId,
+                                                          Authentication authentication) {
+        return studentClassService.getLessonsForClassChapter(authentication.getName(), classId, chapterId);
+    }
+
+    @GetMapping("/{classId}/lessons/{lessonId}")
+    public LessonDetailDTO getClassLessonDetail(@PathVariable java.util.UUID classId,
+                                                @PathVariable java.util.UUID lessonId,
+                                                Authentication authentication) {
+        return studentClassService.getLessonDetailForClass(authentication.getName(), classId, lessonId);
     }
 }

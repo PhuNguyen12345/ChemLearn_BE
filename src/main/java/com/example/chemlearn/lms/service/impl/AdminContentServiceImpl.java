@@ -7,6 +7,7 @@ import com.example.chemlearn.lms.dto.admin.*;
 import com.example.chemlearn.lms.entity.Chapter;
 import com.example.chemlearn.lms.entity.Lesson;
 import com.example.chemlearn.lms.entity.MiniQuizQuestion;
+import com.example.chemlearn.lms.enums.MaterialScope;
 import com.example.chemlearn.lms.exception.CustomExceptions;
 import com.example.chemlearn.lms.repository.ChapterRepository;
 import com.example.chemlearn.lms.repository.LessonRepository;
@@ -108,7 +109,7 @@ public class AdminContentServiceImpl implements AdminContentService {
     @Override
     @Transactional(readOnly = true)
     public List<AdminChapterResponseDTO> getAllChapters() {
-        return chapterRepository.findAll().stream()
+        return chapterRepository.findByMaterialScopeOrderByOrderIndexAsc(MaterialScope.GLOBAL).stream()
                 .map(this::convertChapterToDto)
                 .collect(Collectors.toList());
     }
@@ -133,6 +134,8 @@ public class AdminContentServiceImpl implements AdminContentService {
         chapter.setPublished(dto.getPublished() != null ? dto.getPublished() : true);
         chapter.setCreatedBy(admin);
         chapter.setUpdatedBy(admin);
+        chapter.setMaterialScope(MaterialScope.GLOBAL);
+        chapter.setOwnerClass(null);
         chapter.setCreatedAt(Instant.now());
         chapter.setUpdatedAt(Instant.now());
         chapter.setGradeLevel(9); // Default grade level
@@ -159,6 +162,8 @@ public class AdminContentServiceImpl implements AdminContentService {
         if (dto.getPublished() != null) {
             chapter.setPublished(dto.getPublished());
         }
+        chapter.setMaterialScope(MaterialScope.GLOBAL);
+        chapter.setOwnerClass(null);
         chapter.setUpdatedBy(admin);
         chapter.setUpdatedAt(Instant.now());
 
@@ -219,6 +224,8 @@ public class AdminContentServiceImpl implements AdminContentService {
         lesson.setPublished(dto.getPublished() != null ? dto.getPublished() : true);
         lesson.setCreatedBy(admin);
         lesson.setUpdatedBy(admin);
+        lesson.setMaterialScope(MaterialScope.GLOBAL);
+        lesson.setOwnerClass(null);
         lesson.setCreatedAt(Instant.now());
         lesson.setUpdatedAt(Instant.now());
 
@@ -256,6 +263,8 @@ public class AdminContentServiceImpl implements AdminContentService {
         if (dto.getPublished() != null) {
             lesson.setPublished(dto.getPublished());
         }
+        lesson.setMaterialScope(MaterialScope.GLOBAL);
+        lesson.setOwnerClass(null);
         lesson.setUpdatedBy(admin);
         lesson.setUpdatedAt(Instant.now());
 

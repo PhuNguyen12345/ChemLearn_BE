@@ -6,12 +6,20 @@ import com.example.chemlearn.lms.dto.quiz.QuizListItemDTO;
 import com.example.chemlearn.lms.dto.response.ChapterResponse;
 import com.example.chemlearn.lms.dto.response.StudyClassAssignmentResponse;
 import com.example.chemlearn.lms.dto.response.StudyClassResponse;
+import com.example.chemlearn.lms.dto.study.LessonDetailDTO;
+import com.example.chemlearn.lms.dto.study.LessonSummaryDTO;
+import com.example.chemlearn.lms.dto.study.MiniQuizQuestionDTO;
 import com.example.chemlearn.lms.entity.ClassStudentLink;
 import com.example.chemlearn.lms.entity.Chapter;
+import com.example.chemlearn.lms.entity.Lesson;
+import com.example.chemlearn.lms.entity.MiniQuizQuestion;
 import com.example.chemlearn.lms.entity.Quiz;
 import com.example.chemlearn.lms.entity.StudyClassAssignment;
 import com.example.chemlearn.lms.entity.StudyClass;
+import com.example.chemlearn.lms.enums.MaterialScope;
 import com.example.chemlearn.lms.repository.ClassStudentLinkRepository;
+import com.example.chemlearn.lms.repository.LessonRepository;
+import com.example.chemlearn.lms.repository.MiniQuizQuestionRepository;
 import com.example.chemlearn.lms.repository.QuizQuestionRepository;
 import com.example.chemlearn.lms.repository.StudyClassAssignmentRepository;
 import com.example.chemlearn.lms.repository.StudyClassRepository;
@@ -32,6 +40,8 @@ public class StudentClassServiceImpl implements StudentClassService {
     private final ClassStudentLinkRepository classStudentLinkRepository;
     private final StudyClassAssignmentRepository assignmentRepository;
     private final QuizQuestionRepository quizQuestionRepository;
+    private final LessonRepository lessonRepository;
+    private final MiniQuizQuestionRepository miniQuizQuestionRepository;
 
     @Override
     public List<StudyClassResponse> getMyClasses(String studentUsername) {
@@ -145,6 +155,14 @@ public class StudentClassServiceImpl implements StudentClassService {
         return toResponse(studyClass);
     }
 
+    @Override
+    public void leaveClass(String studentUsername, UUID classId) {
+        User studentUser = requireStudentUser(studentUsername);
+        ClassStudentLink enrollment = classStudentLinkRepository.findByStudentIdAndClassRoomId(studentUser.getId(), classId)
+            .orElseThrow(() -> new RuntimeException("You are not enrolled in this class"));
+        classStudentLinkRepository.delete(enrollment);
+    }
+
     private User requireStudentUser(String studentUsername) {
         User user = userRepository.findByUsername(studentUsername)
                 .orElseThrow(() -> new RuntimeException("Student account not found"));
@@ -191,9 +209,101 @@ public class StudentClassServiceImpl implements StudentClassService {
     public List<ChapterResponse> getChaptersForClass(String studentUsername, UUID classId) {
         StudyClass studyClass = requireEnrolledClass(studentUsername, classId);
         return studyClass.getChapters().stream()
-            .filter(chapter -> chapter != null && Boolean.TRUE.equals(chapter.getPublished()))
+            .filter(chapter -> chapter != null
+                && Boolean.TRUE.equals(chapter.getPublished())
+                && isChapterVisibleInClass(chapter, classId))
             .map(this::mapChapterToResponse)
             .toList();
+    }
+
+    @Override
+    public List<LessonSummaryDTO> getLessonsForClassChapter(String studentUsername, UUID classId, UUID chapterId) {
+        Chapter chapter = requireVisibleClassChapter(studentUsername, classId, chapterId);
+        return lessonRepository.findByChapterIdAndPublishedTrueOrderByOrderIndexAsc(chapterId)
+            .stream()
+            .filter(lesson -> lesson != null && isLessonVisibleInClass(lesson, classId))
+            .map(lesson -> new LessonSummaryDTO(lesson.getId(), lesson.getTitle(), lesson.getDurationMinutes()))
+            .toList();
+    }
+
+    @Override
+    public LessonDetailDTO getLessonDetailForClass(String studentUsername, UUID classId, UUID lessonId) {
+        requireEnrolledClass(studentUsername, classId);
+        Lesson lesson = lessonRepository.findByIdAndPublishedTrue(lessonId)
+            .orElseThrow(() -> new RuntimeException("Lesson not found"));
+
+        Chapter chapter = lesson.getChapter();
+        if (chapter == null || !isChapterAssignedToClass(chapter, classId) || !isChapterVisibleInClass(chapter, classId)) {
+            throw new RuntimeException("Lesson not found");
+        }
+        if (!isLessonVisibleInClass(lesson, classId)) {
+            throw new RuntimeException("Lesson not found");
+        }
+
+        List<MiniQuizQuestionDTO> miniQuestions = miniQuizQuestionRepository.findByLessonIdOrderByIdAsc(lessonId)
+            .stream()
+            .map(this::mapMiniQuizQuestion)
+            .toList();
+
+        return new LessonDetailDTO(
+            lesson.getId(),
+            chapter.getId(),
+            chapter.getTitle(),
+            lesson.getTitle(),
+            lesson.getTextContent(),
+            lesson.getDurationMinutes(),
+            miniQuestions
+        );
+    }
+
+    private boolean isChapterVisibleInClass(Chapter chapter, UUID classId) {
+        if (chapter.getMaterialScope() == MaterialScope.CLASS_PRIVATE) {
+            return chapter.getOwnerClass() != null && classId.equals(chapter.getOwnerClass().getId());
+        }
+
+        return true;
+    }
+
+    private boolean isLessonVisibleInClass(Lesson lesson, UUID classId) {
+        if (!Boolean.TRUE.equals(lesson.getPublished())) {
+            return false;
+        }
+
+        if (lesson.getMaterialScope() == MaterialScope.CLASS_PRIVATE) {
+            return lesson.getOwnerClass() != null && classId.equals(lesson.getOwnerClass().getId());
+        }
+
+        return true;
+    }
+
+    private Chapter requireVisibleClassChapter(String studentUsername, UUID classId, UUID chapterId) {
+        StudyClass studyClass = requireEnrolledClass(studentUsername, classId);
+        Chapter chapter = studyClass.getChapters().stream()
+            .filter(item -> item != null && chapterId.equals(item.getId()))
+            .findFirst()
+            .orElseThrow(() -> new RuntimeException("Chapter not found in class"));
+
+        if (!Boolean.TRUE.equals(chapter.getPublished()) || !isChapterVisibleInClass(chapter, classId)) {
+            throw new RuntimeException("Chapter not found in class");
+        }
+
+        return chapter;
+    }
+
+    private boolean isChapterAssignedToClass(Chapter chapter, UUID classId) {
+        return chapter.getStudyClasses() != null
+            && chapter.getStudyClasses().stream().anyMatch(studyClass -> studyClass != null && classId.equals(studyClass.getId()));
+    }
+
+    private MiniQuizQuestionDTO mapMiniQuizQuestion(MiniQuizQuestion question) {
+        return new MiniQuizQuestionDTO(
+            question.getId(),
+            question.getPrompt(),
+            question.getOptionA(),
+            question.getOptionB(),
+            question.getOptionC(),
+            question.getOptionD()
+        );
     }
 
     private StudyClass requireEnrolledClass(String studentUsername, UUID classId) {

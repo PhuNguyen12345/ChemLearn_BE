@@ -1,0 +1,10 @@
+ALTER TABLE quizzes
+ADD COLUMN IF NOT EXISTS start_time TIMESTAMP,
+ADD COLUMN IF NOT EXISTS end_time TIMESTAMP;
+
+ALTER TABLE quizzes
+DROP CONSTRAINT IF EXISTS quizzes_quiz_type_check;
+
+ALTER TABLE quizzes
+ADD CONSTRAINT quizzes_quiz_type_check
+CHECK (quiz_type IN ('FREE', 'ASSIGNMENT', 'EXAM', 'MINI_QUIZ'));

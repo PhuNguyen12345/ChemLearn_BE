@@ -141,7 +141,10 @@ CREATE TABLE quizzes (
                          description TEXT,
                          quiz_type VARCHAR(50) DEFAULT 'EXAM',
                          duration_minutes INTEGER,
+                         start_time TIMESTAMP,
+                         end_time TIMESTAMP,
                          created_by UUID REFERENCES teachers(user_id) ON DELETE SET NULL,
+                         class_id UUID REFERENCES classes(id) ON DELETE SET NULL,
                          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

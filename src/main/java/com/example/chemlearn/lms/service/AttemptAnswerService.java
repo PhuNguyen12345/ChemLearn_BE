@@ -11,7 +11,7 @@ public interface AttemptAnswerService {
     List<AttemptAnswer> findAll();
     List<AttemptAnswer> findByAttemptId(UUID attemptId);
     List<AttemptAnswer> findByAttemptIdAndIsCorrect(UUID attemptId, Boolean isCorrect);
-    List<AttemptAnswer> findByQuestionId(UUID questionId);
+    List<AttemptAnswer> findByQuizQuestionId(UUID questionId);
     AttemptAnswer update(UUID id, AttemptAnswer attemptAnswer);
     void delete(UUID id);
 }
