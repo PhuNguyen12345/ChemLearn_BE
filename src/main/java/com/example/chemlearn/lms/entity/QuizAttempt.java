@@ -74,9 +74,6 @@ public class QuizAttempt {
         if (status == null) {
             status = AttemptStatus.IN_PROGRESS;
         }
-        if (score == null) {
-            score = BigDecimal.ZERO;
-        }
         if (totalQuestions == null) {
             totalQuestions = 0;
         }

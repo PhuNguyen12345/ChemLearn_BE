@@ -1,0 +1,8 @@
+ALTER TABLE quiz_questions
+ADD COLUMN IF NOT EXISTS point_value DECIMAL(6, 2) NOT NULL DEFAULT 1;
+
+ALTER TABLE question_bank_items
+ADD COLUMN IF NOT EXISTS point_value DECIMAL(6, 2) NOT NULL DEFAULT 1;
+
+ALTER TABLE attempt_answers
+ADD COLUMN IF NOT EXISTS awarded_points DECIMAL(6, 2);

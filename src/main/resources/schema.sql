@@ -103,6 +103,7 @@ CREATE TABLE IF NOT EXISTS question_bank_items (
     option_d TEXT,
     correct_option VARCHAR(255),
     explanation TEXT,
+    point_value DECIMAL(6, 2) NOT NULL DEFAULT 1,
     created_at TIMESTAMP NOT NULL
 );
 
@@ -117,6 +118,7 @@ CREATE TABLE IF NOT EXISTS quiz_questions (
     option_d TEXT,
     correct_option VARCHAR(255),
     explanation TEXT,
+    point_value DECIMAL(6, 2) NOT NULL DEFAULT 1,
     display_order INTEGER NOT NULL DEFAULT 0
 );
 
@@ -125,7 +127,7 @@ CREATE TABLE IF NOT EXISTS quiz_attempts (
     quiz_id BIGINT NOT NULL REFERENCES quizzes(id),
     student_id BIGINT NOT NULL REFERENCES accounts(id),
     status VARCHAR(30) NOT NULL,
-    score INTEGER NOT NULL DEFAULT 0,
+    score DECIMAL(5, 2),
     total_questions INTEGER NOT NULL DEFAULT 0,
     correct_answers INTEGER NOT NULL DEFAULT 0,
     started_at TIMESTAMP NOT NULL,
@@ -137,7 +139,8 @@ CREATE TABLE IF NOT EXISTS attempt_answers (
     attempt_id BIGINT NOT NULL REFERENCES quiz_attempts(id),
     question_id BIGINT NOT NULL REFERENCES quiz_questions(id),
     selected_option TEXT,
-    correct BOOLEAN NOT NULL
+    correct BOOLEAN NOT NULL,
+    awarded_points DECIMAL(6, 2)
 );
 
 CREATE TABLE IF NOT EXISTS parent_student_links (

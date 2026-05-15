@@ -4,6 +4,7 @@ import com.example.chemlearn.lms.enums.QuestionType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Data
@@ -16,6 +17,7 @@ public class QuizQuestionDTO {
     private String optionB;
     private String optionC;
     private String optionD;
+    private BigDecimal pointValue;
     private Integer displayOrder;
 }
 

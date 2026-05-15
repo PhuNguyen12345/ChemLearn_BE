@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
@@ -48,6 +49,9 @@ public class QuizQuestion {
 
     @Column(columnDefinition = "TEXT")
     private String explanation;
+
+    @Column(name = "point_value", nullable = false, precision = 6, scale = 2)
+    private BigDecimal pointValue = BigDecimal.ONE;
 
     @Column(name = "display_order", nullable = false)
     private Integer displayOrder = 0;

@@ -1,6 +1,5 @@
 package com.example.chemlearn.lms.entity;
 
-import com.example.chemlearn.lms.entity.StudyClass;
 import com.example.chemlearn.core.entity.Teacher;
 import com.example.chemlearn.lms.enums.QuizType;
 import jakarta.persistence.*;

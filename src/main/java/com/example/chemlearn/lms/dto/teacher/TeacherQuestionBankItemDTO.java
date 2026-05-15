@@ -4,6 +4,7 @@ import com.example.chemlearn.lms.enums.QuestionType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -19,6 +20,7 @@ public class TeacherQuestionBankItemDTO {
     private String optionD;
     private String correctOption;
     private String explanation;
+    private BigDecimal pointValue;
     private LocalDateTime createdAt;
 }
 

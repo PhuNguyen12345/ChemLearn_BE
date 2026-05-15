@@ -6,6 +6,7 @@ import lombok.Setter;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Getter
@@ -33,4 +34,7 @@ public class AttemptAnswer {
 
     @Column(name = "is_correct", nullable = false)
     private Boolean isCorrect = false;
+
+    @Column(name = "awarded_points", precision = 6, scale = 2)
+    private BigDecimal awardedPoints;
 }

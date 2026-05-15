@@ -70,5 +70,6 @@ public interface TeacherService {
     void gradeSubmission(UUID attemptId, TeacherGradeRequestDTO dto, String teacherUsername);
     void addChapterToClass(java.util.UUID classId, java.util.UUID chapterId, String teacherUsername);
     void removeChapterFromClass(java.util.UUID classId, java.util.UUID chapterId, String teacherUsername);
+    void removeStudentFromClass(UUID classId, UUID studentId, String teacherUsername);
 }
 

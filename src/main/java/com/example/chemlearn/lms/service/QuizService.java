@@ -13,5 +13,7 @@ public interface QuizService {
     StartQuizAttemptResponseDTO startAttempt(UUID quizId, String username);
 
     QuizSubmitResponseDTO submitAttempt(UUID attemptId, QuizSubmitRequestDTO requestDTO, String username);
+
+    List<QuizAttemptHistoryDTO> getAttemptHistory(UUID quizId, String username);
 }
 

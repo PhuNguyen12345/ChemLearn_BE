@@ -45,5 +45,13 @@ public class QuizController {
     ) {
         return quizService.submitAttempt(attemptId, requestDTO, authentication.getName());
     }
+
+    @GetMapping("/{quizId}/history")
+    public List<QuizAttemptHistoryDTO> getAttemptHistory(
+            @PathVariable UUID quizId,
+            Authentication authentication
+    ) {
+        return quizService.getAttemptHistory(quizId, authentication.getName());
+    }
 }
 

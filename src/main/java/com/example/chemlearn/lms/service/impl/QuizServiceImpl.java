@@ -3,13 +3,7 @@ package com.example.chemlearn.lms.service.impl;
 import com.example.chemlearn.core.entity.Student;
 import com.example.chemlearn.core.entity.User;
 import com.example.chemlearn.core.enums.UserRole;
-import com.example.chemlearn.lms.dto.quiz.QuizAnswerDTO;
-import com.example.chemlearn.lms.dto.quiz.QuizDetailDTO;
-import com.example.chemlearn.lms.dto.quiz.QuizListItemDTO;
-import com.example.chemlearn.lms.dto.quiz.QuizQuestionDTO;
-import com.example.chemlearn.lms.dto.quiz.QuizSubmitRequestDTO;
-import com.example.chemlearn.lms.dto.quiz.QuizSubmitResponseDTO;
-import com.example.chemlearn.lms.dto.quiz.StartQuizAttemptResponseDTO;
+import com.example.chemlearn.lms.dto.quiz.*;
 import com.example.chemlearn.lms.entity.*;
 import com.example.chemlearn.lms.enums.AttemptStatus;
 import com.example.chemlearn.lms.enums.QuizType;
@@ -23,13 +17,16 @@ import com.example.chemlearn.lms.repository.QuizRepository;
 import com.example.chemlearn.lms.repository.StudyClassAssignmentRepository;
 import com.example.chemlearn.lms.service.QuizService;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -73,6 +70,7 @@ public class QuizServiceImpl implements QuizService {
                         question.getOptionB(),
                         question.getOptionC(),
                         question.getOptionD(),
+                        normalizePointValue(question.getPointValue()),
                         question.getDisplayOrder()))
                 .toList();
         return new QuizDetailDTO(
@@ -151,77 +149,70 @@ public class QuizServiceImpl implements QuizService {
         }
 
         List<QuizQuestion> quizQuestions = quizQuestionRepository.findByQuizIdOrderByDisplayOrderAsc(attempt.getQuiz().getId());
-        Map<UUID, String> correctOptions = quizQuestions.stream()
-                .collect(Collectors.toMap(QuizQuestion::getId, question -> question.getCorrectOption().toUpperCase(), (left, right) -> right, HashMap::new));
-
-        Map<UUID, com.example.chemlearn.lms.enums.QuestionType> questionTypes = quizQuestions.stream()
-                .collect(Collectors.toMap(QuizQuestion::getId, QuizQuestion::getQuestionType, (left, right) -> right, HashMap::new));
+        Map<UUID, QuizAnswerDTO> submittedAnswers = requestDTO.getAnswers().stream()
+                .collect(Collectors.toMap(QuizAnswerDTO::getQuestionId, Function.identity(), (left, right) -> right, HashMap::new));
 
         int total = quizQuestions.size();
         int correct = 0;
-        boolean hasEssay = false;
+        BigDecimal awardedPoints = BigDecimal.ZERO;
+        BigDecimal totalPoints = quizQuestions.stream()
+                .map(question -> normalizePointValue(question.getPointValue()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        boolean hasEssay = quizQuestionRepository.existsByQuizIdAndQuestionType(attempt.getQuiz().getId(), com.example.chemlearn.lms.enums.QuestionType.ESSAY);
 
-        for (QuizAnswerDTO answer : requestDTO.getAnswers()) {
-            QuizQuestion quizQuestion = quizQuestions.stream()
-                .filter(q -> q.getId().equals(answer.getQuestionId()))
-                .findFirst()
-                .orElse(null);
-            
-            if (quizQuestion == null) continue;
-
+        for (QuizQuestion quizQuestion : quizQuestions) {
+            QuizAnswerDTO answer = submittedAnswers.get(quizQuestion.getId());
             AttemptAnswer attemptAnswer = new AttemptAnswer();
             attemptAnswer.setAttempt(attempt);
             attemptAnswer.setQuizQuestion(quizQuestion);
-            attemptAnswer.setSelectedOption(answer.getSelectedOption());
+            attemptAnswer.setSelectedOption(answer == null ? null : answer.getSelectedOption());
             
             com.example.chemlearn.lms.enums.QuestionType type = quizQuestion.getQuestionType();
             if (type == com.example.chemlearn.lms.enums.QuestionType.ESSAY) {
-                hasEssay = true;
                 attemptAnswer.setIsCorrect(false);
+                attemptAnswer.setAwardedPoints(null);
             } else {
-                String expected = quizQuestion.getCorrectOption();
-                boolean isAnswerCorrect = false;
-                if (expected != null && answer.getSelectedOption() != null) {
-                    if (type == com.example.chemlearn.lms.enums.QuestionType.MULTIPLE_CHOICE) {
-                        String[] expectedParts = expected.toUpperCase().split(",");
-                        String[] answerParts = answer.getSelectedOption().toUpperCase().split(",");
-                        java.util.Arrays.sort(expectedParts);
-                        java.util.Arrays.sort(answerParts);
-                        if (java.util.Arrays.equals(expectedParts, answerParts)) {
-                            isAnswerCorrect = true;
-                        }
-                    } else if (expected.equalsIgnoreCase(answer.getSelectedOption())) {
-                        isAnswerCorrect = true;
-                    }
-                }
+                boolean isAnswerCorrect = isObjectiveAnswerCorrect(quizQuestion, answer == null ? null : answer.getSelectedOption());
                 attemptAnswer.setIsCorrect(isAnswerCorrect);
+                BigDecimal questionPoints = isAnswerCorrect ? normalizePointValue(quizQuestion.getPointValue()) : BigDecimal.ZERO;
+                attemptAnswer.setAwardedPoints(questionPoints);
                 if (isAnswerCorrect) {
                     correct++;
                 }
+                awardedPoints = awardedPoints.add(questionPoints);
             }
             attemptAnswerRepository.save(attemptAnswer);
         }
 
         attempt.setCorrectAnswers(correct);
         attempt.setTotalQuestions(total);
-        attempt.setScore(total == 0 ? BigDecimal.ZERO : BigDecimal.valueOf((correct * 100.0) / total));
         
-        if (hasEssay && (attempt.getQuiz() == null || attempt.getQuiz().getQuizType() != QuizType.FREE)) {
+        if (hasEssay) {
             attempt.setStatus(AttemptStatus.NEEDS_GRADING);
+            attempt.setScore(null);
         } else {
             attempt.setStatus(AttemptStatus.COMPLETED);
+            attempt.setScore(calculatePercentage(awardedPoints, totalPoints));
         }
         
         attempt.setSubmittedAt(Instant.now());
         quizAttemptRepository.save(attempt);
 
+        String message;
+        if (attempt.getStatus() == AttemptStatus.NEEDS_GRADING) {
+            message = "Submission success! Please wait for your teacher to grade.";
+        } else {
+            message = "Submission success! Your grade is ready.";
+        }
+
         return new QuizSubmitResponseDTO(
                 attempt.getId(),
                 total,
                 correct,
-                attempt.getScore() == null ? 0 : attempt.getScore().intValue(),
+                attempt.getScore() == null ? null : attempt.getScore().intValue(),
                 attempt.getStatus(),
-                                attempt.getSubmittedAt());
+                attempt.getSubmittedAt(),
+                message);
     }
 
     private User requireStudentUser(String username) {
@@ -245,6 +236,47 @@ public class QuizServiceImpl implements QuizService {
         return quiz;
     }
 
+    @Override
+    public List<QuizAttemptHistoryDTO> getAttemptHistory(UUID quizId, String username) {
+        User user = requireStudentUser(username);
+        Quiz quiz = quizRepository.findById(quizId)
+                .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Quiz not found"));
+
+        List<QuizAttempt> attempts = quizAttemptRepository.findByQuizIdAndStudentIdOrderByStartedAtDesc(quizId, user.getId());
+
+        Instant dueAt = resolveStudentQuizDueAt(quizId, user.getId());
+        boolean pastDeadline = dueAt != null && Instant.now().isAfter(dueAt);
+        boolean isExam = isExamQuiz(quiz);
+
+        return attempts.stream()
+                .map(attempt -> {
+                    boolean canRetake;
+                    if (isExam) {
+                        // Exams can only be submitted once (logic from startAttempt)
+                        canRetake = false;
+                    } else if (pastDeadline) {
+                        // Past deadline
+                        canRetake = false;
+                    } else {
+                        // If it's in progress, they are already "retaking" or continuing
+                        // If completed or needs grading, they can retake if deadline allows
+                        canRetake = true;
+                    }
+
+                    return new QuizAttemptHistoryDTO(
+                            attempt.getId(),
+                            attempt.getStatus(),
+                            attempt.getScore(),
+                            attempt.getTotalQuestions(),
+                            attempt.getCorrectAnswers(),
+                            attempt.getStartedAt(),
+                            attempt.getSubmittedAt(),
+                            canRetake
+                    );
+                })
+                .toList();
+    }
+
     private boolean isVisibleToStudent(UUID quizId, UUID studentId) {
         return resolveStudentQuizAssignment(quizId, studentId).isPresent();
     }
@@ -255,6 +287,46 @@ public class QuizServiceImpl implements QuizService {
 
     private boolean isAssignmentQuiz(Quiz quiz) {
         return quiz.getQuizType() == QuizType.ASSIGNMENT || quiz.getQuizType() == QuizType.MINI_QUIZ;
+    }
+
+    private boolean isObjectiveAnswerCorrect(QuizQuestion quizQuestion, String selectedOption) {
+        String expected = quizQuestion.getCorrectOption();
+        if (expected == null || selectedOption == null) {
+            return false;
+        }
+
+        if (quizQuestion.getQuestionType() == com.example.chemlearn.lms.enums.QuestionType.MULTIPLE_CHOICE) {
+            String[] expectedParts = splitAndNormalizeOptions(expected);
+            String[] answerParts = splitAndNormalizeOptions(selectedOption);
+            Arrays.sort(expectedParts);
+            Arrays.sort(answerParts);
+            return Arrays.equals(expectedParts, answerParts);
+        }
+
+        return expected.equalsIgnoreCase(selectedOption);
+    }
+
+    private String[] splitAndNormalizeOptions(String options) {
+        return Arrays.stream(options.toUpperCase().split(","))
+                .map(String::trim)
+                .filter(option -> !option.isBlank())
+                .toArray(String[]::new);
+    }
+
+    private BigDecimal normalizePointValue(BigDecimal pointValue) {
+        if (pointValue == null || pointValue.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ONE;
+        }
+        return pointValue;
+    }
+
+    private BigDecimal calculatePercentage(BigDecimal awardedPoints, BigDecimal totalPoints) {
+        if (totalPoints == null || totalPoints.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return awardedPoints
+                .multiply(BigDecimal.valueOf(100))
+                .divide(totalPoints, 2, RoundingMode.HALF_UP);
     }
 
     private boolean hasCompletedAttempt(UUID quizId, UUID studentId) {

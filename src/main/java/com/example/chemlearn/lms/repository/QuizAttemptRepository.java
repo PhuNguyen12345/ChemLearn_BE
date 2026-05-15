@@ -12,4 +12,5 @@ public interface QuizAttemptRepository extends JpaRepository<QuizAttempt, UUID> 
     Optional<QuizAttempt> findFirstByQuizIdAndStudentIdAndStatusOrderByStartedAtDesc(UUID quizId, UUID studentId, AttemptStatus status);
     List<QuizAttempt> findByQuizCreatedByIdOrderByStartedAtDesc(UUID teacherId);
     List<QuizAttempt> findByStudentIdOrderByStartedAtDesc(UUID studentId);
+    List<QuizAttempt> findByQuizIdAndStudentIdOrderByStartedAtDesc(UUID quizId, UUID studentId);
 }

@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Data
@@ -17,4 +18,6 @@ public class TeacherAttemptAnswerDTO {
     private String selectedOption;
     private String correctOption;
     private Boolean isCorrect;
+    private BigDecimal pointValue;
+    private BigDecimal awardedPoints;
 }

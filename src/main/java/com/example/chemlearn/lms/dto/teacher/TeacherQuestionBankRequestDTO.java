@@ -1,8 +1,11 @@
 package com.example.chemlearn.lms.dto.teacher;
 
 import com.example.chemlearn.lms.enums.QuestionType;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
+
+import java.math.BigDecimal;
 
 @Data
 public class TeacherQuestionBankRequestDTO {
@@ -21,5 +24,8 @@ public class TeacherQuestionBankRequestDTO {
     private String correctOption;
 
     private String explanation;
+
+    @DecimalMin(value = "0.01", message = "Point value must be greater than 0")
+    private BigDecimal pointValue;
 }
 

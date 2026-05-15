@@ -61,6 +61,13 @@ public class TeacherController {
         teacherService.removeChapterFromClass(classId, chapterId, authentication.getName());
     }
 
+    @DeleteMapping("/classes/{classId}/students/{studentId}")
+    public void removeStudentFromClass(@PathVariable java.util.UUID classId,
+                                       @PathVariable java.util.UUID studentId,
+                                       Authentication authentication) {
+        teacherService.removeStudentFromClass(classId, studentId, authentication.getName());
+    }
+
     @PostMapping("/chapters")
     public TeacherChapterResponseDTO createChapter(@Valid @RequestBody TeacherChapterRequestDTO dto, Authentication authentication) {
         return teacherService.createChapter(dto, authentication.getName());

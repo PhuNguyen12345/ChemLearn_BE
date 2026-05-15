@@ -34,6 +34,7 @@ import com.example.chemlearn.lms.entity.StudyClass;
 import com.example.chemlearn.lms.entity.StudyClassAssignment;
 import com.example.chemlearn.lms.enums.AttemptStatus;
 import com.example.chemlearn.lms.enums.MaterialScope;
+import com.example.chemlearn.lms.enums.QuestionType;
 import com.example.chemlearn.lms.enums.QuizType;
 import com.example.chemlearn.lms.repository.UserRepository;
 import com.example.chemlearn.lms.repository.ChapterRepository;
@@ -51,6 +52,7 @@ import com.example.chemlearn.lms.service.TeacherService;
 import com.example.chemlearn.lms.service.StudyClassCodeGenerator;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -295,7 +297,7 @@ public class TeacherServiceImpl implements TeacherService {
         requireTeacherUser(teacherUsername);
         return quizRepository.findAllByOrderByIdDesc().stream()
                 .filter(quiz -> {
-                    // Quick bugfix: actually return this teacher's quizzes if ownership exists, 
+                    // Quick bugfix: actually return this teacher's quizzes if ownership exists,
                     // though for now if business logic dictates returning all, we leave that alone.
                     // Assuming existing logic is what you wanted, leaving exact same db call:
                     return true;
@@ -327,7 +329,7 @@ public class TeacherServiceImpl implements TeacherService {
         quiz.setCreatedAt(Instant.now());
         quiz.setCreatedBy(entityManager.getReference(Teacher.class, teacherId));
         quiz.setStudyClass(studyClass);
-        
+
         Quiz savedQuiz = quizRepository.save(quiz);
 
         // Automatically create an assignment so students can see it
@@ -422,6 +424,7 @@ public class TeacherServiceImpl implements TeacherService {
         item.setOptionD(dto.getOptionD());
         item.setCorrectOption(dto.getCorrectOption());
         item.setExplanation(dto.getExplanation());
+        item.setPointValue(normalizePointValue(dto.getPointValue()));
         item.setCreatedAt(LocalDateTime.now());
         return toQuestionBankDto(questionBankItemRepository.save(item));
     }
@@ -439,6 +442,7 @@ public class TeacherServiceImpl implements TeacherService {
         item.setOptionD(dto.getOptionD());
         item.setCorrectOption(dto.getCorrectOption());
         item.setExplanation(dto.getExplanation());
+        item.setPointValue(normalizePointValue(dto.getPointValue()));
         return toQuestionBankDto(questionBankItemRepository.save(item));
     }
 
@@ -468,6 +472,7 @@ public class TeacherServiceImpl implements TeacherService {
         question.setOptionD(item.getOptionD());
         question.setCorrectOption(item.getCorrectOption());
         question.setExplanation(item.getExplanation());
+        question.setPointValue(normalizePointValue(item.getPointValue()));
         question.setDisplayOrder((int) quizQuestionRepository.countByQuizId(quizId) + 1);
         return quizQuestionRepository.save(question);
     }
@@ -479,7 +484,7 @@ public class TeacherServiceImpl implements TeacherService {
         QuizQuestion question = new QuizQuestion();
         question.setQuiz(quiz);
         question.setQuestionType(dto.getQuestionType() != null ? dto.getQuestionType() : com.example.chemlearn.lms.enums.QuestionType.SINGLE_CHOICE);
-        
+
         if (quiz.getQuizType() == com.example.chemlearn.lms.enums.QuizType.MINI_QUIZ && question.getQuestionType() == com.example.chemlearn.lms.enums.QuestionType.ESSAY) {
             throw new RuntimeException("Mini quizzes cannot contain essay questions");
         }
@@ -491,6 +496,7 @@ public class TeacherServiceImpl implements TeacherService {
         question.setOptionD(dto.getOptionD());
         question.setCorrectOption(dto.getCorrectOption());
         question.setExplanation(dto.getExplanation());
+        question.setPointValue(normalizePointValue(dto.getPointValue()));
         question.setDisplayOrder(dto.getDisplayOrder() == null ? (int) quizQuestionRepository.countByQuizId(quizId) + 1 : dto.getDisplayOrder());
         return quizQuestionRepository.save(question);
     }
@@ -506,7 +512,7 @@ public class TeacherServiceImpl implements TeacherService {
         }
 
         question.setQuestionType(dto.getQuestionType() != null ? dto.getQuestionType() : com.example.chemlearn.lms.enums.QuestionType.SINGLE_CHOICE);
-        
+
         if (question.getQuiz().getQuizType() == com.example.chemlearn.lms.enums.QuizType.MINI_QUIZ && question.getQuestionType() == com.example.chemlearn.lms.enums.QuestionType.ESSAY) {
             throw new RuntimeException("Mini quizzes cannot contain essay questions");
         }
@@ -518,6 +524,7 @@ public class TeacherServiceImpl implements TeacherService {
         question.setOptionD(dto.getOptionD());
         question.setCorrectOption(dto.getCorrectOption());
         question.setExplanation(dto.getExplanation());
+        question.setPointValue(normalizePointValue(dto.getPointValue()));
         question.setDisplayOrder(dto.getDisplayOrder() == null ? question.getDisplayOrder() : dto.getDisplayOrder());
         return quizQuestionRepository.save(question);
     }
@@ -897,6 +904,15 @@ public class TeacherServiceImpl implements TeacherService {
         }
     }
 
+    @Override
+    @Transactional
+    public void removeStudentFromClass(UUID classId, UUID studentId, String teacherUsername) {
+        UUID teacherId = requireTeacherUser(teacherUsername).getId();
+        StudyClass studyClass = requireOwnedClass(classId, teacherId);
+
+        classStudentLinkRepository.deleteByStudentIdAndClassRoomId(studentId, classId);
+    }
+
     private TeacherQuestionBankItemDTO toQuestionBankDto(QuestionBankItem item) {
         return new TeacherQuestionBankItemDTO(
                 item.getId(),
@@ -908,6 +924,7 @@ public class TeacherServiceImpl implements TeacherService {
                 item.getOptionD(),
                 item.getCorrectOption(),
                 item.getExplanation(),
+                normalizePointValue(item.getPointValue()),
                 item.getCreatedAt());
     }
 
@@ -922,9 +939,7 @@ public class TeacherServiceImpl implements TeacherService {
             throw new RuntimeException("Unauthorized access to this submission");
         }
 
-        List<AttemptAnswer> answers = attemptAnswerRepository.findAll().stream()
-            .filter(a -> a.getAttempt().getId().equals(attemptId))
-            .toList();
+        List<AttemptAnswer> answers = attemptAnswerRepository.findByAttemptId(attemptId);
 
         List<TeacherAttemptAnswerDTO> answerDTOs = answers.stream()
             .map(a -> new TeacherAttemptAnswerDTO(
@@ -933,7 +948,9 @@ public class TeacherServiceImpl implements TeacherService {
                 a.getQuizQuestion().getQuestionType(),
                 a.getSelectedOption(),
                 a.getQuizQuestion().getCorrectOption(),
-                a.getIsCorrect()
+                a.getIsCorrect(),
+                normalizePointValue(a.getQuizQuestion().getPointValue()),
+                a.getAwardedPoints()
             ))
             .toList();
 
@@ -949,26 +966,98 @@ public class TeacherServiceImpl implements TeacherService {
     }
 
     @Override
-    @org.springframework.transaction.annotation.Transactional
+    @Transactional
     public void gradeSubmission(UUID attemptId, TeacherGradeRequestDTO dto, String teacherUsername) {
         User teacher = requireTeacherUser(teacherUsername);
         QuizAttempt attempt = quizAttemptRepository.findById(attemptId)
             .orElseThrow(() -> new RuntimeException("Submission not found"));
 
-        // Security check
         if (attempt.getQuiz() != null && !attempt.getQuiz().getCreatedBy().getId().equals(teacher.getId())) {
             throw new RuntimeException("Unauthorized access");
         }
 
-        if (dto.getFinalScore() != null) {
-            attempt.setScore(BigDecimal.valueOf(dto.getFinalScore()));
+        if (dto.getEssayGrades() != null && !dto.getEssayGrades().isEmpty()) {
+            List<AttemptAnswer> answers = attemptAnswerRepository.findByAttemptId(attemptId);
+            for (TeacherGradeRequestDTO.EssayGradeDTO grade : dto.getEssayGrades()) {
+                AttemptAnswer ans = answers.stream()
+                        .filter(a -> a.getQuizQuestion().getId().equals(grade.getQuestionId()))
+                        .findFirst()
+                        .orElseThrow(() -> new RuntimeException("Essay answer not found for this submission"));
+                if (ans.getQuizQuestion().getQuestionType() != QuestionType.ESSAY) {
+                    throw new RuntimeException("Only essay questions can be manually graded");
+                }
+                BigDecimal questionPoints = normalizePointValue(ans.getQuizQuestion().getPointValue());
+                BigDecimal awardedPoints = resolveEssayAwardedPoints(grade, questionPoints);
+                if (awardedPoints.compareTo(BigDecimal.ZERO) < 0 || awardedPoints.compareTo(questionPoints) > 0) {
+                    throw new RuntimeException("Awarded points must be between 0 and the question point value");
+                }
+
+                ans.setAwardedPoints(awardedPoints);
+                ans.setIsCorrect(awardedPoints.compareTo(questionPoints) == 0);
+                attemptAnswerRepository.save(ans);
+            }
+
+            boolean hasUngradedEssay = answers.stream()
+                    .filter(answer -> answer.getQuizQuestion().getQuestionType() == QuestionType.ESSAY)
+                    .anyMatch(answer -> answer.getAwardedPoints() == null);
+            if (hasUngradedEssay) {
+                throw new RuntimeException("All essay questions must be graded before publishing the final score");
+            }
+
+            attempt.setCorrectAnswers(countCorrectAnswers(answers));
+            attempt.setScore(calculateWeightedScore(answers));
+        } else if (dto.getFinalScore() != null) {
+            attempt.setScore(java.math.BigDecimal.valueOf(dto.getFinalScore()));
+        } else {
+            throw new RuntimeException("No grade information provided");
         }
+
         attempt.setStatus(AttemptStatus.COMPLETED);
         quizAttemptRepository.save(attempt);
     }
 
-    private int toIntScore(BigDecimal score) {
-        return score == null ? 0 : score.intValue();
+    private BigDecimal resolveEssayAwardedPoints(TeacherGradeRequestDTO.EssayGradeDTO grade, BigDecimal questionPoints) {
+        if (grade.getAwardedPoints() != null) {
+            return grade.getAwardedPoints();
+        }
+        if (grade.getIsCorrect() != null) {
+            return Boolean.TRUE.equals(grade.getIsCorrect()) ? questionPoints : BigDecimal.ZERO;
+        }
+        throw new RuntimeException("Essay awarded points are required");
+    }
+
+    private int countCorrectAnswers(List<AttemptAnswer> answers) {
+        return (int) answers.stream()
+                .filter(answer -> Boolean.TRUE.equals(answer.getIsCorrect()))
+                .count();
+    }
+
+    private BigDecimal calculateWeightedScore(List<AttemptAnswer> answers) {
+        BigDecimal totalPoints = answers.stream()
+                .map(answer -> normalizePointValue(answer.getQuizQuestion().getPointValue()))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal awardedPoints = answers.stream()
+                .map(AttemptAnswer::getAwardedPoints)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (totalPoints.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ZERO;
+        }
+        return awardedPoints
+                .multiply(BigDecimal.valueOf(100))
+                .divide(totalPoints, 2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal normalizePointValue(BigDecimal pointValue) {
+        if (pointValue == null || pointValue.compareTo(BigDecimal.ZERO) <= 0) {
+            return BigDecimal.ONE;
+        }
+        return pointValue;
+    }
+
+    private Integer toIntScore(BigDecimal score) {
+        return score == null ? null : score.intValue();
     }
 
     private TeacherChapterResponseDTO toChapterResponse(Chapter chapter) {
@@ -994,4 +1083,4 @@ public class TeacherServiceImpl implements TeacherService {
                 .published(lesson.getPublished())
                 .build();
     }
-}
+}

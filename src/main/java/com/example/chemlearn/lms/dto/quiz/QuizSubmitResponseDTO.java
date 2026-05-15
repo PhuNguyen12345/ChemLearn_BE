@@ -16,6 +16,7 @@ public class QuizSubmitResponseDTO {
     private Integer score;
     private AttemptStatus status;
     private Instant submittedAt;
+    private String message;
 }
 
 
