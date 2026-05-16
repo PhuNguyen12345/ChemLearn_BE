@@ -9,4 +9,7 @@ import java.util.UUID;
 
 public interface LabService {
     PageResponse<LabSummaryResponse> findLabs(UUID authorId, String keyword, LabCategory category, LabType type, int page, int size);
+    void renameSandboxLab(UUID authorId, UUID labId, String newTitle);
+    UUID createSandboxLab(UUID authorId);
+
 }

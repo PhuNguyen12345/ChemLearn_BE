@@ -17,5 +17,8 @@ public enum LabCategory {
     NHIET_HOC,
     CAN_BANG,
     HUU_CO,
-    KHAC
+    KHAC,
+
+    //5. Chung: dành cho lab Sandbox
+    GENERAL,
 }

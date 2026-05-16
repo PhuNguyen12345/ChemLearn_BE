@@ -10,10 +10,13 @@ import com.example.chemlearn.lab.service.LabProgressService;
 import com.example.chemlearn.lab.service.LabService;
 import com.example.chemlearn.util.SecurityUtils;
 import lombok.AllArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.UUID;
 
 @Controller
@@ -73,6 +76,23 @@ public class LabController {
         labProgressService.resetLab(currentStudentId, labId);
         //return message
         return ResponseEntity.ok("Đã reset lại bài thí nghiệm.");
+    }
+
+    @PatchMapping("/{labId}/rename")
+    public ResponseEntity<String> renameLab(@PathVariable UUID labId,
+                                            @RequestParam String newTitle) {
+        UUID currentStudentId = SecurityUtils.getCurrentUserId();
+        labService.renameSandboxLab(currentStudentId, labId, newTitle);
+        return ResponseEntity.ok("Đã sửa tên bài lab thành công.");
+    }
+
+    @PostMapping("/sandbox")
+    public ResponseEntity<Map<String, UUID>> createSandboxLab() {
+        UUID currentStudentId = SecurityUtils.getCurrentUserId();
+        UUID newLabId = labService.createSandboxLab(currentStudentId);
+        // Trả về JSON dạng {"labId": "xxx-yyy-zzz"} để FE lấy điều hướng
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(Collections.singletonMap("labId", newLabId));
     }
 
 }
