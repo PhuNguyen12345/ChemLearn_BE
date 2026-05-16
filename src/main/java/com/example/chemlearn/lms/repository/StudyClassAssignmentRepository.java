@@ -10,4 +10,7 @@ public interface StudyClassAssignmentRepository extends JpaRepository<StudyClass
     List<StudyClassAssignment> findByStudyClassField_Id(UUID classId);
     List<StudyClassAssignment> findByQuizId(UUID quizId);
     List<StudyClassAssignment> findByLabId(UUID labId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(a) FROM StudyClassAssignment a JOIN a.studyClassField c JOIN c.enrollments e WHERE e.student.id = :studentId")
+    Long countAssignmentsByStudentId(@org.springframework.data.repository.query.Param("studentId") UUID studentId);
 }

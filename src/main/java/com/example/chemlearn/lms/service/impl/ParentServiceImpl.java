@@ -1,5 +1,6 @@
 package com.example.chemlearn.lms.service.impl;
 
+import com.example.chemlearn.core.entity.Student;
 import com.example.chemlearn.core.entity.User;
 import com.example.chemlearn.core.enums.UserRole;
 import com.example.chemlearn.lms.dto.parent.ParentAssessmentDTO;
@@ -13,6 +14,7 @@ import com.example.chemlearn.lms.exception.CustomExceptions;
 import com.example.chemlearn.lms.repository.UserRepository;
 import com.example.chemlearn.lms.repository.AssignmentRepository;
 import com.example.chemlearn.lms.repository.ParentStudentLinkRepository;
+import com.example.chemlearn.lms.repository.StudentRepository;
 import com.example.chemlearn.lms.repository.QuizAttemptRepository;
 import com.example.chemlearn.lms.service.ParentService;
 import java.time.Instant;
@@ -31,13 +33,30 @@ public class ParentServiceImpl implements ParentService {
         private final ParentStudentLinkRepository parentStudentLinkRepository;
         private final QuizAttemptRepository quizAttemptRepository;
         private final AssignmentRepository assignmentRepository;
+        private final StudentRepository studentRepository;
 
         @Override
         public List<ParentChildDTO> getChildren(String parentUsername) {
                 User parent = getParentByUsername(parentUsername);
-                return parentStudentLinkRepository.findByParentId(parent.getId()).stream()
-                                .map(link -> new ParentChildDTO(link.getStudent().getId(), link.getStudent().getUsername(),
-                                        link.getStudent().getEmail()))
+                List<ParentStudentLink> links = parentStudentLinkRepository.findByParent_Id(parent.getId());
+                
+                List<ParentChildDTO> children = new ArrayList<>();
+                for (ParentStudentLink link : links) {
+                    User studentUser = link.getStudent();
+                    Student studentEntity = studentRepository.findById(studentUser.getId()).orElse(null);
+                    
+                    children.add(new ParentChildDTO(
+                        studentUser.getId(),
+                        studentUser.getUsername(),
+                        studentUser.getFullName(),
+                        studentUser.getEmail(),
+                        studentUser.getAvatarUrl(),
+                        studentEntity != null ? studentEntity.getSchoolName() : "N/A",
+                        studentEntity != null ? studentEntity.getGradeLevel() : 0
+                    ));
+                }
+                
+                return children.stream()
                                 .sorted(Comparator.comparing(ParentChildDTO::getUsername))
                                 .toList();
         }
@@ -84,7 +103,7 @@ public class ParentServiceImpl implements ParentService {
 
         private User getOwnedChild(String parentUsername, UUID childId) {
             User parent = getParentByUsername(parentUsername);
-                ParentStudentLink link = parentStudentLinkRepository.findByParentIdAndStudentId(parent.getId(), childId)
+                ParentStudentLink link = parentStudentLinkRepository.findByParent_IdAndStudent_Id(parent.getId(), childId)
                                 .orElseThrow(() -> new CustomExceptions.BadRequestException("Child does not belong to this parent"));
                 return link.getStudent();
         }

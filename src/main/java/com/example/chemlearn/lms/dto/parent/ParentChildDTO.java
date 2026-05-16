@@ -8,8 +8,12 @@ import java.util.UUID;
 @Data
 @AllArgsConstructor
 public class ParentChildDTO {
-    private UUID id;
+    private UUID studentId;
     private String username;
+    private String fullName;
     private String email;
+    private String avatarUrl;
+    private String schoolName;
+    private Integer gradeLevel;
 }
 

@@ -64,7 +64,7 @@ public class AuthServiceImpl implements AuthService {
         if (!matches(dto.getPassword(), acc.getPassword())) {
             throw new RuntimeException("Invalid credentials");
         }
-        return new AuthResponseDTO(jwtUtil.generateToken(acc), acc.getUsername(), acc.getEmail(), acc.getRole().name());
+        return new AuthResponseDTO(jwtUtil.generateToken(acc), acc.getId().toString(), acc.getUsername(), acc.getEmail(), acc.getRole().name());
     }
 
     @Override
