@@ -49,7 +49,7 @@ public class UserLabProgress {
 
     @Column(name = "completed_actions")
     @JdbcTypeCode(SqlTypes.JSON)
-    private List<Map<String, Object>> completedActions;
+    private List<String> completedActions;
 
     @Column(name = "current_workspace")
     @JdbcTypeCode(SqlTypes.JSON)
@@ -77,4 +77,23 @@ public class UserLabProgress {
     @Column(name = "last_edited_at")
     private Instant lastEditedAt;
 
+    @Override
+    public String toString() {
+        return "UserLabProgress{" +
+                "id=" + id +
+                ", student=" + student +
+                ", lab=" + lab +
+                ", status='" + status + '\'' +
+                ", progressPercent=" + progressPercent +
+                ", currentScore=" + currentScore +
+                ", completedActions=" + completedActions +
+                ", currentWorkspace=" + currentWorkspace +
+                ", viewport=" + viewport +
+                ", thumbnailUrl='" + thumbnailUrl + '\'' +
+                ", isFinished=" + isFinished +
+                ", startedAt=" + startedAt +
+                ", submittedAt=" + submittedAt +
+                ", lastEditedAt=" + lastEditedAt +
+                '}';
+    }
 }
