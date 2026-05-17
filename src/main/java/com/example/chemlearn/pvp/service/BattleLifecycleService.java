@@ -176,9 +176,9 @@ public class BattleLifecycleService {
 
     private void persistRewards(PlayerSlot winner, PlayerSlot loser) {
         try {
-            Student winnerStudent = studentRepository.findByUsers_Username(winner.getStudentId())
+            Student winnerStudent = studentRepository.findById(UUID.fromString(winner.getStudentId()))
                     .orElseThrow(() -> new RuntimeException("Winner student not found: " + winner.getStudentId()));
-            Student loserStudent = studentRepository.findByUsers_Username(loser.getStudentId())
+            Student loserStudent = studentRepository.findById(UUID.fromString(loser.getStudentId()))
                     .orElseThrow(() -> new RuntimeException("Loser student not found: " + loser.getStudentId()));
 
             winnerStudent.setExperience(winnerStudent.getExperience() + WINNER_XP);
