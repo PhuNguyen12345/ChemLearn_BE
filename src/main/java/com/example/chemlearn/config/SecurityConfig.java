@@ -55,6 +55,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/account-link/confirm").permitAll()
                         .requestMatchers("/ws/**").permitAll() // WebSocket STOMP endpoint
                         .anyRequest().authenticated()
                 )

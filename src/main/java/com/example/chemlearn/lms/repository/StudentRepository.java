@@ -12,6 +12,7 @@ import java.util.Optional;
 public interface StudentRepository extends JpaRepository<Student, UUID> {
     List<Student> findByParentId(UUID parentId);
     Optional<Student> findByUsers_Username(String username);
+    Optional<Student> findByUsers_Id(UUID id);
 
     // Leaderboard: Top N
     org.springframework.data.domain.Page<Student> findAllByOrderByExperienceDesc(org.springframework.data.domain.Pageable pageable);

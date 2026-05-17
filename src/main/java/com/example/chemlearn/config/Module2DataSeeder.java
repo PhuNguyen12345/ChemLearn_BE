@@ -77,6 +77,28 @@ public class Module2DataSeeder {
                         return u;
                     });
 
+            // ── Parent: Thor (For testing) ─────────────────────────────────────
+            User thorParent = accountRepository.findByUsername("thor")
+                    .orElseGet(() -> {
+                        User u = new User();
+                        u.setUsername("thor");
+                        u.setFullName("Thần Sấm Thor");
+                        u.setEmail("thor123deptrai@gmail.com");
+                        u.setPassword(hash("123456"));
+                        u.setRole(UserRole.ROLE_PARENT);
+                        u.setIsActive(true);
+                        u = accountRepository.save(u);
+
+                        Parent parent = new Parent();
+                        parent.setUsers(u);
+                        parent.setPhoneNumber("0909090909");
+                        parent.setJobTitle("Siêu anh hùng");
+                        parentRepository.save(parent);
+
+                        return u;
+                    });
+
+
             // ── Student 2: Nguyen Thi Bich (new child) ────────────────────────
             User student2User = accountRepository.findByUsername("student2")
                     .orElseGet(() -> {
@@ -97,6 +119,31 @@ public class Module2DataSeeder {
                         s.setCoins(50);
                         s.setPvpWins(0);
                         s.setSchoolName("THPT Nguyễn Huệ");
+                        studentRepository.save(s);
+
+                        return u;
+                    });
+
+            // ── Student 3: Peter (For testing) ────────────────────────────────
+            User student3User = accountRepository.findByUsername("peter")
+                    .orElseGet(() -> {
+                        User u = new User();
+                        u.setUsername("peter");
+                        u.setFullName("Peter Parker");
+                        u.setEmail("peter@chemlearn.local");
+                        u.setPassword(hash("123456"));
+                        u.setRole(UserRole.ROLE_STUDENT);
+                        u.setIsActive(true);
+                        u = accountRepository.save(u);
+
+                        Student s = new Student();
+                        s.setUsers(u);
+                        s.setGradeLevel(11);
+                        s.setExperience(300);
+                        s.setCurrentStreak(5);
+                        s.setCoins(150);
+                        s.setPvpWins(10);
+                        s.setSchoolName("Trường THPT X-Men");
                         studentRepository.save(s);
 
                         return u;
