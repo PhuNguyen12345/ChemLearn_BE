@@ -38,4 +38,28 @@ public class EmailService {
             // Don't throw - async, don't break the main flow
         }
     }
+
+    @Async
+    public void sendPasswordResetEmail(String toEmail, String fullName, String token) {
+        String resetUrl = "http://localhost:5173/reset-password?token=" + token;
+        String subject = "ChemLearn - Yêu cầu đặt lại mật khẩu";
+        String body = "Xin chào " + fullName + ",\n\n" +
+                "Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn trên ChemLearn.\n" +
+                "Vui lòng nhấn vào đường link dưới đây để đặt lại mật khẩu (link có hiệu lực trong 30 phút):\n\n" +
+                resetUrl + "\n\n" +
+                "Nếu bạn không yêu cầu điều này, vui lòng bỏ qua email.\n" +
+                "Trân trọng,\nĐội ngũ ChemLearn";
+
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom("phamduchieu1407@gmail.com");
+            message.setTo(toEmail);
+            message.setSubject(subject);
+            message.setText(body);
+            mailSender.send(message);
+            log.info("Password reset email sent to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send password reset email to {}", toEmail, e);
+        }
+    }
 }
