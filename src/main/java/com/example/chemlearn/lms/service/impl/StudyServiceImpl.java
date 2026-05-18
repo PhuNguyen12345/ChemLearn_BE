@@ -12,6 +12,7 @@ import com.example.chemlearn.lms.entity.Chapter;
 import com.example.chemlearn.lms.entity.Lesson;
 import com.example.chemlearn.lms.entity.MiniQuizQuestion;
 import com.example.chemlearn.lms.enums.MaterialScope;
+import com.example.chemlearn.lms.enums.QuestionType;
 import com.example.chemlearn.lms.exception.CustomExceptions;
 import com.example.chemlearn.lms.repository.ChapterRepository;
 import com.example.chemlearn.lms.repository.LessonRepository;
@@ -51,7 +52,14 @@ public class StudyServiceImpl implements StudyService {
         public LessonDetailDTO getLessonDetail(UUID lessonId) {
                 Lesson lesson = getVisibleStudyLessonOrThrow(lessonId);
                 List<MiniQuizQuestionDTO> miniQuestions = miniQuizQuestionRepository.findByLessonIdOrderByIdAsc(lessonId).stream()
-                                .map(question -> new MiniQuizQuestionDTO(question.getId(), question.getPrompt(), question.getOptionA(), question.getOptionB(), question.getOptionC(), question.getOptionD()))
+                                .map(question -> new MiniQuizQuestionDTO(
+                                                question.getId(),
+                                                question.getQuestionType() == null ? QuestionType.SINGLE_CHOICE : question.getQuestionType(),
+                                                question.getPrompt(),
+                                                question.getOptionA(),
+                                                question.getOptionB(),
+                                                question.getOptionC(),
+                                                question.getOptionD()))
                                 .toList();
                 return new LessonDetailDTO(lesson.getId(), lesson.getChapter().getId(), lesson.getChapter().getTitle(), lesson.getTitle(), lesson.getTextContent(), lesson.getDurationMinutes(), miniQuestions);
         }
@@ -64,7 +72,7 @@ public class StudyServiceImpl implements StudyService {
                         throw new CustomExceptions.BadRequestException("This lesson does not have a mini quiz");
                 }
                 Map<UUID, String> answerMap = requestDTO.getAnswers().stream()
-                                .collect(Collectors.toMap(MiniQuizAnswerDTO::getQuestionId, dto -> dto.getSelectedOption().toUpperCase(), (left, right) -> right));
+                                .collect(Collectors.toMap(MiniQuizAnswerDTO::getQuestionId, dto -> normalizeOptions(dto.getSelectedOption()), (left, right) -> right));
                 Set<UUID> validQuestionIds = questions.stream().map(MiniQuizQuestion::getId).collect(Collectors.toSet());
                 for (UUID submittedQuestionId : answerMap.keySet()) {
                         if (!validQuestionIds.contains(submittedQuestionId)) {
@@ -75,13 +83,25 @@ public class StudyServiceImpl implements StudyService {
                 int correct = 0;
                 for (MiniQuizQuestion question : questions) {
                         String selected = answerMap.get(question.getId());
-                        if (selected != null && selected.equalsIgnoreCase(question.getCorrectOption())) {
+                        if (selected != null && selected.equals(normalizeOptions(question.getCorrectOption()))) {
                                 correct++;
                         }
                 }
                 int score = Math.round((correct * 100.0f) / total);
                 boolean passed = score >= 70;
                 return new MiniQuizSubmitResponseDTO(total, correct, score, passed);
+        }
+
+        private String normalizeOptions(String options) {
+                if (options == null) {
+                        return "";
+                }
+                return Arrays.stream(options.toUpperCase().split(","))
+                                .map(String::trim)
+                                .filter(option -> !option.isBlank())
+                                .distinct()
+                                .sorted()
+                                .collect(Collectors.joining(","));
         }
 
         private Lesson getVisibleStudyLessonOrThrow(UUID lessonId) {

@@ -17,6 +17,7 @@ import com.example.chemlearn.lms.entity.Quiz;
 import com.example.chemlearn.lms.entity.StudyClassAssignment;
 import com.example.chemlearn.lms.entity.StudyClass;
 import com.example.chemlearn.lms.enums.MaterialScope;
+import com.example.chemlearn.lms.enums.QuestionType;
 import com.example.chemlearn.lms.repository.ClassStudentLinkRepository;
 import com.example.chemlearn.lms.repository.LessonRepository;
 import com.example.chemlearn.lms.repository.MiniQuizQuestionRepository;
@@ -298,6 +299,7 @@ public class StudentClassServiceImpl implements StudentClassService {
     private MiniQuizQuestionDTO mapMiniQuizQuestion(MiniQuizQuestion question) {
         return new MiniQuizQuestionDTO(
             question.getId(),
+            question.getQuestionType() == null ? QuestionType.SINGLE_CHOICE : question.getQuestionType(),
             question.getPrompt(),
             question.getOptionA(),
             question.getOptionB(),

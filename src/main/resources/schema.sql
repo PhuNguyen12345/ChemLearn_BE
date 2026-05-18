@@ -35,11 +35,12 @@ CREATE TABLE IF NOT EXISTS mini_quiz_questions (
     id BIGSERIAL PRIMARY KEY,
     lesson_id BIGINT NOT NULL REFERENCES lessons(id),
     prompt TEXT NOT NULL,
+    question_type VARCHAR(50) NOT NULL DEFAULT 'SINGLE_CHOICE',
     option_a TEXT NOT NULL,
     option_b TEXT NOT NULL,
     option_c TEXT NOT NULL,
     option_d TEXT NOT NULL,
-    correct_option VARCHAR(1) NOT NULL,
+    correct_option VARCHAR(255) NOT NULL,
     explanation TEXT
 );
 

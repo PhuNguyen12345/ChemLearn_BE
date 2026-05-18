@@ -11,7 +11,7 @@ public class MiniQuizAnswerDTO {
     @NotNull
     private UUID questionId;
 
-    @Pattern(regexp = "^[ABCD]$", message = "selectedOption must be one of A,B,C,D")
+    @Pattern(regexp = "^[ABCD](,[ABCD])*$", message = "selectedOption must be one or more of A,B,C,D")
     private String selectedOption;
 }
 

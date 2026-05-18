@@ -1,5 +1,6 @@
 package com.example.chemlearn.lms.dto.admin;
 
+import com.example.chemlearn.lms.enums.QuestionType;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,6 +15,8 @@ import java.util.UUID;
 @Builder
 public class AdminMiniQuizQuestionDTO {
     private UUID id;
+
+    private QuestionType questionType;
 
     @NotBlank(message = "Question text is required")
     private String questionText;
@@ -30,7 +33,7 @@ public class AdminMiniQuizQuestionDTO {
     @NotBlank(message = "Option D is required")
     private String optionD;
 
-    @NotBlank(message = "Correct option must be specified (A, B, C, or D)")
+    @NotBlank(message = "Correct option must be specified")
     private String correctOption;
 
     private Integer orderIndex;

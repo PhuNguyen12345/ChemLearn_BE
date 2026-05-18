@@ -8,6 +8,7 @@ import com.example.chemlearn.lms.entity.Chapter;
 import com.example.chemlearn.lms.entity.Lesson;
 import com.example.chemlearn.lms.entity.MiniQuizQuestion;
 import com.example.chemlearn.lms.enums.MaterialScope;
+import com.example.chemlearn.lms.enums.QuestionType;
 import com.example.chemlearn.lms.exception.CustomExceptions;
 import com.example.chemlearn.lms.repository.ChapterRepository;
 import com.example.chemlearn.lms.repository.LessonRepository;
@@ -94,6 +95,7 @@ public class AdminContentServiceImpl implements AdminContentService {
     private AdminMiniQuizQuestionDTO convertMiniQuizQuestionToDto(MiniQuizQuestion question) {
         return AdminMiniQuizQuestionDTO.builder()
                 .id(question.getId())
+                .questionType(question.getQuestionType() == null ? QuestionType.SINGLE_CHOICE : question.getQuestionType())
                 .questionText(question.getPrompt())
                 .optionA(question.getOptionA())
                 .optionB(question.getOptionB())
@@ -312,12 +314,15 @@ public class AdminContentServiceImpl implements AdminContentService {
 
         MiniQuizQuestion question = new MiniQuizQuestion();
         question.setLesson(lesson);
+        QuestionType questionType = dto.getQuestionType() == null ? QuestionType.SINGLE_CHOICE : dto.getQuestionType();
+
         question.setPrompt(dto.getQuestionText());
+        question.setQuestionType(questionType);
         question.setOptionA(dto.getOptionA());
         question.setOptionB(dto.getOptionB());
         question.setOptionC(dto.getOptionC());
         question.setOptionD(dto.getOptionD());
-        question.setCorrectOption(dto.getCorrectOption().toUpperCase());
+        question.setCorrectOption(normalizeCorrectOption(dto.getCorrectOption()));
         question.setExplanation(""); // Can be added later
         question.setCreatedBy(admin);
 
@@ -339,12 +344,15 @@ public class AdminContentServiceImpl implements AdminContentService {
         // Validate correct option
         validateCorrectOption(dto.getCorrectOption());
 
+        QuestionType questionType = dto.getQuestionType() == null ? QuestionType.SINGLE_CHOICE : dto.getQuestionType();
+
         question.setPrompt(dto.getQuestionText());
+        question.setQuestionType(questionType);
         question.setOptionA(dto.getOptionA());
         question.setOptionB(dto.getOptionB());
         question.setOptionC(dto.getOptionC());
         question.setOptionD(dto.getOptionD());
-        question.setCorrectOption(dto.getCorrectOption().toUpperCase());
+        question.setCorrectOption(normalizeCorrectOption(dto.getCorrectOption()));
 
         MiniQuizQuestion updatedQuestion = miniQuizQuestionRepository.save(question);
         log.info("Mini-quiz question updated: {} by admin: {}", updatedQuestion.getId(), adminUsername);
@@ -367,9 +375,18 @@ public class AdminContentServiceImpl implements AdminContentService {
     // ==================== VALIDATION ====================
 
     private void validateCorrectOption(String correctOption) {
-        String option = correctOption.toUpperCase();
-        if (!option.matches("^[A-D]$")) {
-            throw new CustomExceptions.BadRequestException("Correct option must be one of: A, B, C, D");
+        String option = normalizeCorrectOption(correctOption);
+        if (!option.matches("^[A-D](,[A-D])*$")) {
+            throw new CustomExceptions.BadRequestException("Correct option must contain only A, B, C, or D");
         }
+    }
+
+    private String normalizeCorrectOption(String correctOption) {
+        return java.util.Arrays.stream(correctOption.toUpperCase().split(","))
+                .map(String::trim)
+                .filter(option -> !option.isBlank())
+                .distinct()
+                .sorted()
+                .collect(Collectors.joining(","));
     }
 }

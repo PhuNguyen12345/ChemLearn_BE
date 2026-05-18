@@ -92,12 +92,7 @@ public class QuizServiceImpl implements QuizService {
             throw new CustomExceptions.BadRequestException("This exam can only be submitted once");
         }
 
-        if (isAssignmentQuiz(quiz)) {
-            Instant dueAt = resolveStudentQuizDueAt(quizId, studentAccount.getId());
-            if (dueAt != null && Instant.now().isAfter(dueAt)) {
-                throw new CustomExceptions.BadRequestException("This assignment is past the deadline");
-            }
-        }
+        rejectIfDeadlineReached(quiz, studentAccount.getId());
 
         QuizAttempt activeAttempt = quizAttemptRepository
                 .findFirstByQuizIdAndStudentIdAndStatusOrderByStartedAtDesc(quizId, studentAccount.getId(), AttemptStatus.IN_PROGRESS)
@@ -141,12 +136,7 @@ public class QuizServiceImpl implements QuizService {
         }
 
         Quiz quiz = attempt.getQuiz();
-        if (quiz != null && isAssignmentQuiz(quiz)) {
-            Instant dueAt = resolveStudentQuizDueAt(quiz.getId(), studentAccount.getId());
-            if (dueAt != null && Instant.now().isAfter(dueAt)) {
-                throw new CustomExceptions.BadRequestException("This assignment is past the deadline");
-            }
-        }
+        rejectIfDeadlineReached(quiz, studentAccount.getId());
 
         List<QuizQuestion> quizQuestions = quizQuestionRepository.findByQuizIdOrderByDisplayOrderAsc(attempt.getQuiz().getId());
         Map<UUID, QuizAnswerDTO> submittedAnswers = requestDTO.getAnswers().stream()
@@ -244,8 +234,8 @@ public class QuizServiceImpl implements QuizService {
 
         List<QuizAttempt> attempts = quizAttemptRepository.findByQuizIdAndStudentIdOrderByStartedAtDesc(quizId, user.getId());
 
-        Instant dueAt = resolveStudentQuizDueAt(quizId, user.getId());
-        boolean pastDeadline = dueAt != null && Instant.now().isAfter(dueAt);
+        Instant deadline = resolveStudentQuizDeadline(quiz, user.getId());
+        boolean pastDeadline = deadline != null && isNowAtOrAfter(deadline);
         boolean isExam = isExamQuiz(quiz);
 
         return attempts.stream()
@@ -287,6 +277,18 @@ public class QuizServiceImpl implements QuizService {
 
     private boolean isAssignmentQuiz(Quiz quiz) {
         return quiz.getQuizType() == QuizType.ASSIGNMENT || quiz.getQuizType() == QuizType.MINI_QUIZ;
+    }
+
+    private void rejectIfDeadlineReached(Quiz quiz, UUID studentId) {
+        Instant deadline = resolveStudentQuizDeadline(quiz, studentId);
+        if (deadline != null && isNowAtOrAfter(deadline)) {
+            String label = isExamQuiz(quiz) ? "exam" : "assignment";
+            throw new CustomExceptions.BadRequestException("This " + label + " deadline has passed");
+        }
+    }
+
+    private boolean isNowAtOrAfter(Instant deadline) {
+        return !Instant.now().isBefore(deadline);
     }
 
     private boolean isObjectiveAnswerCorrect(QuizQuestion quizQuestion, String selectedOption) {
@@ -339,6 +341,20 @@ public class QuizServiceImpl implements QuizService {
         return resolveStudentQuizAssignment(quizId, studentId)
                 .map(StudyClassAssignment::getDueDate)
                 .orElse(null);
+    }
+
+    private Instant resolveStudentQuizDeadline(Quiz quiz, UUID studentId) {
+        if (quiz == null) {
+            return null;
+        }
+        Instant assignmentDueAt = resolveStudentQuizDueAt(quiz.getId(), studentId);
+        if (assignmentDueAt != null) {
+            return assignmentDueAt;
+        }
+        if (quiz.getQuizType() == QuizType.EXAM || quiz.getQuizType() == QuizType.ASSIGNMENT) {
+            return quiz.getEndTime();
+        }
+        return null;
     }
 
     private java.util.Optional<StudyClassAssignment> resolveStudentQuizAssignment(UUID quizId, UUID studentId) {

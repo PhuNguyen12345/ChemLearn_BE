@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import com.example.chemlearn.core.entity.User;
+import com.example.chemlearn.lms.enums.QuestionType;
 
 import java.util.UUID;
 
@@ -28,6 +29,10 @@ public class MiniQuizQuestion {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String prompt;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "question_type", nullable = false, length = 50)
+    private QuestionType questionType = QuestionType.SINGLE_CHOICE;
+
     @Column(name = "option_a", nullable = false, columnDefinition = "TEXT")
     private String optionA;
 
@@ -40,7 +45,7 @@ public class MiniQuizQuestion {
     @Column(name = "option_d", nullable = false, columnDefinition = "TEXT")
     private String optionD;
 
-    @Column(name = "correct_option", nullable = false, length = 1)
+    @Column(name = "correct_option", nullable = false, length = 255)
     private String correctOption;
 
     @Column(columnDefinition = "TEXT")
