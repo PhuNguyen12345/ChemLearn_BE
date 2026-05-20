@@ -7,6 +7,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface ParentStudentLinkRepository extends JpaRepository<ParentStudentLink, UUID> {
-    List<ParentStudentLink> findByParentId(UUID parentId);
-    Optional<ParentStudentLink> findByParentIdAndStudentId(UUID parentId, UUID studentId);
+    List<ParentStudentLink> findByParent_Id(UUID parentId);
+    Optional<ParentStudentLink> findByParent_IdAndStudent_Id(UUID parentId, UUID studentId);
 }

@@ -34,6 +34,10 @@ public class Quest {
     @Column(name = "reward_xp", nullable = false)
     private Integer rewardXp;
 
+    @ColumnDefault("0")
+    @Column(name = "reward_coins")
+    private Integer rewardCoins = 0;
+
     @ColumnDefault("true")
     @Column(name = "is_active")
     private Boolean isActive;

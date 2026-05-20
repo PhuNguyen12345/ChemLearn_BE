@@ -85,7 +85,6 @@ public class AuthServiceImpl implements AuthService {
         if (Boolean.FALSE.equals(acc.getIsActive())) {
             throw new CustomExceptions.UnauthorizedException("Account is disabled");
         }
-
         if (!matches(dto.getPassword(), acc.getPassword())) {
             registerFailedAttempt(acc);
             throw new CustomExceptions.UnauthorizedException("Invalid credentials");
@@ -136,7 +135,7 @@ public class AuthServiceImpl implements AuthService {
     private AuthResponseDTO buildAuthResponse(User user) {
         AuthResponseDTO dto = new AuthResponseDTO();
         dto.setToken(jwtUtil.generateToken(user));
-        dto.setId(user.getId());
+        dto.setId(user.getId() != null ? user.getId().toString() : null);
         dto.setUsername(user.getUsername());
         dto.setEmail(user.getEmail());
         dto.setRole(user.getRole().name());

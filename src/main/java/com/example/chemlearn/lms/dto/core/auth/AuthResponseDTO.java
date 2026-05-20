@@ -6,7 +6,7 @@ import java.util.UUID;
 @Data
 public class AuthResponseDTO {
     private String token;
-    private UUID id;
+    private String id;
     private String username;
     private String email;
     private String role;

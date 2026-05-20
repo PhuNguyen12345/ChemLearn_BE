@@ -34,8 +34,20 @@ public class Student {
     private Integer totalPoints;
 
     @ColumnDefault("0")
+    @Column(name = "experience")
+    private Integer experience = 0;
+
+    @ColumnDefault("0")
     @Column(name = "current_streak")
     private Integer currentStreak;
+
+    @ColumnDefault("0")
+    @Column(name = "coins")
+    private Integer coins = 0;
+
+    @ColumnDefault("0")
+    @Column(name = "pvp_wins")
+    private Integer pvpWins = 0;
 
     @Column(name = "last_active_date")
     private LocalDate lastActiveDate;

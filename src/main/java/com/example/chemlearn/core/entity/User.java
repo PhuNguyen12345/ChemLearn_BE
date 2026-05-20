@@ -42,6 +42,12 @@ public class User {
     @Column(name = "avatar_url", length = Integer.MAX_VALUE)
     private String avatarUrl;
 
+    @Column(name = "phone_number", length = 20)
+    private String phoneNumber;
+
+    @Column(name = "gender", length = 20)
+    private String gender;
+
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "created_at")
     private Instant createdAt;
