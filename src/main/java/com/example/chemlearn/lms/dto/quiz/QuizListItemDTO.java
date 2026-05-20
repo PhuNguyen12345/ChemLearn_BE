@@ -4,6 +4,7 @@ import com.example.chemlearn.lms.enums.QuizType;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Data
@@ -15,6 +16,7 @@ public class QuizListItemDTO {
     private QuizType quizType;
     private Integer durationMinutes;
     private Integer questionCount;
+    private Instant dueDate;
 }
 
 

@@ -4,6 +4,7 @@ import com.example.chemlearn.core.entity.Parent;
 import com.example.chemlearn.core.entity.Student;
 import com.example.chemlearn.core.entity.Teacher;
 import com.example.chemlearn.core.entity.User;
+import com.example.chemlearn.core.enums.AuthProvider;
 import com.example.chemlearn.core.enums.UserRole;
 import com.example.chemlearn.lms.dto.core.AccountResponseDTO;
 import com.example.chemlearn.lms.dto.core.CreateAccountDTO;
@@ -64,6 +65,9 @@ public class AccountServiceImpl implements AccountService {
         user.setCreatedAt(Instant.now());
         user.setUpdatedAt(null);
         user.setIsActive(true);
+        user.setAuthProvider(AuthProvider.LOCAL);
+        user.setFailedLoginAttempts(0);
+        user.setLockoutUntil(null);
 
         if(user.getRole().equals(UserRole.ROLE_STUDENT)){
             Student student = new Student();

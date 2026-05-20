@@ -26,6 +26,7 @@ import com.example.chemlearn.lms.repository.StudyClassAssignmentRepository;
 import com.example.chemlearn.lms.repository.StudyClassRepository;
 import com.example.chemlearn.lms.repository.UserRepository;
 import com.example.chemlearn.lms.service.StudentClassService;
+import java.time.Instant;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -54,10 +55,10 @@ public class StudentClassServiceImpl implements StudentClassService {
                 .toList();
     }
 
-        @Override
-        public List<QuizListItemDTO> getMyQuizzes(String studentUsername) {
+    @Override
+    public List<QuizListItemDTO> getMyQuizzes(String studentUsername) {
         User studentUser = requireStudentUser(studentUsername);
-            List<UUID> classIds = classStudentLinkRepository.findByStudentId(studentUser.getId())
+        List<UUID> classIds = classStudentLinkRepository.findByStudentId(studentUser.getId())
             .stream()
             .map(link -> link.getClassRoom().getId())
             .toList();
@@ -65,49 +66,15 @@ public class StudentClassServiceImpl implements StudentClassService {
             return List.of();
         }
 
-        Map<java.util.UUID, Quiz> quizzesById = assignmentRepository.findByStudyClassField_IdIn(classIds)
-            .stream()
-            .map(StudyClassAssignment::getQuiz)
-            .filter(quiz -> quiz != null && Boolean.TRUE.equals(quiz.getPublished()))
-            .collect(java.util.stream.Collectors.toMap(
-                Quiz::getId,
-                quiz -> quiz,
-                (first, second) -> first,
-                LinkedHashMap::new));
-
-        return quizzesById.values().stream()
-            .map(quiz -> new QuizListItemDTO(
-                quiz.getId(),
-                quiz.getTitle(),
-                quiz.getDescription(),
-                quiz.getQuizType(),
-                quiz.getDurationMinutes(),
-                Math.toIntExact(quizQuestionRepository.countByQuizId(quiz.getId()))))
-            .toList();
-        }
+        List<StudyClassAssignment> assignments = assignmentRepository.findByStudyClassField_IdIn(classIds);
+        return mapAssignmentsToQuizList(assignments);
+    }
 
     @Override
     public List<QuizListItemDTO> getQuizzesForClass(String studentUsername, UUID classId) {
         requireEnrolledClass(studentUsername, classId);
-        return assignmentRepository.findByStudyClassField_Id(classId)
-            .stream()
-            .map(StudyClassAssignment::getQuiz)
-            .filter(quiz -> quiz != null && Boolean.TRUE.equals(quiz.getPublished()))
-            .collect(java.util.stream.Collectors.toMap(
-                Quiz::getId,
-                quiz -> quiz,
-                (left, right) -> left,
-                LinkedHashMap::new))
-            .values()
-            .stream()
-            .map(quiz -> new QuizListItemDTO(
-                quiz.getId(),
-                quiz.getTitle(),
-                quiz.getDescription(),
-                quiz.getQuizType(),
-                quiz.getDurationMinutes(),
-                Math.toIntExact(quizQuestionRepository.countByQuizId(quiz.getId()))))
-            .toList();
+        List<StudyClassAssignment> assignments = assignmentRepository.findByStudyClassField_Id(classId);
+        return mapAssignmentsToQuizList(assignments);
     }
 
         @Override
@@ -204,6 +171,48 @@ public class StudentClassServiceImpl implements StudentClassService {
                 assignment.getQuiz() == null ? null : assignment.getQuiz().getId(),
                 assignment.getDueDate(),
                 assignment.getCreatedAt());
+    }
+
+    private List<QuizListItemDTO> mapAssignmentsToQuizList(List<StudyClassAssignment> assignments) {
+        if (assignments == null || assignments.isEmpty()) {
+            return List.of();
+        }
+
+        Map<UUID, StudyClassAssignment> latestByQuizId = assignments.stream()
+            .filter(assignment -> assignment != null
+                && assignment.getQuiz() != null
+                && Boolean.TRUE.equals(assignment.getQuiz().getPublished()))
+            .collect(java.util.stream.Collectors.toMap(
+                assignment -> assignment.getQuiz().getId(),
+                java.util.function.Function.identity(),
+                this::pickLatestAssignment,
+                LinkedHashMap::new));
+
+        return latestByQuizId.values().stream()
+            .map(assignment -> {
+                Quiz quiz = assignment.getQuiz();
+                return new QuizListItemDTO(
+                    quiz.getId(),
+                    quiz.getTitle(),
+                    quiz.getDescription(),
+                    quiz.getQuizType(),
+                    quiz.getDurationMinutes(),
+                    Math.toIntExact(quizQuestionRepository.countByQuizId(quiz.getId())),
+                    assignment.getDueDate());
+            })
+            .toList();
+    }
+
+    private StudyClassAssignment pickLatestAssignment(StudyClassAssignment left, StudyClassAssignment right) {
+        Instant leftAt = left == null ? null : left.getCreatedAt();
+        Instant rightAt = right == null ? null : right.getCreatedAt();
+        if (leftAt == null) {
+            return right;
+        }
+        if (rightAt == null) {
+            return left;
+        }
+        return rightAt.isAfter(leftAt) ? right : left;
     }
 
     @Override

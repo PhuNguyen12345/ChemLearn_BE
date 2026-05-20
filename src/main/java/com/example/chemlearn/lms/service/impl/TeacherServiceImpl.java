@@ -355,6 +355,8 @@ public class TeacherServiceImpl implements TeacherService {
         validateQuizTiming(dto);
 
         Quiz quiz = requireOwnedQuiz(quizId, teacherId);
+        Instant previousEndTime = quiz.getEndTime();
+        QuizType previousQuizType = quiz.getQuizType();
         quiz.setTitle(dto.getTitle());
         quiz.setDescription(dto.getDescription());
         quiz.setQuizType(dto.getQuizType());
@@ -368,7 +370,9 @@ public class TeacherServiceImpl implements TeacherService {
         }
         quiz.setPublished(dto.getPublished() == null ? Boolean.TRUE : dto.getPublished());
         quiz.setStudyClass(studyClass);
-        return mapToTeacherQuizResponseDTO(quizRepository.save(quiz));
+        Quiz savedQuiz = quizRepository.save(quiz);
+        syncAssignmentDueDates(savedQuiz, previousEndTime, previousQuizType);
+        return mapToTeacherQuizResponseDTO(savedQuiz);
     }
 
     private TeacherQuizResponseDTO mapToTeacherQuizResponseDTO(Quiz quiz) {
@@ -389,9 +393,11 @@ public class TeacherServiceImpl implements TeacherService {
     }
 
     @Override
+    @Transactional
     public void deleteQuiz(UUID quizId, String teacherUsername) {
         UUID teacherId = requireTeacherUser(teacherUsername).getId();
         Quiz quiz = requireOwnedQuiz(quizId, teacherId);
+        quizQuestionRepository.deleteByQuizId(quizId);
         quizRepository.delete(quiz);
     }
 
@@ -631,6 +637,45 @@ public class TeacherServiceImpl implements TeacherService {
 
         if (!dto.getEndTime().isAfter(dto.getStartTime())) {
             throw new RuntimeException("End time must be after start time");
+        }
+    }
+
+    private void syncAssignmentDueDates(Quiz quiz, Instant previousEndTime, QuizType previousQuizType) {
+        if (quiz == null) {
+            return;
+        }
+
+        List<StudyClassAssignment> assignments = studyClassAssignmentRepository.findByQuizId(quiz.getId());
+        if (assignments.isEmpty()) {
+            return;
+        }
+
+        Instant nextEndTime = quiz.getEndTime();
+        boolean isTimed = isTimedQuiz(quiz.getQuizType());
+        boolean wasTimed = isTimedQuiz(previousQuizType);
+        List<StudyClassAssignment> updates = new java.util.ArrayList<>();
+
+        for (StudyClassAssignment assignment : assignments) {
+            Instant dueDate = assignment.getDueDate();
+            boolean wasAutoDueDate = wasTimed
+                && previousEndTime != null
+                && dueDate != null
+                && dueDate.equals(previousEndTime);
+            boolean shouldSync = dueDate == null || wasAutoDueDate;
+
+            if (isTimed && nextEndTime != null && shouldSync) {
+                if (!java.util.Objects.equals(dueDate, nextEndTime)) {
+                    assignment.setDueDate(nextEndTime);
+                    updates.add(assignment);
+                }
+            } else if (!isTimed && wasAutoDueDate) {
+                assignment.setDueDate(null);
+                updates.add(assignment);
+            }
+        }
+
+        if (!updates.isEmpty()) {
+            studyClassAssignmentRepository.saveAll(updates);
         }
     }
 

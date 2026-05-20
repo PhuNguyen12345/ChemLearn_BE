@@ -10,4 +10,5 @@ public interface QuizQuestionRepository extends JpaRepository<QuizQuestion, UUID
     List<QuizQuestion> findByQuizIdOrderByDisplayOrderAsc(UUID quizId);
     long countByQuizId(UUID quizId);
     boolean existsByQuizIdAndQuestionType(UUID quizId, QuestionType questionType);
+    void deleteByQuizId(UUID quizId);
 }

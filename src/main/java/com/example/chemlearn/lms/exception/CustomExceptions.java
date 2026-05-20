@@ -19,4 +19,16 @@ public class CustomExceptions {
         }
     }
 
+    public static class TooManyRequestsException extends RuntimeException {
+        public TooManyRequestsException(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class AccountLockedException extends RuntimeException {
+        public AccountLockedException(String msg) {
+            super(msg);
+        }
+    }
+
 }

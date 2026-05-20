@@ -53,7 +53,8 @@ public class QuizServiceImpl implements QuizService {
                         quiz.getDescription(),
                         quiz.getQuizType(),
                         quiz.getDurationMinutes(),
-                        Math.toIntExact(quizQuestionRepository.countByQuizId(quiz.getId()))))
+                    Math.toIntExact(quizQuestionRepository.countByQuizId(quiz.getId())),
+                    null))
                 .toList();
     }
 

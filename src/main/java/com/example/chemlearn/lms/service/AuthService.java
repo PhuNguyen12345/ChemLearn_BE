@@ -9,6 +9,8 @@ public interface AuthService {
 
     AuthResponseDTO login(LoginRequestDTO dto);
 
+    AuthResponseDTO loginWithGoogle(String idToken);
+
     void logout(String token);
 }
 

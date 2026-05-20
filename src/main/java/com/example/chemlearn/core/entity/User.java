@@ -1,5 +1,6 @@
 package com.example.chemlearn.core.entity;
 
+import com.example.chemlearn.core.enums.AuthProvider;
 import com.example.chemlearn.core.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -52,6 +53,22 @@ public class User {
     @Column(name = "is_active")
     private Boolean isActive;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider", nullable = false, length = 20)
+    private AuthProvider authProvider;
+
+    @Column(name = "provider_subject", length = 255)
+    private String providerSubject;
+
+    @Column(name = "failed_login_attempts")
+    private Integer failedLoginAttempts;
+
+    @Column(name = "lockout_until")
+    private Instant lockoutUntil;
+
+    @Column(name = "last_failed_at")
+    private Instant lastFailedAt;
+
     @PrePersist
     private void prePersist() {
         Instant now = Instant.now();
@@ -59,12 +76,15 @@ public class User {
         if (updatedAt == null) updatedAt = now;
         if (isActive == null) isActive = true;
         if (fullName == null || fullName.isBlank()) fullName = username;
+        if (authProvider == null) authProvider = AuthProvider.LOCAL;
+        if (failedLoginAttempts == null) failedLoginAttempts = 0;
     }
 
     @PreUpdate
     private void preUpdate() {
         updatedAt = Instant.now();
         if (isActive == null) isActive = true;
+        if (authProvider == null) authProvider = AuthProvider.LOCAL;
     }
 
 }

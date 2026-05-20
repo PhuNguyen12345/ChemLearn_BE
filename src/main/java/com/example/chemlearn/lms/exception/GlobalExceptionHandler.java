@@ -29,6 +29,24 @@ public class GlobalExceptionHandler {
                 .body(error("BAD_REQUEST", ex.getMessage()));
     }
 
+    @ExceptionHandler(CustomExceptions.UnauthorizedException.class)
+    public ResponseEntity<?> handleUnauthorized(CustomExceptions.UnauthorizedException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(error("UNAUTHORIZED", ex.getMessage()));
+    }
+
+    @ExceptionHandler(CustomExceptions.AccountLockedException.class)
+    public ResponseEntity<?> handleLocked(CustomExceptions.AccountLockedException ex) {
+        return ResponseEntity.status(HttpStatus.LOCKED)
+                .body(error("ACCOUNT_LOCKED", ex.getMessage()));
+    }
+
+    @ExceptionHandler(CustomExceptions.TooManyRequestsException.class)
+    public ResponseEntity<?> handleTooManyRequests(CustomExceptions.TooManyRequestsException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(error("TOO_MANY_REQUESTS", ex.getMessage()));
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
