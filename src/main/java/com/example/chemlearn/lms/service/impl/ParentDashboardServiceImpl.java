@@ -9,7 +9,7 @@ import com.example.chemlearn.lms.entity.QuizAttempt;
 import com.example.chemlearn.lms.enums.AttemptStatus;
 import com.example.chemlearn.lms.repository.QuizAttemptRepository;
 import com.example.chemlearn.lms.repository.StudentRepository;
-import com.example.chemlearn.lms.repository.AssignmentRepository;
+import com.example.chemlearn.lms.repository.StudyClassAssignmentRepository;
 import com.example.chemlearn.lms.service.ParentDashboardService;
 import com.example.chemlearn.gamification.entity.StudentQuest;
 import com.example.chemlearn.gamification.repository.StudentQuestRepository;
@@ -31,7 +31,7 @@ public class ParentDashboardServiceImpl implements ParentDashboardService {
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
     private final QuizAttemptRepository quizAttemptRepository;
-    private final AssignmentRepository assignmentRepository;
+    private final StudyClassAssignmentRepository assignmentRepository;
     private final StudentQuestRepository studentQuestRepository;
     private final ParentStudentLinkRepository parentStudentLinkRepository;
 

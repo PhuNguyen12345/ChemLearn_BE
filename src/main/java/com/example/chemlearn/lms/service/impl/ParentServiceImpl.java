@@ -12,12 +12,7 @@ import com.example.chemlearn.lms.entity.QuizAttempt;
 import com.example.chemlearn.lms.entity.StudyClassAssignment;
 import com.example.chemlearn.lms.enums.AttemptStatus;
 import com.example.chemlearn.lms.exception.CustomExceptions;
-import com.example.chemlearn.lms.repository.UserRepository;
-import com.example.chemlearn.lms.repository.ClassStudentLinkRepository;
-import com.example.chemlearn.lms.repository.ParentStudentLinkRepository;
-import com.example.chemlearn.lms.repository.StudentRepository;
-import com.example.chemlearn.lms.repository.QuizAttemptRepository;
-import com.example.chemlearn.lms.repository.StudyClassAssignmentRepository;
+import com.example.chemlearn.lms.repository.*;
 import com.example.chemlearn.lms.service.ParentService;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -36,7 +31,6 @@ public class ParentServiceImpl implements ParentService {
         private final QuizAttemptRepository quizAttemptRepository;
         private final ClassStudentLinkRepository classStudentLinkRepository;
         private final StudyClassAssignmentRepository studyClassAssignmentRepository;
-        private final AssignmentRepository assignmentRepository;
         private final StudentRepository studentRepository;
 
         @Override

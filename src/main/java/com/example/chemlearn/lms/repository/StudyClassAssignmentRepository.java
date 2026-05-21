@@ -21,4 +21,10 @@ public interface StudyClassAssignmentRepository extends JpaRepository<StudyClass
            "JOIN StudyClassEnrollment sce ON sce.studyClassField = sca.studyClassField " +
            "WHERE sca.lab.id = :labId AND sce.student.id = :studentId")
     boolean isAssignment(@Param("labId") UUID labId, @Param("studentId") UUID studentId);
+
+    @Query("SELECT COUNT(sca) " +
+           "FROM StudyClassAssignment sca " +
+           "JOIN StudyClassEnrollment sce ON sce.studyClassField = sca.studyClassField " +
+           "WHERE sce.student.id = :studentId")
+    Long countByStudentId(@Param("studentId") UUID studentId);
 }

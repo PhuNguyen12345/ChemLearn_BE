@@ -23,3 +23,6 @@ CREATE INDEX IF NOT EXISTS idx_chapters_created_by ON chapters(created_by);
 CREATE INDEX IF NOT EXISTS idx_lessons_created_by ON lessons(created_by);
 CREATE INDEX IF NOT EXISTS idx_chapters_published ON chapters(published);
 CREATE INDEX IF NOT EXISTS idx_lessons_published ON lessons(published);
+
+ALTER TABLE users
+    ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE;

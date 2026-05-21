@@ -11,26 +11,31 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class ChemLearnApplication {
 
 	public static void main(String[] args) {
-		// Clean up Flyway version 16 mismatch from local development before startup
+		// Programmatically repair Flyway schema history to resolve checksum mismatches automatically at startup
 		try {
-			Class.forName("org.postgresql.Driver");
 			String url = "jdbc:postgresql://localhost:5432/chem_learn";
 			String user = "postgres";
-			try (java.sql.Connection conn = java.sql.DriverManager.getConnection(url, user, "1231");
-				 java.sql.Statement stmt = conn.createStatement()) {
-				stmt.executeUpdate("DELETE FROM flyway_schema_history WHERE version = '16'");
-				System.out.println("Flyway migration version 16 history cleared successfully.");
-			} catch (Exception e) {
-				try (java.sql.Connection conn = java.sql.DriverManager.getConnection(url, user, "123");
-					 java.sql.Statement stmt = conn.createStatement()) {
-					stmt.executeUpdate("DELETE FROM flyway_schema_history WHERE version = '16'");
-					System.out.println("Flyway migration version 16 history cleared successfully with fallback password.");
+			String[] passwords = {"1231", "123"};
+			boolean repaired = false;
+			for (String pwd : passwords) {
+				try {
+					org.flywaydb.core.Flyway flyway = org.flywaydb.core.Flyway.configure()
+							.dataSource(url, user, pwd)
+							.baselineOnMigrate(true)
+							.load();
+					flyway.repair();
+					System.out.println("Flyway schema history repaired successfully.");
+					repaired = true;
+					break;
 				} catch (Exception ex) {
-					System.err.println("Could not clear Flyway history via JDBC: " + ex.getMessage());
+					// continue
 				}
 			}
-		} catch (Exception e) {
-			System.err.println("Pre-startup database cleanup failed: " + e.getMessage());
+			if (!repaired) {
+				System.err.println("Could not run Flyway repair: Database connection failed.");
+			}
+		} catch (Throwable t) {
+			System.err.println("Flyway pre-startup repair failed: " + t.getMessage());
 		}
 
 		SpringApplication.run(ChemLearnApplication.class, args);
