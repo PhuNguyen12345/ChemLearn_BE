@@ -29,7 +29,7 @@ public class AdminAuthController {
     @PostMapping("/requests/{requestId}/approve")
     public ResponseEntity<String> approveAccessRequest(@PathVariable UUID requestId) {
         onboardingService.approveRequest(requestId);
-        return ResponseEntity.ok("Request approved and invite generated");
+        return ResponseEntity.ok("Request approved and account activated");
     }
 
     @PostMapping("/requests/{requestId}/reject")

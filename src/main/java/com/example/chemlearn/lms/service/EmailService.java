@@ -2,6 +2,7 @@ package com.example.chemlearn.lms.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
@@ -13,6 +14,9 @@ import org.springframework.stereotype.Service;
 public class EmailService {
 
     private final JavaMailSender mailSender;
+
+    @Value("${app.mail.from:${spring.mail.username:no-reply@chemlearn.local}}")
+    private String fromEmail;
 
     @Async
     public void sendLinkConfirmationEmail(String toEmail, String initiatorName, String token) {
@@ -27,7 +31,7 @@ public class EmailService {
 
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("phamduchieu1407@gmail.com");
+            message.setFrom(fromEmail);
             message.setTo(toEmail);
             message.setSubject(subject);
             message.setText(body);
@@ -52,7 +56,7 @@ public class EmailService {
 
         try {
             SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("phamduchieu1407@gmail.com");
+            message.setFrom(fromEmail);
             message.setTo(toEmail);
             message.setSubject(subject);
             message.setText(body);
@@ -60,6 +64,28 @@ public class EmailService {
             log.info("Password reset email sent to: {}", toEmail);
         } catch (Exception e) {
             log.error("Failed to send password reset email to {}", toEmail, e);
+        }
+    }
+
+    public void sendOtpEmail(String toEmail, String fullName, String otpCode) {
+        String subject = "ChemLearn - Mã xác thực OTP";
+        String body = "Xin chào " + fullName + ",\n\n" +
+                "Mã OTP của bạn là: " + otpCode + "\n\n" +
+                "Mã có hiệu lực trong 5 phút. Vui lòng không chia sẻ mã này với bất kỳ ai.\n\n" +
+                "Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email.\n" +
+                "Trân trọng,\nĐội ngũ ChemLearn";
+
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(toEmail);
+            message.setSubject(subject);
+            message.setText(body);
+            mailSender.send(message);
+            log.info("OTP email sent to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send OTP email to {}", toEmail, e);
+            throw new IllegalStateException("Failed to send OTP email", e);
         }
     }
 }

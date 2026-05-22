@@ -21,11 +21,25 @@ public class RegisterRequestDTO {
     @Email
     @NotBlank
     private String email;
+
     @NotBlank
     @Pattern(
             regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&_.]).{8,32}$",
             message = "Password must be 8-32 chars, include upper, lower, number and special char"
     )
     private String password;
-}
 
+    // Role selection: "ROLE_STUDENT", "ROLE_TEACHER", "ROLE_PARENT"
+    private String role;
+
+    // Common for teacher & parent
+    private String phoneNumber;
+
+    // Teacher-specific
+    private String degree;          // "Cử nhân", "Thạc sĩ", "Tiến sĩ"
+    private String specialization;
+    private String workplace;
+
+    // Parent-specific
+    private String jobTitle;
+}

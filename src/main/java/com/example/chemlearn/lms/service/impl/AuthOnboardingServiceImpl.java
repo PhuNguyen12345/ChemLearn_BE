@@ -144,8 +144,12 @@ public class AuthOnboardingServiceImpl implements AuthOnboardingService {
             throw new CustomExceptions.BadRequestException("Request is not pending");
         }
 
-        // Create the invite
-        Invite invite = createInvite(request.getEmail(), request.getRole());
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new CustomExceptions.BadRequestException("Pending account not found for this request"));
+
+        user.setIsActive(true);
+        userRepository.save(user);
+
         request.setStatus("APPROVED");
         accessRequestRepository.save(request);
     }
@@ -162,6 +166,11 @@ public class AuthOnboardingServiceImpl implements AuthOnboardingService {
 
         request.setStatus("REJECTED");
         accessRequestRepository.save(request);
+
+        userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
+            user.setIsActive(false);
+            userRepository.save(user);
+        });
     }
 
     @Override

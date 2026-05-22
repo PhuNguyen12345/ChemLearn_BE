@@ -25,8 +25,6 @@ public class StudyClass {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
-    @Column(name = "schedule", length = 200)
-    private String schedule;
 
     @Column(name = "description", length = Integer.MAX_VALUE)
     private String description;
@@ -36,6 +34,9 @@ public class StudyClass {
 
     @Column(name = "grade_level", nullable = false)
     private Integer gradeLevel;
+
+    @Column(name = "class_type")
+    private String classType;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @OnDelete(action = OnDeleteAction.SET_NULL)

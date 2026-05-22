@@ -5,15 +5,18 @@ import com.example.chemlearn.lms.dto.core.auth.AccessRequestCreateDTO;
 import com.example.chemlearn.lms.dto.core.auth.GoogleLoginRequestDTO;
 import com.example.chemlearn.lms.dto.core.auth.InviteAcceptRequestDTO;
 import com.example.chemlearn.lms.dto.core.auth.LoginRequestDTO;
+import com.example.chemlearn.lms.dto.core.auth.OtpResendRequestDTO;
+import com.example.chemlearn.lms.dto.core.auth.OtpVerifyRequestDTO;
 import com.example.chemlearn.lms.dto.core.auth.RegisterRequestDTO;
 import com.example.chemlearn.lms.service.AuthService;
 import com.example.chemlearn.lms.service.AuthOnboardingService;
 import com.example.chemlearn.lms.service.PasswordResetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("api/auth")
@@ -26,8 +29,31 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequestDTO dto) {
+        if ("ROLE_TEACHER".equals(dto.getRole()) || "ROLE_PARENT".equals(dto.getRole())) {
+            authService.registerTeacherParentPending(dto);
+            return ResponseEntity.ok(Map.of("message", "Account request submitted for admin approval"));
+        }
+
         authService.register(dto);
         return ResponseEntity.ok("Registered successfully");
+    }
+
+    @PostMapping("/register/otp")
+    public ResponseEntity<?> registerWithOtp(@Valid @RequestBody RegisterRequestDTO dto) {
+        authService.registerWithOtp(dto);
+        return ResponseEntity.ok(Map.of("message", "OTP sent to email"));
+    }
+
+    @PostMapping("/otp/verify")
+    public ResponseEntity<?> verifyOtp(@Valid @RequestBody OtpVerifyRequestDTO dto) {
+        authService.verifyOtpAndCreateAccount(dto);
+        return ResponseEntity.ok(Map.of("message", "Account created successfully"));
+    }
+
+    @PostMapping("/otp/resend")
+    public ResponseEntity<?> resendOtp(@Valid @RequestBody OtpResendRequestDTO dto) {
+        authService.resendOtp(dto.getEmail());
+        return ResponseEntity.ok(Map.of("message", "OTP resent to email"));
     }
 
     @PostMapping("/login")

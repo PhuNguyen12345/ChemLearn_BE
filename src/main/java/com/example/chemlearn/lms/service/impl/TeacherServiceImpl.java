@@ -109,9 +109,10 @@ public class TeacherServiceImpl implements TeacherService {
             .map(classRoom -> new TeacherClassInfoDTO(
                 classRoom.getId(),
                 classRoom.getName(),
-                classRoom.getSchedule(),
-                classRoom.getDescription(),
+                    classRoom.getDescription(),
                 classRoom.getClassCode(),
+                classRoom.getGradeLevel(),
+                classRoom.getClassType(),
                 studentsByClassId.getOrDefault(classRoom.getId(), List.of()),
                 (classRoom.getChapters() != null ? classRoom.getChapters() : List.<Chapter>of())
                     .stream()
@@ -132,7 +133,6 @@ public class TeacherServiceImpl implements TeacherService {
         User teacherUser = requireTeacherUser(teacherUsername);
         StudyClass studyClass = new StudyClass();
         studyClass.setName(dto.getName());
-        studyClass.setSchedule(dto.getSchedule());
         studyClass.setDescription(dto.getDescription());
         studyClass.setGradeLevel(dto.getGradeLevel() == null ? 10 : dto.getGradeLevel());
         studyClass.setClassCode(studyClassCodeGenerator.generateUniqueCode());
@@ -148,7 +148,6 @@ public class TeacherServiceImpl implements TeacherService {
         UUID teacherId = requireTeacherUser(teacherUsername).getId();
         StudyClass studyClass = requireOwnedClass(classId, teacherId);
         studyClass.setName(dto.getName());
-        studyClass.setSchedule(dto.getSchedule());
         studyClass.setDescription(dto.getDescription());
         if (dto.getGradeLevel() != null) {
             studyClass.setGradeLevel(dto.getGradeLevel());
@@ -886,9 +885,10 @@ public class TeacherServiceImpl implements TeacherService {
         return new TeacherClassInfoDTO(
                 studyClass.getId(),
                 studyClass.getName(),
-                studyClass.getSchedule(),
                 studyClass.getDescription(),
                 studyClass.getClassCode(),
+                studyClass.getGradeLevel(),
+                studyClass.getClassType(),
             classStudentLinkRepository.findByClassRoomIdOrderByStudentUsernameAsc(studyClass.getId())
                 .stream()
                 .map(link -> new TeacherClassInfoDTO.StudentBrief(

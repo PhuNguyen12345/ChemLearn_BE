@@ -8,9 +8,11 @@ public class TeacherClassRequestDTO {
     @NotBlank
     private String name;
 
-    private String schedule;
+    private Integer gradeLevel;
 
     private String description;
 
-    private Integer gradeLevel;
+    private Integer grade;
+
+    private String classType;
 }
