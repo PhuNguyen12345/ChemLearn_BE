@@ -11,14 +11,18 @@ import com.example.chemlearn.gamification.enums.ItemType;
 import com.example.chemlearn.gamification.repository.*;
 import com.example.chemlearn.gamification.service.PetSystemService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.example.chemlearn.gamification.service.QuestService;
 
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PetSystemServiceImpl implements PetSystemService {
@@ -30,6 +34,7 @@ public class PetSystemServiceImpl implements PetSystemService {
     private final StudentPetRepository studentPetRepository;
     private final StudentPetFragmentRepository fragmentRepository;
     private final EggDropRateRepository eggDropRateRepository;
+    private final QuestService questService;
 
     private Student getStudent(String username) {
         return studentRepository.findByUsers_Username(username)
@@ -52,8 +57,19 @@ public class PetSystemServiceImpl implements PetSystemService {
         int hp = pet.getSpecies().getBaseHp() + (pet.getLevel() - 1) * pet.getSpecies().getHpGrowth();
         int damage = pet.getSpecies().getBaseDamage() + (pet.getLevel() - 1) * pet.getSpecies().getDamageGrowth();
         
-        // Star multiplier (e.g., 20% boost per star after 1)
-        double multiplier = 1.0 + (pet.getStarLevel() - 1) * 0.2;
+        // Star multiplier (Significantly increased for satisfying progression)
+        double multiplier;
+        switch (pet.getStarLevel()) {
+            case 2: multiplier = 1.5; break;
+            case 3: multiplier = 2.2; break;
+            case 4: multiplier = 3.2; break;
+            case 5: multiplier = 5.0; break;
+            default: multiplier = 1.0; break;
+        }
+        
+        int fragments = fragmentRepository.findByStudentIdAndSpeciesId(pet.getStudent().getId(), pet.getSpecies().getId())
+                .map(StudentPetFragment::getAmount)
+                .orElse(0);
         
         return StudentPetDTO.builder()
                 .id(pet.getId())
@@ -64,6 +80,7 @@ public class PetSystemServiceImpl implements PetSystemService {
                 .maxHp((int) (hp * multiplier))
                 .damage((int) (damage * multiplier))
                 .nextLevelExp(pet.getLevel() * 100)
+                .fragments(fragments)
                 .build();
     }
 
@@ -175,6 +192,7 @@ public class PetSystemServiceImpl implements PetSystemService {
         // 3. Process Result
         boolean isDuplicate = studentPetRepository.findByStudentIdAndSpeciesId(student.getId(), pulledSpecies.getId()).isPresent();
         int fragmentsReceived = 0;
+        int coinsConverted = 0;
 
         final PetSpecies finalPulledSpecies = pulledSpecies;
         if (isDuplicate) {
@@ -183,10 +201,37 @@ public class PetSystemServiceImpl implements PetSystemService {
                         StudentPetFragment f = new StudentPetFragment();
                         f.setStudent(student);
                         f.setSpecies(finalPulledSpecies);
+                        f.setAmount(0);
                         return f;
                     });
-            fragmentsReceived = 10; // e.g. duplicate gives 10 fragments
-            fragment.setAmount(fragment.getAmount() + fragmentsReceived);
+            fragmentsReceived = 10; // duplicate gives 10 fragments
+            
+            // Find current star level of the pet to calculate remaining fragments needed to reach max star level (5 stars)
+            int currentStarLevel = 1;
+            StudentPet pet = studentPetRepository.findByStudentIdAndSpeciesId(student.getId(), finalPulledSpecies.getId())
+                    .orElse(null);
+            if (pet != null) {
+                currentStarLevel = pet.getStarLevel();
+            }
+            
+            // Calculate total needed to reach 5 stars
+            int totalNeeded = 0;
+            for (int s = currentStarLevel; s < 5; s++) {
+                totalNeeded += s * 20;
+            }
+            
+            int currentAmount = fragment.getAmount() != null ? fragment.getAmount() : 0;
+            int newAmount = currentAmount + fragmentsReceived;
+            int actuallyAdded = Math.min(newAmount, totalNeeded) - currentAmount;
+            int excess = fragmentsReceived - actuallyAdded;
+            
+            if (excess > 0) {
+                coinsConverted = excess * 50; // 50 coins per excess fragment
+                student.setCoins(student.getCoins() + coinsConverted);
+                studentRepository.save(student);
+            }
+            
+            fragment.setAmount(currentAmount + actuallyAdded);
             fragmentRepository.save(fragment);
         } else {
             StudentPet newPet = new StudentPet();
@@ -199,6 +244,7 @@ public class PetSystemServiceImpl implements PetSystemService {
                 .species(mapToDTO(pulledSpecies))
                 .isDuplicate(isDuplicate)
                 .fragmentsReceived(fragmentsReceived)
+                .coinsConverted(coinsConverted)
                 .build();
     }
 
@@ -238,6 +284,14 @@ public class PetSystemServiceImpl implements PetSystemService {
         }
 
         studentPetRepository.save(pet);
+        
+        // Track FEED_PET daily quest progress
+        try {
+            questService.updateProgress(student.getId(), "FEED_PET", 1);
+        } catch (Exception e) {
+            // Log it but do not fail the core transaction
+            log.error("Failed to track FEED_PET quest progress", e);
+        }
     }
 
     @Override

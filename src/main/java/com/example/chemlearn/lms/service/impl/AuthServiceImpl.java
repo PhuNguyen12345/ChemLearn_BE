@@ -37,6 +37,7 @@ import com.example.chemlearn.lms.service.EmailService;
 import com.example.chemlearn.util.JwtUtil;
 import static com.example.chemlearn.util.PasswordUtil.hash;
 import static com.example.chemlearn.util.PasswordUtil.matches;
+import com.example.chemlearn.gamification.service.QuestService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -57,6 +58,7 @@ public class AuthServiceImpl implements AuthService {
     private final OtpVerificationRepository otpVerificationRepository;
     private final EmailService emailService;
     private final ObjectMapper objectMapper;
+    private final QuestService questService;
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final int OTP_EXPIRY_MINUTES = 5;
@@ -476,6 +478,16 @@ public class AuthServiceImpl implements AuthService {
         dto.setFullName(user.getFullName());
         dto.setAvatarUrl(user.getAvatarUrl());
         dto.setIsActive(user.getIsActive());
+
+        // Track LOGIN daily quest progress if user is a student
+        if (user.getRole() == UserRole.ROLE_STUDENT) {
+            try {
+                questService.updateProgress(user.getId(), "LOGIN", 1);
+            } catch (Exception e) {
+                log.error("Failed to track LOGIN quest progress", e);
+            }
+        }
+
         return dto;
     }
 

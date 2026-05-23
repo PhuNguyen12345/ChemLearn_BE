@@ -18,4 +18,5 @@ public class StudentPetDTO {
     private Integer maxHp;
     private Integer damage;
     private Integer nextLevelExp;
+    private Integer fragments;
 }

@@ -19,6 +19,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.chemlearn.gamification.service.QuestService;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Random;
@@ -42,6 +44,7 @@ public class BattleLifecycleService {
     private final StudentRepository studentRepository;
     private final XpLogRepository xpLogRepository;
     private final BattleRoomStore battleRoomStore;
+    private final QuestService questService;
 
     private final Random random = new Random();
 
@@ -208,6 +211,13 @@ public class BattleLifecycleService {
             loseLog.setCreatedAt(Instant.now());
             xpLogRepository.save(loseLog);
 
+            // Track PLAY_PVP daily quest progress
+            try {
+                questService.updateProgress(winnerStudent.getId(), "PLAY_PVP", 1);
+                questService.updateProgress(loserStudent.getId(), "PLAY_PVP", 1);
+            } catch (Exception e) {
+                log.error("Failed to track PLAY_PVP quest progress", e);
+            }
         } catch (Exception e) {
             log.error("Failed to persist battle rewards", e);
         }

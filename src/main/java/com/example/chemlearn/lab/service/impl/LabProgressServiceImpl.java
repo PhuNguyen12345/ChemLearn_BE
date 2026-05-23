@@ -15,6 +15,8 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import com.example.chemlearn.gamification.service.QuestService;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +29,7 @@ public class LabProgressServiceImpl implements LabProgressService {
     private UserLabProgressRepository labProgressRepository;
     private StudentRepository studentRepository;
     private StudyClassAssignmentRepository studyClassAssignmentRepository;
+    private QuestService questService;
 
     @Override
     public LabPlayResponse playLab(UUID labId, UUID studentId) {
@@ -152,6 +155,13 @@ public class LabProgressServiceImpl implements LabProgressService {
 
         UserLabProgress submittedProgress = labProgressRepository.save(progress);
         log.info("Submitted progress for student {} and lab {}", studentId, labId);
+
+        // Track DO_LAB daily quest progress
+        try {
+            questService.updateProgress(studentId, "DO_LAB", 1);
+        } catch (Exception e) {
+            log.error("Failed to track DO_LAB quest progress", e);
+        }
     }
 
     @Override
