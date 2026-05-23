@@ -1,5 +1,16 @@
 package com.example.chemlearn.config;
 
+import com.example.chemlearn.lab.entity.Lab;
+import com.example.chemlearn.lab.entity.LabConfiguration;
+import com.example.chemlearn.lab.entity.UserLabProgress;
+import com.example.chemlearn.lab.enums.Difficulty;
+import com.example.chemlearn.lab.enums.LabCategory;
+import com.example.chemlearn.lab.enums.LabType;
+import com.example.chemlearn.lab.repository.LabConfigurationRepository;
+import com.example.chemlearn.lab.repository.LabRepository;
+import com.example.chemlearn.lab.repository.UserLabProgressRepository;
+import com.example.chemlearn.lms.entity.*;
+import com.example.chemlearn.lms.repository.*;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,29 +24,19 @@ import com.example.chemlearn.gamification.entity.MapIsland;
 import com.example.chemlearn.gamification.entity.MapNode;
 import com.example.chemlearn.gamification.repository.MapIslandRepository;
 import com.example.chemlearn.gamification.repository.MapNodeRepository;
-import com.example.chemlearn.lms.entity.Chapter;
-import com.example.chemlearn.lms.entity.ClassStudentLink;
-import com.example.chemlearn.lms.entity.Lesson;
-import com.example.chemlearn.lms.entity.MiniQuizQuestion;
-import com.example.chemlearn.lms.entity.ParentStudentLink;
-import com.example.chemlearn.lms.entity.QuestionBankItem;
-import com.example.chemlearn.lms.entity.StudyClass;
 import com.example.chemlearn.lms.enums.MaterialScope;
 import com.example.chemlearn.lms.enums.QuestionType;
-import com.example.chemlearn.lms.repository.ChapterRepository;
-import com.example.chemlearn.lms.repository.ClassStudentLinkRepository;
-import com.example.chemlearn.lms.repository.LessonRepository;
-import com.example.chemlearn.lms.repository.MiniQuizQuestionRepository;
-import com.example.chemlearn.lms.repository.ParentRepository;
-import com.example.chemlearn.lms.repository.ParentStudentLinkRepository;
-import com.example.chemlearn.lms.repository.QuestionBankItemRepository;
-import com.example.chemlearn.lms.repository.StudentRepository;
-import com.example.chemlearn.lms.repository.StudyClassRepository;
-import com.example.chemlearn.lms.repository.TeacherRepository;
-import com.example.chemlearn.lms.repository.UserRepository;
+
 import static com.example.chemlearn.util.PasswordUtil.hash;
 
 import lombok.RequiredArgsConstructor;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Configuration
 @RequiredArgsConstructor
@@ -54,6 +55,10 @@ public class Module2DataSeeder {
     private final MapIslandRepository mapIslandRepository;
     private final MapNodeRepository mapNodeRepository;
     private final QuestionBankItemRepository questionBankItemRepository;
+    private final LabRepository labRepository;
+    private final LabConfigurationRepository labConfigurationRepository;
+    private final UserLabProgressRepository userLabProgressRepository;
+    private final StudyClassAssignmentRepository studyClassAssignmentRepository;
 
     @Bean
     public CommandLineRunner seedModule2Data() {
@@ -498,6 +503,19 @@ public class Module2DataSeeder {
                 seedNodes(island3, "Phản ứng Axit-Bazơ", "QUIZ", 2, 100);
                 seedNodes(island3, "Vua Thủy Ngân", "BOSS", 3, 500);
             }
+
+            // ── Virtual Labs & Assignments ─────────────────────────────────────
+            User adminUser = accountRepository.findByUsername("admin").orElseThrow();
+            User teacherUserToSeed = accountRepository.findByUsername("teacher1").orElseThrow();
+            Student peterStudent = studentRepository.findById(student3User.getId()).orElseThrow();
+            
+            StudyClass targetClassForAssignment = studyClassRepository.findByClassCode("9CH102")
+                .orElseGet(() -> {
+                    List<StudyClass> allClasses = studyClassRepository.findAll();
+                    return allClasses.isEmpty() ? null : allClasses.get(0);
+                });
+
+            seedVirtualLabs(adminUser, teacherUserToSeed, peterStudent, student3User, targetClassForAssignment);
         };
     }
 
@@ -545,5 +563,152 @@ public class Module2DataSeeder {
         question.setCorrectOption(correctOption);
         question.setExplanation(explanation);
         miniQuizQuestionRepository.save(question);
+    }
+
+
+    private void seedVirtualLabs(User admin, User teacher, Student student, User studentUser, StudyClass targetClass) {
+        if (labConfigurationRepository.count() > 0) {
+            return; // Already seeded configurations
+        }
+        
+        // Clear existing labs to prevent duplicates if any existed without config
+        if (labRepository.count() > 0) {
+            userLabProgressRepository.deleteAll();
+            labConfigurationRepository.deleteAll();
+            studyClassAssignmentRepository.deleteAll();
+            labRepository.deleteAll();
+        }
+
+        // 1. [PREMADE] Chuẩn độ Axit - Bazơ cơ bản
+        Lab lab1 = new Lab();
+        lab1.setTitle("Chuẩn độ Axit - Bazơ cơ bản");
+        lab1.setDescription("Thực hành phản ứng trung hòa giữa dung dịch HCl và NaOH. Quan sát sự đổi màu của chất chỉ thị Phenolphtalein.");
+        lab1.setCategory(LabCategory.AXIT_BAZO);
+        lab1.setDifficulty(Difficulty.EASY);
+        lab1.setType(LabType.PREMADE);
+        lab1.setAuthorId(admin.getId());
+        lab1.setMaxScore(0);
+        lab1 = labRepository.save(lab1);
+        seedLabConfiguration(lab1, new HashMap<>(), Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
+
+        // 2. [PREMADE] Nhiệt nhôm và Tính chất của Sắt
+        Lab lab2 = new Lab();
+        lab2.setTitle("Nhiệt nhôm và Tính chất của Sắt");
+        lab2.setDescription("Mô phỏng phản ứng nhiệt nhôm kinh điển và kiểm tra tính chất hóa học của kim loại Sắt với các loại axit khác nhau.");
+        lab2.setCategory(LabCategory.KIM_LOAI);
+        lab2.setDifficulty(Difficulty.MEDIUM);
+        lab2.setType(LabType.PREMADE);
+        lab2.setAuthorId(admin.getId());
+        lab2.setMaxScore(0);
+        lab2 = labRepository.save(lab2);
+        seedLabConfiguration(lab2, new HashMap<>(), Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
+
+        // 3. [PREMADE] Thuốc tím KMnO4 và quá trình Oxi hóa
+        Lab lab3 = new Lab();
+        lab3.setTitle("Thuốc tím KMnO4 và quá trình Oxi hóa");
+        lab3.setDescription("Thực hành chuẩn độ Oxi hóa - Khử với dung dịch thuốc tím trong các môi trường Axit, Bazơ, Trung tính.");
+        lab3.setCategory(LabCategory.OXI_HOA_KHU);
+        lab3.setDifficulty(Difficulty.HARD);
+        lab3.setType(LabType.PREMADE);
+        lab3.setAuthorId(admin.getId());
+        lab3.setMaxScore(0);
+        lab3 = labRepository.save(lab3);
+        seedLabConfiguration(lab3, new HashMap<>(), Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
+
+        // 4. [ASSIGNMENT] Kiểm tra Thực hành: Phân biệt dung dịch
+        Lab lab4 = new Lab();
+        lab4.setTitle("Kiểm tra Thực hành: Phân biệt dung dịch");
+        lab4.setDescription("Bằng phương pháp hóa học, hãy phân biệt 3 lọ dung dịch không dán nhãn chứa: HCl, NaOH và NaCl. Kéo thả các lọ hóa chất và dụng cụ ra bàn làm việc, thực hiện phản ứng và sắp xếp chúng theo đúng thứ tự.");
+        lab4.setCategory(LabCategory.AXIT_BAZO);
+        lab4.setDifficulty(Difficulty.HARD);
+        lab4.setType(LabType.ASSIGNMENT);
+        lab4.setAuthorId(teacher.getId());
+        lab4.setMaxScore(100);
+        lab4 = labRepository.save(lab4);
+        seedLabConfiguration(lab4,
+                Map.of("allowHints", false, "durationMinutes", 15, "showReactionToast", false),
+                Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0)
+        );
+
+        // Assign to Class (Chỉ thực hiện nếu có class)
+        if (targetClass != null) {
+            StudyClassAssignment assignment = new StudyClassAssignment();
+            assignment.setStudyClassField(targetClass);
+            assignment.setTitle("Kiểm tra Thực hành: Phân biệt dung dịch (15 phút)");
+            assignment.setLab(lab4);
+            assignment.setDueDate(Instant.now().plus(7, ChronoUnit.DAYS));
+            studyClassAssignmentRepository.save(assignment);
+        }
+
+        // 5. [SANDBOX] Bàn thực hành tự do của tôi
+        Lab lab5 = new Lab();
+        lab5.setTitle("Phòng thí nghiệm tự do của " + studentUser.getFullName());
+        lab5.setDescription("Phòng thí nghiệm tự do của bạn. Hãy thoả sức sáng tạo.");
+        lab5.setCategory(LabCategory.GENERAL);
+        lab5.setType(LabType.SANDBOX);
+        lab5.setAuthorId(student.getUsers().getId());
+        lab5.setMaxScore(0);
+        lab5 = labRepository.save(lab5);
+        seedLabConfiguration(lab5, new HashMap<>(), Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
+
+        // 6. Seed UserLabProgress cho học sinh
+        // Progress cho bài lab 1 (Đang làm)
+        UserLabProgress p1 = new UserLabProgress();
+        p1.setStudent(student);
+        p1.setLab(lab1);
+        p1.setStatus("IN_PROGRESS");
+        p1.setProgressPercent(33);
+        p1.setCurrentScore(10);
+        p1.setCompletedActions(List.of("DRAG_FLASK_TO_WORKSPACE", "HCl_NaOH"));
+        p1.setCurrentWorkspace(List.of(
+                Map.of(
+                        "content", "NaCl + H₂O",
+                        "templateId", "beaker",
+                        "liquidContent", "NaCl + H₂O",
+                        "liquidColor", "rgba(200, 230, 255, 0.7)",
+                        "x", 300.0,
+                        "y", 250.0
+                )
+        ));
+        p1.setViewport(Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.2));
+        p1.setIsFinished(false);
+        p1.setStartedAt(Instant.now());
+        p1.setLastEditedAt(Instant.now());
+        userLabProgressRepository.save(p1);
+
+        // Progress cho bài lab 2 (Đã xong)
+        UserLabProgress p2 = new UserLabProgress();
+        p2.setStudent(student);
+        p2.setLab(lab2);
+        p2.setStatus("COMPLETED");
+        p2.setProgressPercent(100);
+        p2.setCurrentScore(50);
+        p2.setCompletedActions(List.of("DRAG_FLASK_TO_WORKSPACE", "Fe_HCl", "HEAT_FLASK"));
+        p2.setCurrentWorkspace(List.of(
+                Map.of(
+                        "content", "FeCl₂ + H₂↑",
+                        "templateId", "beaker",
+                        "liquidContent", "FeCl₂",
+                        "liquidColor", "rgba(187, 247, 208, 0.7)",
+                        "isHeated", true,
+                        "x", 400.0,
+                        "y", 300.0
+                )
+        ));
+        p2.setViewport(Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.5));
+        p2.setIsFinished(true);
+        p2.setSubmittedAt(Instant.now().minus(1, ChronoUnit.DAYS));
+        p2.setStartedAt(Instant.now());
+        p2.setLastEditedAt(Instant.now());
+        userLabProgressRepository.save(p2);
+    }
+
+    private void seedLabConfiguration(Lab lab, Map<String, Object> config, Map<String, Object> viewport) {
+        LabConfiguration conf = new LabConfiguration();
+        conf.setLab(lab);
+        conf.setConfig(config);
+        conf.setViewport(viewport);
+        conf.setInitialWorkspace(new ArrayList<>());
+        labConfigurationRepository.save(conf);
     }
 }
