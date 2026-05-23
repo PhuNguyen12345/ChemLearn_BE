@@ -1,3 +1,0 @@
-ALTER TABLE classes
-    ADD COLUMN IF NOT EXISTS schedule VARCHAR(200),
-    ADD COLUMN IF NOT EXISTS description TEXT;

@@ -13,7 +13,7 @@ public class ChemLearnApplication {
 	public static void main(String[] args) {
 		// Programmatically repair Flyway schema history to resolve checksum mismatches automatically at startup
 		try {
-			String url = "jdbc:postgresql://localhost:5432/chem_learn";
+			String url = "jdbc:postgresql://localhost:5432/chemlearn_db";
 			String user = "postgres";
 			String[] passwords = {"1231", "123"};
 			boolean repaired = false;

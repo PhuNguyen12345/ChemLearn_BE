@@ -1,36 +1,5 @@
 package com.example.chemlearn.lms.service.impl;
 
-import com.example.chemlearn.core.entity.OtpVerification;
-import com.example.chemlearn.core.entity.Parent;
-import com.example.chemlearn.core.entity.Student;
-import com.example.chemlearn.core.entity.Teacher;
-import com.example.chemlearn.core.entity.User;
-import com.example.chemlearn.core.entity.AccessRequest;
-import com.example.chemlearn.core.enums.AuthProvider;
-import com.example.chemlearn.core.enums.UserRole;
-import com.example.chemlearn.lms.dto.core.auth.AuthResponseDTO;
-import com.example.chemlearn.lms.dto.core.auth.LoginRequestDTO;
-import com.example.chemlearn.lms.dto.core.auth.OtpVerifyRequestDTO;
-import com.example.chemlearn.lms.dto.core.auth.RegisterRequestDTO;
-import com.example.chemlearn.lms.dto.core.auth.GoogleTokenInfo;
-import com.example.chemlearn.lms.exception.CustomExceptions;
-import com.example.chemlearn.lms.repository.OtpVerificationRepository;
-import com.example.chemlearn.lms.repository.ParentRepository;
-import com.example.chemlearn.lms.repository.StudentRepository;
-import com.example.chemlearn.lms.repository.TeacherRepository;
-import com.example.chemlearn.lms.repository.UserRepository;
-import com.example.chemlearn.lms.repository.AccessRequestRepository;
-import com.example.chemlearn.lms.service.AuthService;
-import com.example.chemlearn.lms.service.EmailService;
-import com.example.chemlearn.util.JwtUtil;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
@@ -38,8 +7,41 @@ import java.time.LocalDate;
 import java.util.Locale;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.example.chemlearn.core.entity.AccessRequest;
+import com.example.chemlearn.core.entity.OtpVerification;
+import com.example.chemlearn.core.entity.Parent;
+import com.example.chemlearn.core.entity.Student;
+import com.example.chemlearn.core.entity.Teacher;
+import com.example.chemlearn.core.entity.User;
+import com.example.chemlearn.core.enums.AuthProvider;
+import com.example.chemlearn.core.enums.UserRole;
+import com.example.chemlearn.lms.dto.core.auth.AuthResponseDTO;
+import com.example.chemlearn.lms.dto.core.auth.GoogleLoginRequestDTO;
+import com.example.chemlearn.lms.dto.core.auth.GoogleTokenInfo;
+import com.example.chemlearn.lms.dto.core.auth.LoginRequestDTO;
+import com.example.chemlearn.lms.dto.core.auth.OtpVerifyRequestDTO;
+import com.example.chemlearn.lms.dto.core.auth.RegisterRequestDTO;
+import com.example.chemlearn.lms.exception.CustomExceptions;
+import com.example.chemlearn.lms.repository.AccessRequestRepository;
+import com.example.chemlearn.lms.repository.OtpVerificationRepository;
+import com.example.chemlearn.lms.repository.ParentRepository;
+import com.example.chemlearn.lms.repository.StudentRepository;
+import com.example.chemlearn.lms.repository.TeacherRepository;
+import com.example.chemlearn.lms.repository.UserRepository;
+import com.example.chemlearn.lms.service.AuthService;
+import com.example.chemlearn.lms.service.EmailService;
+import com.example.chemlearn.util.JwtUtil;
 import static com.example.chemlearn.util.PasswordUtil.hash;
 import static com.example.chemlearn.util.PasswordUtil.matches;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -76,6 +78,12 @@ public class AuthServiceImpl implements AuthService {
         if (repo.existsByEmail(dto.getEmail())) {
             throw new CustomExceptions.BadRequestException("Email exists");
         }
+        if (dto.getGradeLevel() == null || dto.getGradeLevel() < 6 || dto.getGradeLevel() > 12) {
+            throw new CustomExceptions.BadRequestException("Grade level must be between 6 and 12");
+        }
+        if (dto.getGender() == null || dto.getGender().isBlank()) {
+            throw new CustomExceptions.BadRequestException("Gender is required");
+        }
         User user = new User();
         Student student = new Student();
         user.setEmail(dto.getEmail());
@@ -93,9 +101,10 @@ public class AuthServiceImpl implements AuthService {
         user.setLockoutUntil(null);
         //TODO: auto assign avatar
         user.setAvatarUrl(null);
+        user.setGender(dto.getGender().trim());
 
         student.setUsers(user);
-        student.setGradeLevel(0);
+        student.setGradeLevel(dto.getGradeLevel());
         student.setLastActiveDate(LocalDate.now());
 
         studentRepository.save(student);
@@ -389,8 +398,8 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public AuthResponseDTO loginWithGoogle(String idToken) {
-        GoogleTokenInfo tokenInfo = googleTokenVerifierService.verify(idToken);
+    public AuthResponseDTO loginWithGoogle(GoogleLoginRequestDTO dto) {
+        GoogleTokenInfo tokenInfo = googleTokenVerifierService.verify(dto.getIdToken());
 
         if (tokenInfo.getEmail() == null || tokenInfo.getEmail().isBlank()) {
             throw new CustomExceptions.UnauthorizedException("Google token missing email");
@@ -408,7 +417,7 @@ public class AuthServiceImpl implements AuthService {
                 user.setProviderSubject(tokenInfo.getSub());
                 user = repo.save(user);
             } else {
-                user = createUserFromGoogle(tokenInfo);
+                user = createUserFromGoogle(tokenInfo, dto.getGradeLevel(), dto.getGender());
             }
         }
 
@@ -484,7 +493,10 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private void registerFailedAttempt(User user) {
-        int attempts = user.getFailedLoginAttempts() == null ? 0 : user.getFailedLoginAttempts();
+        Integer attempts = user.getFailedLoginAttempts();
+        if (attempts == null) {
+            attempts = 0;
+        }
         attempts += 1;
         user.setFailedLoginAttempts(attempts);
         user.setLastFailedAt(Instant.now());
@@ -503,7 +515,14 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
-    private User createUserFromGoogle(GoogleTokenInfo tokenInfo) {
+    private User createUserFromGoogle(GoogleTokenInfo tokenInfo, Integer gradeLevel, String gender) {
+        if (gradeLevel == null || gradeLevel < 6 || gradeLevel > 12) {
+            throw new CustomExceptions.BadRequestException("Google signup requires grade level and gender");
+        }
+        if (gender == null || gender.isBlank()) {
+            throw new CustomExceptions.BadRequestException("Google signup requires grade level and gender");
+        }
+
         User user = new User();
         user.setEmail(tokenInfo.getEmail());
         user.setUsername(generateUniqueUsername(tokenInfo));
@@ -513,6 +532,7 @@ public class AuthServiceImpl implements AuthService {
         user.setAuthProvider(AuthProvider.GOOGLE);
         user.setProviderSubject(tokenInfo.getSub());
         user.setAvatarUrl(tokenInfo.getPicture());
+        user.setGender(gender.trim());
         user.setCreatedAt(Instant.now());
         user.setUpdatedAt(Instant.now());
         user.setIsActive(true);
@@ -522,7 +542,7 @@ public class AuthServiceImpl implements AuthService {
 
         Student student = new Student();
         student.setUsers(user);
-        student.setGradeLevel(0);
+        student.setGradeLevel(gradeLevel);
         student.setLastActiveDate(LocalDate.now());
         studentRepository.save(student);
 

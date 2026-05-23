@@ -1,5 +1,0 @@
-ALTER TABLE mini_quiz_questions
-ADD COLUMN IF NOT EXISTS question_type VARCHAR(50) NOT NULL DEFAULT 'SINGLE_CHOICE';
-
-ALTER TABLE mini_quiz_questions
-ALTER COLUMN correct_option TYPE VARCHAR(255);

@@ -1,22 +1,28 @@
 package com.example.chemlearn.lms.controller;
 
-import com.example.chemlearn.lms.dto.core.auth.AuthResponseDTO;
+import java.util.Map;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.example.chemlearn.lms.dto.core.auth.AccessRequestCreateDTO;
+import com.example.chemlearn.lms.dto.core.auth.AuthResponseDTO;
 import com.example.chemlearn.lms.dto.core.auth.GoogleLoginRequestDTO;
 import com.example.chemlearn.lms.dto.core.auth.InviteAcceptRequestDTO;
 import com.example.chemlearn.lms.dto.core.auth.LoginRequestDTO;
 import com.example.chemlearn.lms.dto.core.auth.OtpResendRequestDTO;
 import com.example.chemlearn.lms.dto.core.auth.OtpVerifyRequestDTO;
 import com.example.chemlearn.lms.dto.core.auth.RegisterRequestDTO;
-import com.example.chemlearn.lms.service.AuthService;
 import com.example.chemlearn.lms.service.AuthOnboardingService;
+import com.example.chemlearn.lms.service.AuthService;
 import com.example.chemlearn.lms.service.PasswordResetService;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequestMapping("api/auth")
@@ -65,7 +71,7 @@ public class AuthController {
     @PostMapping("/google")
     public ResponseEntity<AuthResponseDTO> googleLogin(
             @Valid @RequestBody GoogleLoginRequestDTO dto) {
-        return ResponseEntity.ok(authService.loginWithGoogle(dto.getIdToken()));
+        return ResponseEntity.ok(authService.loginWithGoogle(dto));
     }
 
     @PostMapping("/requests")

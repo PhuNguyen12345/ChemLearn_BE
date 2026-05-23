@@ -7,4 +7,8 @@ import lombok.Data;
 public class GoogleLoginRequestDTO {
     @NotBlank(message = "ID token must not be blank")
     private String idToken;
+
+    private Integer gradeLevel;
+
+    private String gender;
 }
