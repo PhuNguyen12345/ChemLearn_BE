@@ -324,7 +324,6 @@ CREATE TABLE IF NOT EXISTS student_pets (
     species_id UUID NOT NULL REFERENCES pet_species(id) ON DELETE CASCADE,
     level INTEGER NOT NULL DEFAULT 1,
     experience INTEGER NOT NULL DEFAULT 0,
-    experience INTEGER NOT NULL DEFAULT 0,
     star_level INTEGER NOT NULL DEFAULT 1,
     CONSTRAINT student_pets_student_id_species_id_key UNIQUE (student_id, species_id)
 );

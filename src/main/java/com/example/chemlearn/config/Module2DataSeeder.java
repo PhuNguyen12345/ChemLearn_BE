@@ -211,7 +211,7 @@ public class Module2DataSeeder {
                             link.setStudent(existingStudentUser);
                             return parentStudentLinkRepository.save(link);
                         });
-                
+
                 // Also link in Student entity (core relationship)
                 studentRepository.findById(existingStudentUser.getId()).ifPresent(student -> {
                     parentRepository.findById(parentUser.getId()).ifPresent(parent -> {
@@ -240,31 +240,31 @@ public class Module2DataSeeder {
                 });
             });
 
-                // ── LMS Study Zone seed data ──────────────────────────────────────
-                User teacherUser = accountRepository.findByUsername("teacher1")
+            // ── LMS Study Zone seed data ──────────────────────────────────────
+            User teacherUser = accountRepository.findByUsername("teacher1")
                     .orElseGet(() -> {
-                    User u = new User();
-                    u.setUsername("teacher1");
-                    u.setFullName("Nguyễn Thị Hòa");
-                    u.setEmail("teacher1@chemlearn.local");
-                    u.setPassword(hash("123456"));
-                    u.setRole(UserRole.ROLE_TEACHER);
-                    u.setIsActive(true);
-                    return accountRepository.save(u);
+                        User u = new User();
+                        u.setUsername("teacher1");
+                        u.setFullName("Nguyễn Thị Hòa");
+                        u.setEmail("teacher1@chemlearn.local");
+                        u.setPassword(hash("123456"));
+                        u.setRole(UserRole.ROLE_TEACHER);
+                        u.setIsActive(true);
+                        return accountRepository.save(u);
                     });
 
-                Teacher teacher = teacherRepository.findById(teacherUser.getId())
+            Teacher teacher = teacherRepository.findById(teacherUser.getId())
                     .orElseGet(() -> {
-                    Teacher t = new Teacher();
-                    t.setUsers(teacherUser);
-                    t.setBio("Giáo viên Hóa học phụ trách Study Zone.");
-                    t.setSpecialization("Hóa học đại cương");
-                    t.setDegree("Cử nhân Sư phạm Hóa học");
-                    t.setWorkplace("ChemLearn Academy");
-                    return teacherRepository.save(t);
+                        Teacher t = new Teacher();
+                        t.setUsers(teacherUser);
+                        t.setBio("Giáo viên Hóa học phụ trách Study Zone.");
+                        t.setSpecialization("Hóa học đại cương");
+                        t.setDegree("Cử nhân Sư phạm Hóa học");
+                        t.setWorkplace("ChemLearn Academy");
+                        return teacherRepository.save(t);
                     });
 
-                if (studyClassRepository.count() == 0) {
+            if (studyClassRepository.count() == 0) {
                 StudyClass class8 = new StudyClass();
                 class8.setName("Study Zone 8A");
                 class8.setDescription("Lớp ôn tập nền tảng Hóa học cho học sinh lớp 8.");
@@ -338,7 +338,28 @@ public class Module2DataSeeder {
                 lesson1.setChapter(chapter1);
                 lesson1.setTitle("Cấu trúc nguyên tử");
                 lesson1.setContentType("TEXT");
-                lesson1.setTextContent("Giới thiệu proton, neutron, electron và số hiệu nguyên tử.");
+                lesson1.setTextContent(
+                        "<h2>Cấu trúc nguyên tử</h2>" +
+                                "<p><strong>Tổng quan ngắn:</strong> Nguyên tử gồm hạt nhân (proton và neutron) và lớp electron bao quanh. Số proton xác định số hiệu nguyên tử, còn electron quyết định tính chất hoá học.</p>" +
+                                "<figure style=\"max-width:520px;\">" +
+                                "<figcaption>Hình: Mô hình Bohr minh họa hạt nhân và các lớp electron (nguồn: Wikimedia Commons).</figcaption>" +
+                                "</figure>" +
+                                "<h3>Ý tưởng chính</h3>" +
+                                "<img src=\"https://cdn.vungoi.vn/vungoi/2022/0806/1659754212619_Thiet_ke_chua_co_ten_(20).png\" alt=\"Sơ đồ React\" />" +
+                                "<ul>" +
+                                "<li><strong>Proton:</strong> mang điện dương, xác định số hiệu nguyên tử (Z).</li>" +
+                                "<li><strong>Neutron:</strong> trung hoà, ảnh hưởng tới khối lượng và đồng vị.</li>" +
+                                "<li><strong>Electron:</strong> mang điện âm, nằm ở các lớp vỏ và tham gia liên kết hoá học.</li>" +
+                                "</ul>" +
+                                "<h3>Ví dụ / ẩn dụ đơn giản</h3>" +
+                                "<p>Hãy tưởng tượng nguyên tử như một hệ Mặt Trời thu nhỏ: hạt nhân là 'Mặt Trời' (proton + neutron) và electron là các 'hành tinh' quay xung quanh trên các quỹ đạo khác nhau.</p>" +
+                                "<h3>Những nhầm lẫn phổ biến</h3>" +
+                                "<ul>" +
+                                "<li>Không nhầm lẫn số hiệu nguyên tử (số proton) với khối lượng nguyên tử (proton + neutron).</li>" +
+                                "<li>Electron không nằm cố định tại một vị trí; chúng có phân bố xác suất (mô hình orbital) chứ không giống hạt nhỏ quay theo quỹ đạo cổ điển.</li>" +
+                                "</ul>" +
+                                "<p><strong>Tóm tắt:</strong> Hiểu rõ vai trò của proton, neutron và electron giúp giải thích cấu tạo nguyên tố, đồng vị và hành vi hoá học cơ bản.</p>"
+                );
                 lesson1.setDurationMinutes(15);
                 lesson1.setOrderIndex(1);
                 lesson1.setPublished(true);
@@ -351,7 +372,26 @@ public class Module2DataSeeder {
                 lesson2.setChapter(chapter2);
                 lesson2.setTitle("Liên kết ion và cộng hóa trị");
                 lesson2.setContentType("TEXT");
-                lesson2.setTextContent("Phân biệt cách các nguyên tử trao đổi hoặc dùng chung electron.");
+                lesson2.setTextContent(
+                        "<p>Nguyên tử thường không tồn tại bền vững ở trạng thái riêng lẻ. Chúng có xu hướng liên kết với nhau để đạt cấu hình electron ổn định hơn. Trong bài này, ta phân biệt hai kiểu liên kết cơ bản: liên kết ion và liên kết cộng hóa trị.</p>" +
+                                "<h2>1. Liên kết ion</h2>" +
+                                "<img src=\"https://vnmedia2.monkeyuni.net/upload/web/img/lien-ket-ion-1.jpg\" alt=\"Sơ đồ React\" />" +
+                                "<p>Liên kết ion thường hình thành giữa kim loại và phi kim. Kim loại có xu hướng nhường electron, còn phi kim có xu hướng nhận electron. Khi electron được chuyển từ nguyên tử này sang nguyên tử khác, hai bên trở thành các ion mang điện trái dấu và hút nhau bằng lực tĩnh điện.</p>" +
+                                "<p>Ví dụ quen thuộc là <strong>NaCl</strong>. Natri nhường một electron cho clo, tạo ra ion Na<sup>+</sup> và Cl<sup>-</sup>. Hai ion này hút nhau rất mạnh, tạo thành mạng tinh thể ion bền vững.</p>" +
+                                "<h2>2. Liên kết cộng hóa trị</h2>" +
+                                "<img src=\"https://cdn.luatminhkhue.vn/lmk/article/Screenshot_20221112_022350.png\" alt=\"Sơ đồ React\" />" +
+                                "<p>Liên kết cộng hóa trị thường hình thành giữa hai phi kim. Thay vì trao đổi electron, các nguyên tử dùng chung một hoặc nhiều cặp electron để cả hai cùng đạt trạng thái bền hơn.</p>" +
+                                "<p>Ví dụ, trong phân tử nước <strong>H<sub>2</sub>O</strong>, nguyên tử oxy dùng chung electron với hai nguyên tử hydro. Nhờ đó, các nguyên tử đều có xu hướng đạt cấu hình electron ổn định hơn.</p>" +
+                                "<h2>3. Điểm khác nhau quan trọng</h2>" +
+                                "<ul>" +
+                                "<li><strong>Liên kết ion:</strong> có sự chuyển giao electron.</li>" +
+                                "<li><strong>Liên kết cộng hóa trị:</strong> có sự dùng chung electron.</li>" +
+                                "<li><strong>Chất ion:</strong> thường tạo tinh thể, nhiệt độ nóng chảy cao và dẫn điện khi nóng chảy hoặc tan trong nước.</li>" +
+                                "<li><strong>Chất cộng hóa trị:</strong> thường tạo phân tử riêng lẻ, đa số không dẫn điện và có tính chất linh hoạt hơn tùy cấu trúc.</li>" +
+                                "</ul>" +
+                                "<h2>4. Cách ghi nhớ nhanh</h2>" +
+                                "<p>Hãy nhớ đơn giản như sau: <strong>ion là cho - nhận electron</strong>, còn <strong>cộng hóa trị là dùng chung electron</strong>. Khi hiểu được nguyên tắc này, bạn sẽ dễ dàng phân biệt cấu tạo và tính chất của rất nhiều chất hóa học trong các bài học tiếp theo.</p>"
+                );
                 lesson2.setDurationMinutes(18);
                 lesson2.setOrderIndex(1);
                 lesson2.setPublished(true);
@@ -364,7 +404,31 @@ public class Module2DataSeeder {
                 lesson3.setChapter(chapter3);
                 lesson3.setTitle("Nhận biết axit và bazơ");
                 lesson3.setContentType("TEXT");
-                lesson3.setTextContent("Cách dùng quỳ tím, pH và ví dụ dung dịch thường gặp.");
+                lesson3.setTextContent(
+                        "<h2>Nhận biết axit và bazơ</h2>" +
+                                "<p><strong>Tổng quan ngắn:</strong> Axit và bazơ là hai loại dung dịch có tính chất đối nghịch: axit cho proton (H+), bazơ nhận proton hoặc cho electron. pH và chất chỉ thị (như quỳ tím) là công cụ phổ biến để phân biệt chúng.</p>" +
+                                "<figure style=\"max-width:520px;\">" +
+                                "<img src=\"https://vietjack.com/cong-thuc/images/thang-ph-cua-dung-dich-cho-biet-dieu-gi.PNG\" alt=\"Thang pH minh họa\" style=\"width:100%;height:auto;\"/>" +
+                                "<figcaption>Hình: Thang pH (nguồn: Wikimedia Commons).</figcaption>" +
+                                "</figure>" +
+                                "<h3>Ý tưởng chính</h3>" +
+                                "<ul>" +
+                                "<li><strong>pH:</strong> thang đo nồng độ ion H+, pH &lt; 7: axit, pH = 7: trung tính, pH &gt; 7: bazơ.</li>" +
+                                "<li><strong>Chỉ thị quỳ tím:</strong> chuyển sang đỏ trong axit, sang xanh trong bazơ.</li>" +
+                                "<li><strong>Tính dẫn điện:</strong> dung dịch ion (một số axit/bazơ mạnh) dẫn điện tốt.</li>" +
+                                "</ul>" +
+                                "<h3>Ví dụ thực tế</h3>" +
+                                "<ul>" +
+                                "<li>Nước chanh: axit (pH ≈ 2–3).</li>" +
+                                "<li>Nước xà phòng loãng: bazơ nhẹ (pH &gt; 7).</li>" +
+                                "</ul>" +
+                                "<h3>Những nhầm lẫn thường gặp</h3>" +
+                                "<ul>" +
+                                "<li>Không phải tất cả axit đều ăn mòn ngay lập tức; cường độ axit (mạnh/yếu) khác với nồng độ.</li>" +
+                                "<li>Quỳ tím cho chỉ thị tổng quát nhưng không cho giá trị pH chính xác; dùng giấy quỳ pH hoặc máy đo để biết pH số.</li>" +
+                                "</ul>" +
+                                "<p><strong>Tóm tắt:</strong> Sử dụng pH và chỉ thị để phân biệt axit/bazơ, và nhớ phân biệt cường độ axit (mạnh/yếu) với nồng độ dung dịch.</p>"
+                );
                 lesson3.setDurationMinutes(20);
                 lesson3.setOrderIndex(1);
                 lesson3.setPublished(true);
@@ -389,34 +453,34 @@ public class Module2DataSeeder {
 
                 accountRepository.findByUsername("student").ifPresent(existingStudent -> {
                     if (classStudentLinkRepository.findByStudentIdAndClassRoomId(existingStudent.getId(), savedClass10.getId()).isEmpty()) {
-                    ClassStudentLink link = new ClassStudentLink();
-                    link.setClassRoom(savedClass10);
-                    link.setStudent(existingStudent);
-                    classStudentLinkRepository.save(link);
+                        ClassStudentLink link = new ClassStudentLink();
+                        link.setClassRoom(savedClass10);
+                        link.setStudent(existingStudent);
+                        classStudentLinkRepository.save(link);
                     }
                 });
 
                 seedMiniQuizQuestion(lesson1, admin,
-                    "Electron nằm ở đâu trong nguyên tử?", "Trong hạt nhân", "Quanh hạt nhân", "Trong proton", "Trong neutron", "B",
-                    "Electron chuyển động xung quanh hạt nhân.");
+                        "Electron nằm ở đâu trong nguyên tử?", "Trong hạt nhân", "Quanh hạt nhân", "Trong proton", "Trong neutron", "B",
+                        "Electron chuyển động xung quanh hạt nhân.");
                 seedMiniQuizQuestion(lesson1, admin,
-                    "Số hiệu nguyên tử cho biết điều gì?", "Số proton", "Số neutron", "Số electron lớp ngoài", "Khối lượng nguyên tử", "A",
-                    "Số hiệu nguyên tử bằng số proton trong hạt nhân.");
+                        "Số hiệu nguyên tử cho biết điều gì?", "Số proton", "Số neutron", "Số electron lớp ngoài", "Khối lượng nguyên tử", "A",
+                        "Số hiệu nguyên tử bằng số proton trong hạt nhân.");
 
                 seedMiniQuizQuestion(lesson2, admin,
-                    "Liên kết ion thường hình thành khi nào?", "Hai phi kim dùng chung electron", "Kim loại và phi kim trao đổi electron", "Hai kim loại dùng chung electron", "Hai khí hiếm phản ứng với nhau", "B",
-                    "Liên kết ion hình thành khi có sự cho nhận electron.");
+                        "Liên kết ion thường hình thành khi nào?", "Hai phi kim dùng chung electron", "Kim loại và phi kim trao đổi electron", "Hai kim loại dùng chung electron", "Hai khí hiếm phản ứng với nhau", "B",
+                        "Liên kết ion hình thành khi có sự cho nhận electron.");
                 seedMiniQuizQuestion(lesson2, admin,
-                    "Trong liên kết cộng hóa trị, các nguyên tử thường làm gì?", "Trao đổi proton", "Trao đổi neutron", "Dùng chung electron", "Tạo muối ngay lập tức", "C",
-                    "Liên kết cộng hóa trị dùng chung cặp electron.");
+                        "Trong liên kết cộng hóa trị, các nguyên tử thường làm gì?", "Trao đổi proton", "Trao đổi neutron", "Dùng chung electron", "Tạo muối ngay lập tức", "C",
+                        "Liên kết cộng hóa trị dùng chung cặp electron.");
 
                 seedMiniQuizQuestion(lesson3, admin,
-                    "Dung dịch axit thường có pH như thế nào?", "Lớn hơn 7", "Bằng 7", "Nhỏ hơn 7", "Luôn bằng 14", "C",
-                    "Dung dịch axit có pH nhỏ hơn 7.");
+                        "Dung dịch axit thường có pH như thế nào?", "Lớn hơn 7", "Bằng 7", "Nhỏ hơn 7", "Luôn bằng 14", "C",
+                        "Dung dịch axit có pH nhỏ hơn 7.");
                 seedMiniQuizQuestion(lesson3, admin,
-                    "Quỳ tím chuyển sang màu gì trong môi trường bazơ?", "Đỏ", "Xanh", "Vàng", "Trắng", "B",
-                    "Quỳ tím chuyển sang xanh trong môi trường bazơ.");
-                }
+                        "Quỳ tím chuyển sang màu gì trong môi trường bazơ?", "Đỏ", "Xanh", "Vàng", "Trắng", "B",
+                        "Quỳ tím chuyển sang xanh trong môi trường bazơ.");
+            }
 
             // ── PVP Questions ──────────────────────────────────────────────────
             if (questionBankItemRepository.count() == 0) {
