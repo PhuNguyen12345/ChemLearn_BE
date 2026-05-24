@@ -58,7 +58,7 @@ BEGIN
     -- 1. Tạo Vật Phẩm (Items) trong Cửa hàng
     -- Trứng Linh Thú (EGG): Giá 500 Vàng
     INSERT INTO items (id, name, description, item_type, price_coins, effect_value, image_url)
-    VALUES (v_egg_id, 'Trứng Linh Thú Tập Sự', 'Bao bọc bởi vầng hào quang kỳ bí. Mở ra để nhận 1 Thú Cưng ngẫu nhiên.', 'EGG', 500, NULL, NULL);
+    VALUES (v_egg_id, 'Trứng Linh Thú Tập Sự', 'Bao bọc bởi vầng hào quang kỳ bí. Mở ra để nhận 1 Thú Cưng ngẫu nhiên.', 'EGG', 500, NULL, 'https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/egg.png');
 
     -- Thức ăn (FOOD): Giá 50 Vàng, Tăng 500 EXP
     INSERT INTO items (id, name, description, item_type, price_coins, effect_value, image_url)
@@ -67,19 +67,19 @@ BEGIN
     -- 2. Tạo các Loại Thú Cưng (Pet Species)
     -- Skibidi Tolem (Common)
     INSERT INTO pet_species (id, name, element, rarity, base_hp, base_damage, hp_growth, damage_growth, skill_name, skill_description, image_url)
-    VALUES (v_pet1_id, 'Skibidi Tolem', 'WATER', 'COMMON', 500, 50, 50, 5, 'Phun Nước', 'Gây sát thương hệ Thủy', NULL);
+    VALUES (v_pet1_id, 'Skibidi Tolem', 'WATER', 'COMMON', 500, 50, 50, 5, 'Phun Nước', 'Gây sát thương hệ Thủy', 'https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/SkibidiToilem.png');
 
     -- Capybara Wizard (Rare)
     INSERT INTO pet_species (id, name, element, rarity, base_hp, base_damage, hp_growth, damage_growth, skill_name, skill_description, image_url)
-    VALUES (v_pet2_id, 'Capybara Wizard', 'MAGIC', 'RARE', 800, 90, 80, 9, 'Phép Thuật Bình Tĩnh', 'Giảm sát thương nhận vào 20%', NULL);
+    VALUES (v_pet2_id, 'Capybara Wizard', 'MAGIC', 'RARE', 800, 90, 80, 9, 'Phép Thuật Bình Tĩnh', 'Giảm sát thương nhận vào 20%', 'https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/CapybaraWizard.png');
 
     -- Doge Wizard (Epic)
     INSERT INTO pet_species (id, name, element, rarity, base_hp, base_damage, hp_growth, damage_growth, skill_name, skill_description, image_url)
-    VALUES (v_pet3_id, 'Doge Wizard', 'LIGHT', 'EPIC', 1200, 150, 120, 15, 'Ánh Sáng Doge', 'Hồi phục 10% HP mỗi lượt', NULL);
+    VALUES (v_pet3_id, 'Doge Wizard', 'LIGHT', 'EPIC', 1200, 150, 120, 15, 'Ánh Sáng Doge', 'Hồi phục 10% HP mỗi lượt', 'https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/DogeWizard.png');
 
     -- Tung Sahur Warrior (Legendary)
     INSERT INTO pet_species (id, name, element, rarity, base_hp, base_damage, hp_growth, damage_growth, skill_name, skill_description, image_url)
-    VALUES (v_pet4_id, 'Tung Sahur Warrior', 'EARTH', 'LEGENDARY', 2500, 300, 250, 30, 'Địa Chấn Tối Thượng', 'Gây sát thương khủng khiếp lên mọi kẻ địch', NULL);
+    VALUES (v_pet4_id, 'Tung Sahur Warrior', 'EARTH', 'LEGENDARY', 2500, 300, 250, 30, 'Địa Chấn Tối Thượng', 'Gây sát thương khủng khiếp lên mọi kẻ địch', 'https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/TungSahurWarrior.png');
 
     -- 3. Cấu hình Tỉ lệ Rớt Trứng (Egg Drop Rates)
     -- Tổng tỉ lệ (Drop Weight) = 60 + 25 + 10 + 5 = 100

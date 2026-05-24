@@ -29,6 +29,14 @@ import com.example.chemlearn.lms.enums.QuestionType;
 
 import static com.example.chemlearn.util.PasswordUtil.hash;
 
+import com.example.chemlearn.gamification.entity.Item;
+import com.example.chemlearn.gamification.entity.PetSpecies;
+import com.example.chemlearn.gamification.entity.EggDropRate;
+import com.example.chemlearn.gamification.enums.ItemType;
+import com.example.chemlearn.gamification.repository.ItemRepository;
+import com.example.chemlearn.gamification.repository.PetSpeciesRepository;
+import com.example.chemlearn.gamification.repository.EggDropRateRepository;
+
 import lombok.RequiredArgsConstructor;
 
 import java.time.Instant;
@@ -59,6 +67,9 @@ public class Module2DataSeeder {
     private final LabConfigurationRepository labConfigurationRepository;
     private final UserLabProgressRepository userLabProgressRepository;
     private final StudyClassAssignmentRepository studyClassAssignmentRepository;
+    private final ItemRepository itemRepository;
+    private final PetSpeciesRepository petSpeciesRepository;
+    private final EggDropRateRepository eggDropRateRepository;
 
     @Bean
     public CommandLineRunner seedModule2Data() {
@@ -118,6 +129,31 @@ public class Module2DataSeeder {
                         return u;
                     });
 
+
+            // ── Student 1: student (Main student) ─────────────────────────────
+            User studentUser = accountRepository.findByUsername("student")
+                    .orElseGet(() -> {
+                        User u = new User();
+                        u.setUsername("student");
+                        u.setFullName("Học sinh Test");
+                        u.setEmail("student@example.com");
+                        u.setPassword(hash("123456"));
+                        u.setRole(UserRole.ROLE_STUDENT);
+                        u.setIsActive(true);
+                        u = accountRepository.save(u);
+
+                        Student s = new Student();
+                        s.setUsers(u);
+                        s.setGradeLevel(8);
+                        s.setExperience(0);
+                        s.setCurrentStreak(0);
+                        s.setCoins(5000);
+                        s.setPvpWins(0);
+                        s.setSchoolName("Trường THCS Hóa Học");
+                        studentRepository.save(s);
+
+                        return u;
+                    });
 
             // ── Student 2: Nguyen Thi Bich (new child) ────────────────────────
             User student2User = accountRepository.findByUsername("student2")
@@ -508,14 +544,94 @@ public class Module2DataSeeder {
             User adminUser = accountRepository.findByUsername("admin").orElseThrow();
             User teacherUserToSeed = accountRepository.findByUsername("teacher1").orElseThrow();
             Student peterStudent = studentRepository.findById(student3User.getId()).orElseThrow();
-            
+
             StudyClass targetClassForAssignment = studyClassRepository.findByClassCode("9CH102")
-                .orElseGet(() -> {
-                    List<StudyClass> allClasses = studyClassRepository.findAll();
-                    return allClasses.isEmpty() ? null : allClasses.get(0);
-                });
+                    .orElseGet(() -> {
+                        List<StudyClass> allClasses = studyClassRepository.findAll();
+                        return allClasses.isEmpty() ? null : allClasses.get(0);
+                    });
 
             seedVirtualLabs(adminUser, teacherUserToSeed, peterStudent, student3User, targetClassForAssignment);
+
+            // ── Gamification Pet System ───────────────────────────────────────
+            if (petSpeciesRepository.count() == 0) {
+                // 1. Create items (Egg & Food)
+                Item eggItem = new Item();
+                eggItem.setName("Trứng Linh Thú Tập Sự");
+                eggItem.setDescription("Bao bọc bởi vầng hào quang kỳ bí. Mở ra để nhận 1 Thú Cưng ngẫu nhiên.");
+                eggItem.setItemType(ItemType.EGG);
+                eggItem.setPriceCoins(500);
+                eggItem.setImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/egg.png");
+                eggItem = itemRepository.save(eggItem);
+
+                Item foodItem = new Item();
+                foodItem.setName("Bánh Táo Hóa Học");
+                foodItem.setDescription("Món ăn yêu thích của mọi loại Thú Cưng. Cung cấp 500 EXP.");
+                foodItem.setItemType(ItemType.FOOD);
+                foodItem.setPriceCoins(50);
+                foodItem.setEffectValue(500);
+                foodItem.setImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/Gemini_Generated_Image_i1poaji1poaji1po-removebg-preview.png");
+                foodItem = itemRepository.save(foodItem);
+
+                // 2. Create Pet Species
+                PetSpecies pet1 = new PetSpecies();
+                pet1.setName("Skibidi Tolem");
+                pet1.setElement("WATER");
+                pet1.setRarity("COMMON");
+                pet1.setBaseHp(500);
+                pet1.setBaseDamage(50);
+                pet1.setHpGrowth(50);
+                pet1.setDamageGrowth(5);
+                pet1.setSkillName("Phun Nước");
+                pet1.setSkillDescription("Gây sát thương hệ Thủy");
+                pet1.setImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/SkibidiToilem.png");
+                pet1 = petSpeciesRepository.save(pet1);
+
+                PetSpecies pet2 = new PetSpecies();
+                pet2.setName("Capybara Wizard");
+                pet2.setElement("MAGIC");
+                pet2.setRarity("RARE");
+                pet2.setBaseHp(800);
+                pet2.setBaseDamage(90);
+                pet2.setHpGrowth(80);
+                pet2.setDamageGrowth(9);
+                pet2.setSkillName("Phép Thuật Bình Tĩnh");
+                pet2.setSkillDescription("Giảm sát thương nhận vào 20%");
+                pet2.setImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/CapybaraWizard.png");
+                pet2 = petSpeciesRepository.save(pet2);
+
+                PetSpecies pet3 = new PetSpecies();
+                pet3.setName("Doge Wizard");
+                pet3.setElement("LIGHT");
+                pet3.setRarity("EPIC");
+                pet3.setBaseHp(1200);
+                pet3.setBaseDamage(150);
+                pet3.setHpGrowth(120);
+                pet3.setDamageGrowth(15);
+                pet3.setSkillName("Ánh Sáng Doge");
+                pet3.setSkillDescription("Hồi phục 10% HP mỗi lượt");
+                pet3.setImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/DogeWizard.png");
+                pet3 = petSpeciesRepository.save(pet3);
+
+                PetSpecies pet4 = new PetSpecies();
+                pet4.setName("Tung Sahur Warrior");
+                pet4.setElement("EARTH");
+                pet4.setRarity("LEGENDARY");
+                pet4.setBaseHp(2500);
+                pet4.setBaseDamage(300);
+                pet4.setHpGrowth(250);
+                pet4.setDamageGrowth(30);
+                pet4.setSkillName("Địa Chấn Tối Thượng");
+                pet4.setSkillDescription("Gây sát thương khủng khiếp lên mọi kẻ địch");
+                pet4.setImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/TungSahurWarrior.png");
+                pet4 = petSpeciesRepository.save(pet4);
+
+                // 3. Create Egg Drop Rates
+                seedEggDropRate(eggItem, pet1, 60);
+                seedEggDropRate(eggItem, pet2, 25);
+                seedEggDropRate(eggItem, pet3, 10);
+                seedEggDropRate(eggItem, pet4, 5);
+            }
         };
     }
 
@@ -565,12 +681,11 @@ public class Module2DataSeeder {
         miniQuizQuestionRepository.save(question);
     }
 
-
     private void seedVirtualLabs(User admin, User teacher, Student student, User studentUser, StudyClass targetClass) {
         if (labConfigurationRepository.count() > 0) {
             return; // Already seeded configurations
         }
-        
+
         // Clear existing labs to prevent duplicates if any existed without config
         if (labRepository.count() > 0) {
             userLabProgressRepository.deleteAll();
@@ -711,4 +826,13 @@ public class Module2DataSeeder {
         conf.setInitialWorkspace(new ArrayList<>());
         labConfigurationRepository.save(conf);
     }
+
+    private void seedEggDropRate(Item eggItem, PetSpecies species, int weight) {
+        EggDropRate rate = new EggDropRate();
+        rate.setEggItem(eggItem);
+        rate.setPetSpecies(species);
+        rate.setDropWeight(weight);
+        eggDropRateRepository.save(rate);
+    }
+
 }

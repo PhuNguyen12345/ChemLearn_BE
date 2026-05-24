@@ -9,4 +9,5 @@ public class GachaResultDTO {
     private PetSpeciesDTO species;
     private Boolean isDuplicate;
     private Integer fragmentsReceived;
+    private Integer coinsConverted;
 }
