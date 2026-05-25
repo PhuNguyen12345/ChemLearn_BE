@@ -27,4 +27,7 @@ public class MapIsland {
 
     @Column(name = "unlock_level", nullable = false)
     private Integer unlockLevel;
+
+    @Column(name = "image_url")
+    private String imageUrl;
 }

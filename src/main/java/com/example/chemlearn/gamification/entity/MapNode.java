@@ -37,4 +37,19 @@ public class MapNode {
 
     @Column(name = "xp_reward", nullable = false)
     private Integer xpReward;
+
+    @Column(name = "monster_name", length = 200)
+    private String monsterName;
+
+    @Column(name = "monster_image_url", columnDefinition = "TEXT")
+    private String monsterImageUrl;
+
+    @Column(name = "monster_idle_url", columnDefinition = "TEXT")
+    private String monsterIdleUrl;
+
+    @Column(name = "monster_attack_url", columnDefinition = "TEXT")
+    private String monsterAttackUrl;
+
+    @Column(name = "monster_damaged_url", columnDefinition = "TEXT")
+    private String monsterDamagedUrl;
 }

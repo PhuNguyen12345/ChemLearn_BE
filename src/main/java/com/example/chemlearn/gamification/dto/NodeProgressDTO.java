@@ -16,4 +16,10 @@ public class NodeProgressDTO {
     private Integer stars;
     private Integer xpReward;
     private UUID targetId;
+
+    private String monsterName;
+    private String monsterImageUrl;
+    private String monsterIdleUrl;
+    private String monsterAttackUrl;
+    private String monsterDamagedUrl;
 }

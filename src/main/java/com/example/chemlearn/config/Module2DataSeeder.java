@@ -22,8 +22,10 @@ import com.example.chemlearn.core.entity.User;
 import com.example.chemlearn.core.enums.UserRole;
 import com.example.chemlearn.gamification.entity.MapIsland;
 import com.example.chemlearn.gamification.entity.MapNode;
+import com.example.chemlearn.gamification.entity.MapNodeQuestion;
 import com.example.chemlearn.gamification.repository.MapIslandRepository;
 import com.example.chemlearn.gamification.repository.MapNodeRepository;
+import com.example.chemlearn.gamification.repository.MapNodeQuestionRepository;
 import com.example.chemlearn.lms.enums.MaterialScope;
 import com.example.chemlearn.lms.enums.QuestionType;
 
@@ -62,6 +64,7 @@ public class Module2DataSeeder {
     private final ParentRepository parentRepository;
     private final MapIslandRepository mapIslandRepository;
     private final MapNodeRepository mapNodeRepository;
+    private final MapNodeQuestionRepository mapNodeQuestionRepository;
     private final QuestionBankItemRepository questionBankItemRepository;
     private final LabRepository labRepository;
     private final LabConfigurationRepository labConfigurationRepository;
@@ -507,6 +510,7 @@ public class Module2DataSeeder {
                 island1.setDescription("Nơi bắt đầu hành trình khám phá thế giới nguyên tử.");
                 island1.setOrderIndex(1);
                 island1.setUnlockLevel(1);
+                island1.setImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/StarterIsland.png");
                 island1 = mapIslandRepository.save(island1);
 
                 seedNodes(island1, "Cấu tạo nguyên tử", "QUIZ", 1, 50);
@@ -520,6 +524,7 @@ public class Module2DataSeeder {
                 island2.setDescription("Khám phá cách các nguyên tử kết nối với nhau.");
                 island2.setOrderIndex(2);
                 island2.setUnlockLevel(5);
+                island2.setImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/BondingKingdom.png");
                 island2 = mapIslandRepository.save(island2);
 
                 seedNodes(island2, "Liên kết ion", "QUIZ", 1, 75);
@@ -533,6 +538,7 @@ public class Module2DataSeeder {
                 island3.setDescription("Hành trình chinh phục sức mạnh của dung dịch.");
                 island3.setOrderIndex(3);
                 island3.setUnlockLevel(10);
+                island3.setImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/AxitSea.png");
                 island3 = mapIslandRepository.save(island3);
 
                 seedNodes(island3, "Độ pH và Chỉ thị", "QUIZ", 1, 100);
@@ -632,6 +638,9 @@ public class Module2DataSeeder {
                 seedEggDropRate(eggItem, pet3, 10);
                 seedEggDropRate(eggItem, pet4, 5);
             }
+
+            // Seed monster details and chemistry questions for map nodes
+            seedMonsterQuestionsAndDetails();
         };
     }
 
@@ -835,4 +844,149 @@ public class Module2DataSeeder {
         eggDropRateRepository.save(rate);
     }
 
+    private void seedMonsterQuestionsAndDetails() {
+        // 1. Update existing MapNode details for monsters if missing
+        List<MapNode> allNodes = mapNodeRepository.findAll();
+        for (MapNode node : allNodes) {
+            boolean isBoss = "BOSS".equals(node.getNodeType());
+            if (node.getMonsterImageUrl() == null || node.getMonsterImageUrl().isEmpty()) {
+                if (!isBoss) {
+                    node.setMonsterName("Green Slime");
+                    node.setMonsterImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/GreenSlime.png");
+                    node.setMonsterIdleUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/GreenSlime.png");
+                } else {
+                    if ("Vệ binh Proton".equals(node.getName())) {
+                        node.setMonsterName("Vệ binh Proton");
+                        node.setMonsterImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/ProtonGuardian.png");
+                        node.setMonsterIdleUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/ProtonGuardian.png");
+                    } else if ("Chúa tể Electron".equals(node.getName())) {
+                        node.setMonsterName("Chúa tể Electron");
+                        node.setMonsterImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/ElectronOverlord.png");
+                        node.setMonsterIdleUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/ElectronOverlord.png");
+                    } else if ("Vua Thủy Ngân".equals(node.getName())) {
+                        node.setMonsterName("Vua Thủy Ngân");
+                        node.setMonsterImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/MercuryKing.png");
+                        node.setMonsterIdleUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/MercuryKing.png");
+                    }
+                }
+                mapNodeRepository.save(node);
+            }
+        }
+
+        // 2. Seed questions for nodes if none exist
+        if (mapNodeQuestionRepository.count() == 0) {
+            for (MapNode node : allNodes) {
+                String name = node.getName();
+                if ("Cấu tạo nguyên tử".equals(name)) {
+                    createMapNodeQuestion(node, "Nguyên tử được cấu tạo bởi hạt nhân và vỏ hạt nào?", "Electron", "Proton", "Nơtron", "Ion", "A", "Electron chuyển động xung quanh hạt nhân để tạo thành lớp vỏ nguyên tử.");
+                    createMapNodeQuestion(node, "Hạt nào mang điện tích dương trong nguyên tử?", "Proton", "Electron", "Nơtron", "Ion", "A", "Hạt proton nằm trong hạt nhân và mang điện tích dương (+1).");
+                    createMapNodeQuestion(node, "Hạt nơtron mang điện tích gì?", "Không mang điện", "Điện tích âm", "Điện tích dương", "Điện tích lưỡng cực", "A", "Nơtron là hạt trung hòa về điện (không mang điện) nằm trong hạt nhân nguyên tử.");
+                    createMapNodeQuestion(node, "Hạt nào mang điện tích âm trong nguyên tử?", "Electron", "Proton", "Nơtron", "Hạt nhân", "A", "Electron mang điện tích âm (-1) và di chuyển xung quanh hạt nhân.");
+                    createMapNodeQuestion(node, "Nguyên tử trung hòa về điện vì:", "Số proton bằng số electron", "Số proton bằng số nơtron", "Số electron bằng số nơtron", "Khối lượng proton bằng nơtron", "A", "Trong nguyên tử trung hòa về điện, số hạt proton (+) bằng số hạt electron (-).");
+                    createMapNodeQuestion(node, "Phần lớn khối lượng của nguyên tử tập trung ở:", "Hạt nhân", "Vỏ electron lớp ngoài", "Khoảng không nguyên tử", "Các hạt electron tự do", "A", "Hạt nhân gồm proton và nơtron có khối lượng lớn hơn electron rất nhiều, tập trung gần như toàn bộ khối lượng nguyên tử.");
+                } else if ("Hạt nhân và Electron".equals(name)) {
+                    createMapNodeQuestion(node, "Hạt nhân nguyên tử gồm những loại hạt nào?", "Proton và Nơtron", "Proton và Electron", "Electron và Nơtron", "Chỉ có Proton", "A", "Hạt nhân nguyên tử nằm ở tâm, cấu tạo từ hai hạt chính là proton và nơtron.");
+                    createMapNodeQuestion(node, "Lớp vỏ electron của nguyên tử được cấu tạo từ loại hạt nào?", "Electron", "Proton", "Nơtron", "Hạt nhân", "A", "Lớp vỏ nguyên tử cấu tạo từ hạt electron sắp xếp theo các phân lớp khác nhau.");
+                    createMapNodeQuestion(node, "Số lượng electron tối đa ở lớp thứ nhất (lớp K) là:", "2", "8", "18", "32", "A", "Lớp thứ nhất (gần hạt nhân nhất) chứa tối đa là 2 electron.");
+                    createMapNodeQuestion(node, "Số lượng electron tối đa ở lớp thứ hai (lớp L) là:", "8", "2", "18", "10", "A", "Lớp thứ hai chứa tối đa là 8 electron.");
+                    createMapNodeQuestion(node, "Kí hiệu của số khối nguyên tử là gì?", "A", "Z", "N", "E", "A", "Số khối kí hiệu là A, bằng tổng số hạt proton (Z) và nơtron (N).");
+                    createMapNodeQuestion(node, "Kí hiệu của số hiệu nguyên tử (số proton) là gì?", "Z", "A", "N", "M", "A", "Số hiệu nguyên tử kí hiệu là Z, đại diện cho điện tích hạt nhân và số proton.");
+                } else if ("Bảng tuần hoàn".equals(name)) {
+                    createMapNodeQuestion(node, "Ai là người đầu tiên công bố bảng tuần hoàn các nguyên tố hóa học?", "Dmitri Mendeleev", "Marie Curie", "Antoine Lavoisier", "Albert Einstein", "A", "Nhà hóa học người Nga Dmitri Mendeleev đã công bố bảng tuần hoàn đầu tiên vào năm 1869.");
+                    createMapNodeQuestion(node, "Các nguyên tố trong bảng tuần hoàn được sắp xếp tăng dần theo:", "Điện tích hạt nhân", "Khối lượng nguyên tử", "Bán kính nguyên tử", "Số nơtron", "A", "Nguyên tắc chính là sắp xếp theo chiều tăng dần của điện tích hạt nhân (số hiệu nguyên tử Z).");
+                    createMapNodeQuestion(node, "Bảng tuần hoàn hiện đại có bao nhiêu chu kỳ?", "7", "8", "6", "9", "A", "Bảng tuần hoàn hiện tại có 7 chu kỳ đại diện cho 7 lớp electron.");
+                    createMapNodeQuestion(node, "Các nguyên tố cùng một nhóm A có đặc điểm chung nào?", "Có cùng số electron hóa trị (lớp ngoài cùng)", "Có cùng số lớp electron", "Có cùng khối lượng nguyên tử", "Có cùng tính kim loại", "A", "Nguyên tố cùng nhóm A có số electron lớp ngoài cùng giống nhau dẫn đến tính chất hóa học tương đồng.");
+                    createMapNodeQuestion(node, "Nhóm nguyên tố nào được gọi là nhóm khí hiếm (khí trơ)?", "Nhóm VIIIA", "Nhóm VIIA", "Nhóm IA", "Nhóm IIA", "A", "Nhóm VIIIA chứa các khí hiếm trơ về mặt hóa học do lớp vỏ ngoài cùng bền vững chứa 8 electron (trừ He chứa 2 e).");
+                    createMapNodeQuestion(node, "Nguyên tố nào nhẹ nhất trong bảng tuần hoàn?", "Hydro (H)", "Heli (He)", "Liti (Li)", "Cacbon (C)", "A", "Hydro (H) đứng đầu bảng tuần hoàn với khối lượng nguyên tử xấp xỉ bằng 1 u.");
+                } else if ("Vệ binh Proton".equals(name)) {
+                    createMapNodeQuestion(node, "Nguyên tố có số hiệu nguyên tử Z = 6 là nguyên tố nào?", "Cacbon (C)", "Nitơ (N)", "Oxy (O)", "Flo (F)", "A", "Cacbon có số hiệu nguyên tử bằng 6.");
+                    createMapNodeQuestion(node, "Đồng vị là các nguyên tử có cùng số proton nhưng khác nhau về số hạt nào?", "Nơtron", "Electron", "Proton", "Phân tử", "A", "Đồng vị có cùng số hiệu Z (cùng số proton) nhưng khác số khối A do có số nơtron khác nhau.");
+                    createMapNodeQuestion(node, "Điện tích quy ước của hạt electron là bao nhiêu?", "-1", "+1", "0", "-2", "A", "Electron mang điện tích âm quy ước là -1.");
+                    createMapNodeQuestion(node, "Lực giữ các hạt electron xung quanh hạt nhân là gì?", "Lực hút tĩnh điện giữa điện tích dương (+) hạt nhân và âm (-) electron", "Lực hấp dẫn", "Lực ma sát", "Lực từ trường", "A", "Proton (+) trong hạt nhân và electron (-) hút nhau bằng lực hút tĩnh điện Coulomb.");
+                    createMapNodeQuestion(node, "Một nguyên tử có 11 proton và 12 nơtron thì số khối A là bao nhiêu?", "23", "11", "12", "1", "A", "Số khối A = Z + N = 11 + 12 = 23 (đây là nguyên tử Natri).");
+                    createMapNodeQuestion(node, "Cấu hình electron của nguyên tử Heli (Z = 2) là gì?", "1s2", "1s1", "2s2", "1s2 2s1", "A", "Heli có 2 electron nằm ở phân lớp 1s, cấu hình là 1s2.");
+                    createMapNodeQuestion(node, "Kim loại kiềm thuộc nhóm nào trong bảng tuần hoàn?", "Nhóm IA", "Nhóm IIA", "Nhóm VIIA", "Nhóm VIIIA", "A", "Nhóm IA chứa các kim loại kiềm cực kỳ hoạt động mạnh (trừ Hydro).");
+                    createMapNodeQuestion(node, "Halogen là tên gọi chung cho các nguyên tố thuộc nhóm nào?", "Nhóm VIIA", "Nhóm IA", "Nhóm VIIIA", "Nhóm VA", "A", "Nhóm VIIA chứa các phi kim halogen điển hình như Flo, Clo, Brom, Iot.");
+                    createMapNodeQuestion(node, "Chu kỳ là dãy các nguyên tố có cùng số lượng gì?", "Lớp electron", "Electron lớp ngoài cùng", "Proton", "Nơtron", "A", "Các nguyên tố trong cùng chu kỳ có cùng số lớp electron chuyển động xung quanh hạt nhân.");
+                    createMapNodeQuestion(node, "Nguyên tố có tính phi kim mạnh nhất trong bảng tuần hoàn là:", "Flo (F)", "Clo (Cl)", "Oxy (O)", "Nitơ (N)", "A", "Flo là phi kim có độ âm điện lớn nhất, tính phi kim mạnh nhất bảng tuần hoàn.");
+                    createMapNodeQuestion(node, "Đường kính hạt nhân so với đường kính nguyên tử như thế nào?", "Nhỏ hơn khoảng 10.000 lần", "Nhỏ hơn khoảng 2 lần", "Bằng nhau", "Lớn hơn khoảng 100 lần", "A", "Hạt nhân rất nhỏ bé so với nguyên tử, không gian trống bao phủ gần hết thể tích nguyên tử.");
+                    createMapNodeQuestion(node, "Nguyên tử khí hiếm nào có lớp electron ngoài cùng đạt cấu hình 1s2?", "Heli (He)", "Neon (Ne)", "Argon (Ar)", "Krypton (Kr)", "A", "He chỉ có 2 electron và đạt cấu hình bền 1s2 ở phân lớp đầu tiên.");
+                } else if ("Liên kết ion".equals(name)) {
+                    createMapNodeQuestion(node, "Liên kết ion được hình thành bởi lực hút nào?", "Lực hút tĩnh điện giữa hai ion mang điện tích trái dấu", "Sự dùng chung cặp electron", "Lực vạn vật hấp dẫn", "Liên kết cộng hóa trị", "A", "Liên kết ion hình thành do lực hút tĩnh điện giữa cation (+) và anion (-).");
+                    createMapNodeQuestion(node, "Cation là loại ion mang điện tích gì?", "Mang điện tích dương", "Mang điện tích âm", "Không mang điện", "Lưỡng tính", "A", "Cation là ion mang điện tích dương (+) sinh ra do nguyên tử kim loại nhường electron.");
+                    createMapNodeQuestion(node, "Anion là loại ion mang điện tích gì?", "Mang điện tích âm", "Mang điện tích dương", "Không mang điện", "Lưỡng tính", "A", "Anion là ion mang điện tích âm (-) sinh ra do nguyên tử phi kim nhận electron.");
+                    createMapNodeQuestion(node, "Liên kết ion thường hình thành giữa:", "Kim loại điển hình và Phi kim điển hình", "Hai phi kim giống nhau", "Hai kim loại giống nhau", "Khí hiếm và kim loại", "A", "Điển hình là sự kết hợp giữa kim loại mạnh (nhóm IA, IIA) dễ nhường e và phi kim mạnh (nhóm VIA, VIIA) dễ nhận e.");
+                    createMapNodeQuestion(node, "Hợp chất nào sau đây có liên kết ion?", "NaCl (Muối ăn)", "CO2", "H2O", "CH4", "A", "NaCl là ví dụ điển hình của liên kết ion hình thành từ Na+ và Cl-.");
+                    createMapNodeQuestion(node, "Tính chất vật lý đặc trưng của hợp chất ion là:", "Có nhiệt độ nóng chảy và nhiệt độ sôi cao", "Dễ bay hơi", "Không dẫn điện khi nóng chảy hoặc hòa tan", "Nhiệt độ nóng chảy rất thấp", "A", "Hợp chất ion phân cực mạnh, lực hút ion lớn dẫn đến nhiệt độ nóng chảy và nhiệt độ sôi của chúng rất cao.");
+                } else if ("Liên kết cộng hóa trị".equals(name)) {
+                    createMapNodeQuestion(node, "Liên kết cộng hóa trị được hình thành bằng cách nào?", "Các nguyên tử góp chung một hoặc nhiều cặp electron", "Sự chuyển electron từ nguyên tử này sang nguyên tử khác", "Lực hút tĩnh điện trái dấu", "Liên kết hydro", "A", "Liên kết cộng hóa trị sinh ra từ sự dùng chung cặp electron giữa hai nguyên tử.");
+                    createMapNodeQuestion(node, "Liên kết cộng hóa trị không phân cực xảy ra giữa:", "Hai nguyên tử phi kim giống nhau", "Kim loại mạnh và phi kim mạnh", "Nguyên tử có độ âm điện rất khác biệt", "Hai nguyên tử kim loại", "A", "Hai phi kim giống nhau (như H2, N2, O2) có độ âm điện bằng nhau, cặp e dùng chung không bị lệch.");
+                    createMapNodeQuestion(node, "Liên kết cộng hóa trị phân cực xảy ra khi:", "Cặp electron dùng chung bị lệch về phía nguyên tử có độ âm điện lớn hơn", "Không có electron nào được góp chung", "Hai nguyên tử nhường e cho nhau", "Hai kim loại kết hợp", "A", "Lệch về phía nguyên tử có lực hút electron (độ âm điện) mạnh hơn.");
+                    createMapNodeQuestion(node, "Trong phân tử nước (H2O), liên kết giữa O và H là loại liên kết gì?", "Liên kết cộng hóa trị phân cực", "Liên kết ion", "Liên kết cộng hóa trị không phân cực", "Liên kết kim loại", "A", "Oxy có độ âm điện lớn hơn Hydro nên cặp electron dùng chung lệch về Oxy, tạo liên kết cộng hóa trị phân cực.");
+                    createMapNodeQuestion(node, "Liên kết đôi (hai gạch nối) gồm bao nhiêu cặp electron chung?", "2 cặp electron (4 electron)", "1 cặp electron", "3 cặp electron", "4 cặp electron", "A", "Mỗi gạch nối đại diện cho 1 cặp e chung, liên kết đôi gồm 2 cặp e chung.");
+                    createMapNodeQuestion(node, "Liên kết ba trong phân tử khí Nitơ (N2) là liên kết gì?", "Liên kết cộng hóa trị rất bền vững", "Liên kết ion yếu", "Liên kết cộng hóa trị dễ đứt gãy", "Liên kết kim loại", "A", "Liên kết ba của N2 rất bền vững, khiến Nitơ khá trơ ở nhiệt độ phòng.");
+                } else if ("Hóa trị và Số oxi hóa".equals(name)) {
+                    createMapNodeQuestion(node, "Số oxi hóa của nguyên tố đơn chất (như O2, Fe, H2) luôn bằng bao nhiêu?", "0", "+1", "-1", "+2", "A", "Theo quy tắc xác định số oxi hóa, số oxi hóa của nguyên tố trong đơn chất bằng 0.");
+                    createMapNodeQuestion(node, "Trong hợp chất, số oxi hóa của Hydro thường là bao nhiêu?", "+1", "-1", "0", "+2", "A", "Trong đa số hợp chất (trừ hidrua kim loại), số oxi hóa của Hydro là +1.");
+                    createMapNodeQuestion(node, "Trong hợp chất, số oxi hóa của Oxy thường là bao nhiêu?", "-2", "+2", "0", "-1", "A", "Trong hầu hết hợp chất (trừ các peroxit, OF2), số oxi hóa của Oxy là -2.");
+                    createMapNodeQuestion(node, "Tổng số oxi hóa của các nguyên tử trong một phân tử trung hòa bằng bao nhiêu?", "0", "+1", "-1", "Không xác định", "A", "Trong một phân tử trung hòa về điện, tổng số oxi hóa của các nguyên tố bằng 0.");
+                    createMapNodeQuestion(node, "Số oxi hóa của ion đơn nguyên tử (như Na+, Cl-) bằng:", "Đúng bằng điện tích của ion đó", "Luôn bằng 0", "Luôn bằng +1", "Bằng số electron lớp vỏ", "A", "Số oxi hóa của ion đơn nguyên tử bằng điện tích của ion đó (ví dụ Na+ có số oxi hóa +1, Cl- có số oxi hóa -1).");
+                    createMapNodeQuestion(node, "Xác định số oxi hóa của Lưu huỳnh (S) trong hợp chất H2SO4?", "+6", "+4", "-2", "0", "A", "H2SO4: H là +1, O là -2. Ta có 2*(+1) + S + 4*(-2) = 0 => S = +6.");
+                } else if ("Chúa tể Electron".equals(name)) {
+                    createMapNodeQuestion(node, "Hợp chất NaCl nóng chảy có dẫn điện không, và tại sao?", "Có dẫn điện, vì các ion tự do di chuyển tự do", "Không dẫn điện, vì liên kết ion rất chặt chẽ", "Có dẫn điện, do có các electron tự do", "Không dẫn điện, vì NaCl là chất rắn", "A", "Khi nóng chảy, liên kết ion bị phá vỡ tạo thành các cation Na+ và anion Cl- di chuyển tự do dẫn điện.");
+                    createMapNodeQuestion(node, "Phân tử nào sau đây chứa liên kết ba?", "N2", "O2", "H2", "H2O", "A", "Khí Nitơ (N2) có liên kết ba bền vững giữa hai nguyên tử N.");
+                    createMapNodeQuestion(node, "Xác định số oxi hóa của Nitơ (N) trong phân tử NH3?", "-3", "+3", "0", "+5", "A", "NH3: H có số oxi hóa +1, do đó N + 3*(+1) = 0 => N = -3.");
+                    createMapNodeQuestion(node, "Công thức hóa học nào đại diện cho hợp chất cộng hóa trị không phân cực?", "CH4", "HCl", "H2O", "NaCl", "A", "CH4 có độ phân cực hiệu dụng bằng 0, là chất cộng hóa trị không phân cực tiêu biểu.");
+                    createMapNodeQuestion(node, "Độ âm điện là gì?", "Khản năng hút electron khi tạo liên kết của một nguyên tử", "Khả năng nhường electron của kim loại", "Năng lượng cần thiết để tách electron ra khỏi vỏ", "Khối lượng của electron trong nguyên tử", "A", "Độ âm điện đặc trưng cho khả năng hút electron của nguyên tử khi hình thành liên kết hóa học.");
+                    createMapNodeQuestion(node, "Hiệu độ âm điện lớn hơn hoặc bằng 1,7 thì liên kết là:", "Liên kết ion", "Liên kết cộng hóa trị phân cực", "Liên kết cộng hóa trị không phân cực", "Liên kết hydro", "A", "Theo phân loại lý thuyết, hiệu độ âm điện >= 1.7 hình thành liên kết ion.");
+                    createMapNodeQuestion(node, "Trong phân tử HCl, cặp electron dùng chung lệch về phía nguyên tử nào?", "Clo (Cl)", "Hydro (H)", "Nằm chính giữa", "Luân phiên giữa hai bên", "A", "Clo có độ âm điện lớn hơn nhiều so với Hydro nên hút cặp e chung về phía nó.");
+                    createMapNodeQuestion(node, "Số oxi hóa của Cacbon trong phân tử CO2 là bao nhiêu?", "+4", "+2", "-4", "0", "A", "CO2: O là -2, do đó C + 2*(-2) = 0 => C = +4.");
+                    createMapNodeQuestion(node, "Cấu hình bền vững của khí hiếm có bao nhiêu electron ở lớp ngoài cùng?", "8 electron (hoặc 2 với Heli)", "2 electron", "18 electron", "10 electron", "A", "Cấu hình bền vững bền lâu đạt quy tắc bát tử (8 e ở lớp vỏ ngoài cùng).");
+                    createMapNodeQuestion(node, "Chất cộng hóa trị thường có nhiệt độ nóng chảy thấp hơn chất ion vì:", "Lực liên kết giữa các phân tử cộng hóa trị yếu hơn lực hút tĩnh điện mạnh giữa các ion", "Khối lượng phân tử của chúng nhỏ hơn", "Chúng chứa nhiều electron hơn", "Chúng không dẫn điện", "A", "Lực hút tĩnh điện ion mạnh hơn rất nhiều so với lực liên kết liên phân tử yếu giữa các phân tử cộng hóa trị.");
+                    createMapNodeQuestion(node, "Xác định số oxi hóa của Mangan (Mn) trong ion KMnO4?", "+7", "+6", "+4", "+2", "A", "KMnO4: K là +1, O là -2. Ta có (+1) + Mn + 4*(-2) = 0 => Mn = +7.");
+                    createMapNodeQuestion(node, "Liên kết phối trí (liên kết cho - nhận) là một dạng của liên kết nào?", "Liên kết cộng hóa trị", "Liên kết ion", "Liên kết hydro", "Liên kết kim loại", "A", "Liên kết phối trí là liên kết cộng hóa trị mà cặp electron chung chỉ do một nguyên tử đóng góp.");
+                } else if ("Độ pH và Chỉ thị".equals(name)) {
+                    createMapNodeQuestion(node, "Thang pH tiêu chuẩn thường có khoảng giá trị từ bao nhiêu?", "0 đến 14", "1 đến 10", "-7 đến +7", "0 đến 7", "A", "Thang đo pH tiêu chuẩn của dung dịch nước nằm trong khoảng 0 đến 14.");
+                    createMapNodeQuestion(node, "Dung dịch trung tính (như nước tinh khiết) có pH bằng bao nhiêu?", "7", "Lớn hơn 7", "Nhỏ hơn 7", "0", "A", "Môi trường trung tính ở 25 độ C có pH đúng bằng 7.");
+                    createMapNodeQuestion(node, "Dung dịch axit có pH nằm trong khoảng nào?", "Nhỏ hơn 7", "Lớn hơn 7", "Đúng bằng 7", "Lớn hơn 14", "A", "Axit giải phóng ion H+ vào nước, có pH nhỏ hơn 7.");
+                    createMapNodeQuestion(node, "Dung dịch bazơ (kiềm) có pH nằm trong khoảng nào?", "Lớn hơn 7", "Nhỏ hơn 7", "Đúng bằng 7", "Bằng 0", "A", "Bazơ thu nhận ion H+ hoặc giải phóng OH-, có pH lớn hơn 7.");
+                    createMapNodeQuestion(node, "Giấy quỳ tím chuyển sang màu gì khi gặp dung dịch axit?", "Màu đỏ", "Màu xanh", "Màu vàng", "Không đổi màu", "A", "Quỳ tím gặp axit sẽ đổi sang màu đỏ.");
+                    createMapNodeQuestion(node, "Dung dịch phenolphtalein không màu chuyển sang màu gì trong môi trường bazơ?", "Màu hồng (đỏ cánh sen)", "Màu xanh dương", "Màu vàng", "Màu đỏ rực", "A", "Phenolphtalein là chỉ thị nhạy với môi trường bazơ, đổi sang màu hồng đặc trưng.");
+                } else if ("Phản ứng Axit-Bazơ".equals(name)) {
+                    createMapNodeQuestion(node, "Phản ứng giữa axit và bazơ tạo thành sản phẩm chính là gì?", "Muối và Nước", "Khí Oxy và Nước", "Kim loại và Phi kim", "Axit mới và Bazơ mới", "A", "Phản ứng trung hòa tạo ra sản phẩm gồm muối của kim loại và nước.");
+                    createMapNodeQuestion(node, "Phản ứng giữa axit và bazơ được gọi chung là phản ứng gì?", "Phản ứng trung hòa", "Phản ứng phân hủy", "Phản ứng thế", "Phản ứng oxi hóa - khử", "A", "Đây là phản ứng trao đổi ion được gọi là phản ứng trung hòa.");
+                    createMapNodeQuestion(node, "Khi cho dung dịch HCl tác dụng với dung dịch NaOH, sản phẩm thu được là:", "NaCl và H2O", "NaCl và H2", "NaClO và H2O", "NaH và Cl2", "A", "HCl + NaOH -> NaCl + H2O.");
+                    createMapNodeQuestion(node, "Bản chất của phản ứng trung hòa trong dung dịch nước là sự kết hợp giữa hai ion nào?", "H+ và OH- tạo thành H2O", "Na+ và Cl- tạo NaCl", "H+ và Na+", "OH- và Cl-", "A", "Axit cung cấp H+, bazơ cung cấp OH-, kết hợp tạo ra phân tử nước H2O bền vững.");
+                    createMapNodeQuestion(node, "Axit sunfuric H2SO4 phản ứng với đồng(II) hiđroxit Cu(OH)2 tạo muối gì?", "CuSO4", "CuCl2", "CuS", "CuSO3", "A", "H2SO4 + Cu(OH)2 -> CuSO4 + 2H2O.");
+                    createMapNodeQuestion(node, "Đặc điểm chung của các bazơ không tan (như Fe(OH)3, Cu(OH)2) là:", "Bị nhiệt phân hủy thành oxit bazơ và nước", "Làm quỳ tím đổi màu xanh", "Tan tốt trong nước", "Có pH lớn hơn 12", "A", "Bazơ không tan bị phân hủy bởi nhiệt sinh ra oxit kim loại tương ứng và nước.");
+                } else if ("Vua Thủy Ngân".equals(name)) {
+                    createMapNodeQuestion(node, "Kim loại Thủy ngân (Hg) có trạng thái vật lý đặc biệt nào ở nhiệt độ phòng?", "Thể lỏng", "Thể khí", "Thể rắn dẻo", "Thể plasma", "A", "Thủy ngân là kim loại duy nhất tồn tại ở thể lỏng ở nhiệt độ phòng.");
+                    createMapNodeQuestion(node, "Axit clohiđric (HCl) tác dụng với kim loại nào sau đây?", "Fe (Sắt)", "Cu (Đồng)", "Ag (Bạc)", "Au (Vàng)", "A", "HCl chỉ tác dụng với kim loại đứng trước Hydro trong dãy hoạt động hóa học (Fe đứng trước H, Cu, Ag, Au đứng sau H).");
+                    createMapNodeQuestion(node, "Dung dịch nước chanh có pH khoảng 2.0, đây là môi trường gì?", "Môi trường axit mạnh", "Môi trường bazơ mạnh", "Môi trường trung tính", "Môi trường kiềm yếu", "A", "pH khoảng 2.0 nhỏ hơn 7 rất nhiều, là môi trường axit mạnh.");
+                    createMapNodeQuestion(node, "Chất nào được dùng để trung hòa đất bị chua (nhiều axit) trong nông nghiệp?", "Vôi tôi Ca(OH)2 hoặc vôi sống CaO", "Thạch cao CaSO4", "Muối ăn NaCl", "Axit clohidric HCl", "A", "Ca(OH)2 là bazơ rẻ tiền được nông dân dùng để rải ruộng khử chua axit cho đất ruộng.");
+                    createMapNodeQuestion(node, "Khí nào sinh ra khi cho kim loại Kẽm (Zn) vào dung dịch axit HCl?", "Khí Hydro (H2)", "Khí Clo (Cl2)", "Khí Oxy (O2)", "Khí Cacbonic (CO2)", "A", "Zn + 2HCl -> ZnCl2 + H2 (khí thoát ra bay lên).");
+                    createMapNodeQuestion(node, "Sản phẩm thu được khi cho CO2 tác dụng với dung dịch bazơ Ca(OH)2 dư là:", "Kết tủa trắng CaCO3 và H2O", "CaO và H2O", "Khí CO và H2", "Ca(HCO3)2 không màu", "A", "CO2 + Ca(OH)2 -> CaCO3 (kết tủa trắng) + H2O.");
+                    createMapNodeQuestion(node, "Chất chỉ thị màu vạn năng đổi màu gì khi dung dịch có pH cực kỳ bazơ (pH = 13-14)?", "Màu tím đậm hoặc xanh đậm", "Màu đỏ rực", "Màu vàng nhạt", "Màu cam", "A", "Ở môi trường bazơ cực mạnh, chất chỉ thị vạn năng chuyển sang màu xanh đậm hoặc tím.");
+                    createMapNodeQuestion(node, "Một dung dịch có nồng độ ion H+ là 10^-5 M thì có pH bằng bao nhiêu?", "5", "9", "14", "-5", "A", "pH = -log[H+] = -log(10^-5) = 5.");
+                    createMapNodeQuestion(node, "Cho kim loại Natri (Na) vào nước thu được dung dịch có pH thế nào?", "pH > 7 (dung dịch bazơ NaOH)", "pH < 7 (dung dịch axit)", "pH = 7 (nước muối)", "pH = 0", "A", "Na + H2O -> NaOH (bazơ mạnh) + 1/2 H2, NaOH tạo môi trường kiềm có pH > 7.");
+                    createMapNodeQuestion(node, "Nhỏ dung dịch BaCl2 vào dung dịch H2SO4 xuất hiện hiện tượng gì?", "Xuất hiện kết tủa trắng không tan trong axit", "Dung dịch đổi màu xanh", "Có bọt khí bay lên", "Dung dịch tỏa nhiệt mạnh và chuyển đỏ", "A", "BaCl2 + H2SO4 -> BaSO4 (kết tủa trắng bền vững) + 2HCl.");
+                    createMapNodeQuestion(node, "Để đo chỉ số pH của dung dịch một cách chính xác nhất, người ta sử dụng thiết bị gì?", "Máy đo pH điện tử (pH meter)", "Giấy quỳ tím", "Phenolphtalein", "Nhiệt kế", "A", "Máy đo pH điện tử cho chỉ số pH chính xác bằng điện cực, vượt trội so với giấy chỉ thị màu ước lượng.");
+                    createMapNodeQuestion(node, "Phản ứng giữa axit axetic (CH3COOH) và muối Na2CO3 giải phóng khí gì?", "Khí Cacbonic (CO2)", "Khí Hydro (H2)", "Khí Clo (Cl2)", "Khí Oxy (O2)", "A", "Axit tác dụng với muối cacbonat sinh ra khí cacbonic CO2 bay ra sủi bọt.");
+                }
+            }
+        }
+    }
+
+    private void createMapNodeQuestion(MapNode node, String prompt, String a, String b, String c, String d, String correct, String explanation) {
+        MapNodeQuestion q = new MapNodeQuestion();
+        q.setNode(node);
+        q.setPrompt(prompt);
+        q.setOptionA(a);
+        q.setOptionB(b);
+        q.setOptionC(c);
+        q.setOptionD(d);
+        q.setCorrectOption(correct);
+        q.setExplanation(explanation);
+        mapNodeQuestionRepository.save(q);
+    }
 }
