@@ -10,10 +10,13 @@ import com.example.chemlearn.gamification.entity.MapIsland;
 import com.example.chemlearn.gamification.entity.MapNode;
 import com.example.chemlearn.gamification.entity.MapNodeQuestion;
 import com.example.chemlearn.gamification.entity.StudentNodeProgress;
+import com.example.chemlearn.gamification.entity.XpLog;
+import com.example.chemlearn.gamification.enums.XpSource;
 import com.example.chemlearn.gamification.repository.MapIslandRepository;
 import com.example.chemlearn.gamification.repository.MapNodeRepository;
 import com.example.chemlearn.gamification.repository.MapNodeQuestionRepository;
 import com.example.chemlearn.gamification.repository.StudentNodeProgressRepository;
+import com.example.chemlearn.gamification.repository.XpLogRepository;
 import com.example.chemlearn.gamification.service.GamificationMapService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,6 +36,7 @@ public class GamificationMapServiceImpl implements GamificationMapService {
     private final MapNodeRepository mapNodeRepository;
     private final StudentNodeProgressRepository studentNodeProgressRepository;
     private final MapNodeQuestionRepository mapNodeQuestionRepository;
+    private final XpLogRepository xpLogRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -40,7 +44,7 @@ public class GamificationMapServiceImpl implements GamificationMapService {
         Student student = studentRepository.findByUsers_Username(username)
                 .orElseThrow(() -> new IllegalArgumentException("Student not found"));
 
-        int currentLevel = (student.getExperience() != null ? student.getExperience() : 0) / 100 + 1;
+        int currentLevel = (student.getExperience() != null ? student.getExperience() : 0) / 1000 + 1;
 
         List<MapIsland> islands = mapIslandRepository.findAllByOrderByOrderIndexAsc();
         List<StudentNodeProgress> progressList = studentNodeProgressRepository.findByStudentId(student.getId());
@@ -179,12 +183,20 @@ public class GamificationMapServiceImpl implements GamificationMapService {
             studentNodeProgressRepository.save(newProgress);
 
             // Award Full XP and Coins
-            int xpReward = node.getXpReward() != null ? node.getXpReward() : 50;
+            int xpReward = node.getXpReward() != null ? node.getXpReward() : 1000;
             int coinsReward = isBoss ? 500 : 300;
 
             student.setExperience((student.getExperience() != null ? student.getExperience() : 0) + xpReward);
             student.setCoins((student.getCoins() != null ? student.getCoins() : 0) + coinsReward);
             studentRepository.save(student);
+
+            // Log XP Reward
+            XpLog xpLog = new XpLog();
+            xpLog.setStudent(student);
+            xpLog.setAmount(xpReward);
+            xpLog.setSource(XpSource.QUIZ);
+            xpLog.setDescription("Hoàn thành lần đầu ải: " + node.getName());
+            xpLogRepository.save(xpLog);
         } else {
             // Replay completion
             StudentNodeProgress existingProgress = existingProgressOpt.get();

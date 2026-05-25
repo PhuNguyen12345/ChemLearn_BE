@@ -513,10 +513,10 @@ public class Module2DataSeeder {
                 island1.setImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/StarterIsland.png");
                 island1 = mapIslandRepository.save(island1);
 
-                seedNodes(island1, "Cấu tạo nguyên tử", "QUIZ", 1, 50);
-                seedNodes(island1, "Hạt nhân và Electron", "QUIZ", 2, 50);
-                seedNodes(island1, "Bảng tuần hoàn", "QUIZ", 3, 50);
-                seedNodes(island1, "Vệ binh Proton", "BOSS", 4, 200);
+                seedNodes(island1, "Cấu tạo nguyên tử", "QUIZ", 1, 1000);
+                seedNodes(island1, "Hạt nhân và Electron", "QUIZ", 2, 1000);
+                seedNodes(island1, "Bảng tuần hoàn", "QUIZ", 3, 1000);
+                seedNodes(island1, "Vệ binh Proton", "BOSS", 4, 1000);
 
                 // Island 2
                 MapIsland island2 = new MapIsland();
@@ -527,23 +527,23 @@ public class Module2DataSeeder {
                 island2.setImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/BondingKingdom.png");
                 island2 = mapIslandRepository.save(island2);
 
-                seedNodes(island2, "Liên kết ion", "QUIZ", 1, 75);
-                seedNodes(island2, "Liên kết cộng hóa trị", "QUIZ", 2, 75);
-                seedNodes(island2, "Hóa trị và Số oxi hóa", "QUIZ", 3, 75);
-                seedNodes(island2, "Chúa tể Electron", "BOSS", 4, 300);
+                seedNodes(island2, "Liên kết ion", "QUIZ", 1, 1000);
+                seedNodes(island2, "Liên kết cộng hóa trị", "QUIZ", 2, 1000);
+                seedNodes(island2, "Hóa trị và Số oxi hóa", "QUIZ", 3, 1000);
+                seedNodes(island2, "Chúa tể Electron", "BOSS", 4, 1000);
 
                 // Island 3
                 MapIsland island3 = new MapIsland();
                 island3.setName("Đại dương Axit");
                 island3.setDescription("Hành trình chinh phục sức mạnh của dung dịch.");
                 island3.setOrderIndex(3);
-                island3.setUnlockLevel(10);
+                island3.setUnlockLevel(9);
                 island3.setImageUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/AxitSea.png");
                 island3 = mapIslandRepository.save(island3);
 
-                seedNodes(island3, "Độ pH và Chỉ thị", "QUIZ", 1, 100);
-                seedNodes(island3, "Phản ứng Axit-Bazơ", "QUIZ", 2, 100);
-                seedNodes(island3, "Vua Thủy Ngân", "BOSS", 3, 500);
+                seedNodes(island3, "Độ pH và Chỉ thị", "QUIZ", 1, 1000);
+                seedNodes(island3, "Phản ứng Axit-Bazơ", "QUIZ", 2, 1000);
+                seedNodes(island3, "Vua Thủy Ngân", "BOSS", 3, 1000);
             }
 
             // ── Virtual Labs & Assignments ─────────────────────────────────────
@@ -845,9 +845,24 @@ public class Module2DataSeeder {
     }
 
     private void seedMonsterQuestionsAndDetails() {
-        // 1. Update existing MapNode details for monsters if missing
+        // 1. Force update island unlock levels if they exist
+        mapIslandRepository.findAll().forEach(island -> {
+            if ("Quần đảo Nhập môn".equals(island.getName())) {
+                island.setUnlockLevel(1);
+                mapIslandRepository.save(island);
+            } else if ("Vương quốc Liên kết".equals(island.getName()) || "Vương Quốc Liên Kết".equals(island.getName())) {
+                island.setUnlockLevel(5);
+                mapIslandRepository.save(island);
+            } else if ("Đại dương Axit".equals(island.getName()) || "Biển Axit".equals(island.getName())) {
+                island.setUnlockLevel(9);
+                mapIslandRepository.save(island);
+            }
+        });
+
+        // 2. Update existing MapNode details for monsters if missing, and set XP reward to 1000
         List<MapNode> allNodes = mapNodeRepository.findAll();
         for (MapNode node : allNodes) {
+            node.setXpReward(1000);
             boolean isBoss = "BOSS".equals(node.getNodeType());
             if (node.getMonsterImageUrl() == null || node.getMonsterImageUrl().isEmpty()) {
                 if (!isBoss) {
@@ -869,8 +884,8 @@ public class Module2DataSeeder {
                         node.setMonsterIdleUrl("https://pub-5a9809d702bf4c298cbf8bbf16bd5374.r2.dev/MercuryKing.png");
                     }
                 }
-                mapNodeRepository.save(node);
             }
+            mapNodeRepository.save(node);
         }
 
         // 2. Seed questions for nodes if none exist
