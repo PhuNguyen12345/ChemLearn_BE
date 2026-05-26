@@ -16,6 +16,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import com.example.chemlearn.gamification.service.QuestService;
+import com.example.chemlearn.gamification.service.GamificationProfileService;
+import com.example.chemlearn.gamification.enums.XpSource;
+import com.example.chemlearn.lab.enums.Difficulty;
+import com.example.chemlearn.lab.enums.LabType;
 
 import java.time.Instant;
 import java.util.List;
@@ -30,6 +34,7 @@ public class LabProgressServiceImpl implements LabProgressService {
     private StudentRepository studentRepository;
     private StudyClassAssignmentRepository studyClassAssignmentRepository;
     private QuestService questService;
+    private GamificationProfileService gamificationProfileService;
 
     @Override
     public LabPlayResponse playLab(UUID labId, UUID studentId) {
@@ -119,6 +124,43 @@ public class LabProgressServiceImpl implements LabProgressService {
         }
         if (request.getStatus() != null) {
             progress.setStatus(request.getStatus());
+        }
+
+        // --- Logic: Cộng thưởng cho bài Lab PREMADE ---
+        if ("COMPLETED".equals(request.getStatus()) && !Boolean.TRUE.equals(progress.getIsFinished())) {
+            Lab lab = labRepository.findById(labId).orElse(null);
+            if (lab != null && lab.getType() == LabType.PREMADE) {
+                // Đánh dấu hoàn thành để không cộng điểm nhiều lần
+                progress.setIsFinished(true);
+                progress.setSubmittedAt(Instant.now());
+                
+                // Tính điểm theo độ khó
+                int xpReward = 50;
+                int coinsReward = 10;
+                if (lab.getDifficulty() == Difficulty.MEDIUM) {
+                    xpReward = 100;
+                    coinsReward = 20;
+                } else if (lab.getDifficulty() == Difficulty.HARD) {
+                    xpReward = 150;
+                    coinsReward = 30;
+                }
+                
+                // Cộng XP và Vàng
+                gamificationProfileService.addExpAndCoins(
+                        studentId,
+                        xpReward,
+                        coinsReward,
+                        XpSource.LAB,
+                        "Hoàn thành bài thực hành: " + lab.getTitle()
+                );
+                
+                // Hoàn thành nhiệm vụ ngày
+                try {
+                    questService.updateProgress(studentId, "DO_LAB", 1);
+                } catch (Exception e) {
+                    log.error("Failed to track DO_LAB quest progress", e);
+                }
+            }
         }
 
         //set last edited time
