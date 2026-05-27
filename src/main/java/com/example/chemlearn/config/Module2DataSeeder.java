@@ -47,6 +47,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Configuration
 @RequiredArgsConstructor
@@ -73,6 +75,7 @@ public class Module2DataSeeder {
     private final ItemRepository itemRepository;
     private final PetSpeciesRepository petSpeciesRepository;
     private final EggDropRateRepository eggDropRateRepository;
+    private Set<String> pvpQuestionPrompts;
 
     @Bean
     public CommandLineRunner seedModule2Data() {
@@ -491,15 +494,9 @@ public class Module2DataSeeder {
             }
 
             // ── PVP Questions ──────────────────────────────────────────────────
-            if (questionBankItemRepository.count() == 0) {
-                User admin = accountRepository.findByUsername("admin").orElse(null);
-                if (admin != null) {
-                    seedQuestion(admin, "H2O là công thức hóa học của chất nào?", "Nước", "Oxy", "Hydro", "Muối ăn", "A");
-                    seedQuestion(admin, "Nguyên tố nào có ký hiệu là Na?", "Natri", "Nitơ", "Kẽm", "Đồng", "A");
-                    seedQuestion(admin, "Axit sunfuric có công thức là gì?", "H2SO4", "HCl", "HNO3", "H2CO3", "A");
-                    seedQuestion(admin, "Kim loại nào ở trạng thái lỏng ở nhiệt độ phòng?", "Thủy ngân", "Sắt", "Chì", "Nhôm", "A");
-                    seedQuestion(admin, "Khí nào duy trì sự cháy?", "Khí Oxy", "Khí Cacbonic", "Khí Nitơ", "Khí Hidro", "A");
-                }
+            User admin = accountRepository.findByUsername("admin").orElse(null);
+            if (admin != null) {
+                seedPvpQuestions(admin);
             }
 
             // ── Game Map: Elemental Archipelago ───────────────────────────────
@@ -665,6 +662,66 @@ public class Module2DataSeeder {
         q.setCorrectOption(correct);
         q.setCreatedAt(java.time.LocalDateTime.now());
         questionBankItemRepository.save(q);
+    }
+
+    private void seedQuestionIfMissing(User admin, String prompt, String a, String b, String c, String d, String correct) {
+        if (pvpQuestionPrompts == null) {
+            pvpQuestionPrompts = questionBankItemRepository.findAll().stream()
+                    .map(question -> question.getPrompt().toLowerCase())
+                    .collect(Collectors.toSet());
+        }
+
+        if (pvpQuestionPrompts.add(prompt.toLowerCase())) {
+            seedQuestion(admin, prompt, a, b, c, d, correct);
+        }
+    }
+
+    private void seedPvpQuestions(User admin) {
+        seedQuestionIfMissing(admin, "H2O là công thức hóa học của chất nào?", "Nước", "Oxy", "Hydro", "Muối ăn", "A");
+        seedQuestionIfMissing(admin, "Nguyên tố nào có ký hiệu là Na?", "Natri", "Nitơ", "Kẽm", "Đồng", "A");
+        seedQuestionIfMissing(admin, "Axit sunfuric có công thức là gì?", "H2SO4", "HCl", "HNO3", "H2CO3", "A");
+        seedQuestionIfMissing(admin, "Kim loại nào ở trạng thái lỏng ở nhiệt độ phòng?", "Thủy ngân", "Sắt", "Chì", "Nhôm", "A");
+        seedQuestionIfMissing(admin, "Khí nào duy trì sự cháy?", "Khí Oxy", "Khí Cacbonic", "Khí Nitơ", "Khí Hidro", "A");
+        seedQuestionIfMissing(admin, "Công thức hóa học của muối ăn là gì?", "NaCl", "KCl", "CaCO3", "NaOH", "A");
+        seedQuestionIfMissing(admin, "Nguyên tố nào có ký hiệu là O?", "Oxi", "Vàng", "Osmium", "Thiếc", "A");
+        seedQuestionIfMissing(admin, "CO2 là công thức của chất nào?", "Khí cacbonic", "Khí cacbon monoxit", "Khí clo", "Khí amoniac", "A");
+        seedQuestionIfMissing(admin, "Dung dịch axit thường có pH như thế nào?", "Nhỏ hơn 7", "Bằng 7", "Lớn hơn 7", "Luôn bằng 14", "A");
+        seedQuestionIfMissing(admin, "Dung dịch bazơ thường có pH như thế nào?", "Lớn hơn 7", "Bằng 7", "Nhỏ hơn 7", "Luôn bằng 0", "A");
+        seedQuestionIfMissing(admin, "Quỳ tím chuyển màu gì trong môi trường axit?", "Đỏ", "Xanh", "Vàng", "Không màu", "A");
+        seedQuestionIfMissing(admin, "Quỳ tím chuyển màu gì trong môi trường bazơ?", "Xanh", "Đỏ", "Tím nhạt", "Không màu", "A");
+        seedQuestionIfMissing(admin, "Phản ứng giữa axit và bazơ thường tạo ra gì?", "Muối và nước", "Kim loại và oxi", "Axit mới và khí hidro", "Bazơ mới và khí clo", "A");
+        seedQuestionIfMissing(admin, "HCl là tên viết tắt của axit nào?", "Axit clohiđric", "Axit sunfuric", "Axit nitric", "Axit axetic", "A");
+        seedQuestionIfMissing(admin, "NaOH thuộc loại chất nào?", "Bazơ", "Axit", "Muối", "Oxit axit", "A");
+        seedQuestionIfMissing(admin, "CaCO3 thường được gọi là gì?", "Canxi cacbonat", "Canxi clorua", "Canxi oxit", "Canxi hidroxit", "A");
+        seedQuestionIfMissing(admin, "Nguyên tử được cấu tạo từ hạt nhân và loại hạt nào chuyển động xung quanh?", "Electron", "Proton", "Neutron", "Ion dương", "A");
+        seedQuestionIfMissing(admin, "Hạt nào trong nguyên tử mang điện tích dương?", "Proton", "Electron", "Neutron", "Phân tử", "A");
+        seedQuestionIfMissing(admin, "Hạt nào trong nguyên tử mang điện tích âm?", "Electron", "Proton", "Neutron", "Nguyên tử khối", "A");
+        seedQuestionIfMissing(admin, "Hạt nào trong nguyên tử không mang điện?", "Neutron", "Electron", "Proton", "Ion", "A");
+        seedQuestionIfMissing(admin, "Liên kết ion thường hình thành giữa nhóm nguyên tố nào?", "Kim loại và phi kim", "Hai phi kim", "Hai khí hiếm", "Hai kim loại kiềm", "A");
+        seedQuestionIfMissing(admin, "Liên kết cộng hóa trị hình thành do các nguyên tử làm gì?", "Dùng chung electron", "Trao đổi proton", "Mất hết neutron", "Tạo electron mới", "A");
+        seedQuestionIfMissing(admin, "Oxit nào sau đây là oxit bazơ?", "CaO", "CO2", "SO2", "P2O5", "A");
+        seedQuestionIfMissing(admin, "Oxit nào sau đây là oxit axit?", "CO2", "Na2O", "CaO", "MgO", "A");
+        seedQuestionIfMissing(admin, "Khi đốt cháy than trong oxi, sản phẩm chính thường là gì?", "CO2", "H2", "NaCl", "NH3", "A");
+        seedQuestionIfMissing(admin, "Khí hidro có công thức hóa học là gì?", "H2", "O2", "N2", "Cl2", "A");
+        seedQuestionIfMissing(admin, "Khí nitơ có công thức hóa học là gì?", "N2", "Na", "NO2", "NH3", "A");
+        seedQuestionIfMissing(admin, "Nước vôi trong là dung dịch của chất nào?", "Ca(OH)2", "NaOH", "HCl", "CaCO3", "A");
+        seedQuestionIfMissing(admin, "CO2 làm nước vôi trong xuất hiện hiện tượng gì?", "Vẩn đục trắng", "Chuyển xanh", "Phát sáng", "Tạo kim loại đồng", "A");
+        seedQuestionIfMissing(admin, "Kim loại kẽm tác dụng với HCl sinh ra khí nào?", "H2", "O2", "CO2", "Cl2", "A");
+        seedQuestionIfMissing(admin, "Sắt có ký hiệu hóa học là gì?", "Fe", "S", "Si", "Ag", "A");
+        seedQuestionIfMissing(admin, "Đồng có ký hiệu hóa học là gì?", "Cu", "Co", "Cl", "Ca", "A");
+        seedQuestionIfMissing(admin, "Bạc có ký hiệu hóa học là gì?", "Ag", "Au", "Al", "Ar", "A");
+        seedQuestionIfMissing(admin, "Vàng có ký hiệu hóa học là gì?", "Au", "Ag", "Al", "O", "A");
+        seedQuestionIfMissing(admin, "Nhôm có ký hiệu hóa học là gì?", "Al", "Ag", "Au", "Am", "A");
+        seedQuestionIfMissing(admin, "Clo có ký hiệu hóa học là gì?", "Cl", "C", "Ca", "Co", "A");
+        seedQuestionIfMissing(admin, "Magiê có ký hiệu hóa học là gì?", "Mg", "Mn", "Mo", "Hg", "A");
+        seedQuestionIfMissing(admin, "Số mol được tính bằng công thức nào nếu biết khối lượng và khối lượng mol?", "n = m / M", "n = M / m", "n = m x M", "n = V x M", "A");
+        seedQuestionIfMissing(admin, "Ở điều kiện tiêu chuẩn, 1 mol khí chiếm thể tích xấp xỉ bao nhiêu?", "22,4 lít", "2,24 lít", "24 gam", "6,02 lít", "A");
+        seedQuestionIfMissing(admin, "Số Avogadro xấp xỉ bằng bao nhiêu?", "6,02 x 10^23", "3,14 x 10^8", "9,81", "1,66 x 10^-24", "A");
+        seedQuestionIfMissing(admin, "Chất nào sau đây là muối?", "NaCl", "HCl", "NaOH", "H2O", "A");
+        seedQuestionIfMissing(admin, "Chất nào sau đây là axit?", "HNO3", "NaCl", "KOH", "CaO", "A");
+        seedQuestionIfMissing(admin, "Chất nào sau đây là bazơ?", "KOH", "CO2", "H2SO4", "NaCl", "A");
+        seedQuestionIfMissing(admin, "Fe2O3 là oxit của kim loại nào?", "Sắt", "Đồng", "Nhôm", "Kẽm", "A");
+        seedQuestionIfMissing(admin, "CuSO4 thường có màu gì khi ở dạng dung dịch?", "Xanh lam", "Đỏ tươi", "Không màu hoàn toàn", "Đen", "A");
     }
 
     private void seedMiniQuizQuestion(Lesson lesson,

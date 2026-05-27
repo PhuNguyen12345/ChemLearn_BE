@@ -22,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 import com.example.chemlearn.gamification.service.QuestService;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -74,15 +76,7 @@ public class BattleLifecycleService {
     public void startTurn(BattleRoom room) {
         QuestionBankItem question = pickRandomQuestion();
 
-        QuestionPayload payload = QuestionPayload.builder()
-                .questionId(question.getId())
-                .prompt(question.getPrompt())
-                .optionA(question.getOptionA())
-                .optionB(question.getOptionB())
-                .optionC(question.getOptionC())
-                .optionD(question.getOptionD())
-                .correctOption(question.getCorrectOption()) // stored, NOT sent to FE
-                .build();
+        QuestionPayload payload = buildShuffledQuestionPayload(question);
 
         room.setCurrentQuestion(payload);
         room.resetTurnDeadline();
@@ -229,6 +223,46 @@ public class BattleLifecycleService {
             throw new IllegalStateException("No questions available in QuestionBankItem");
         }
         return allQuestions.get(random.nextInt(allQuestions.size()));
+    }
+
+    private QuestionPayload buildShuffledQuestionPayload(QuestionBankItem question) {
+        List<AnswerOption> options = new ArrayList<>();
+        options.add(new AnswerOption("A", question.getOptionA()));
+        options.add(new AnswerOption("B", question.getOptionB()));
+        options.add(new AnswerOption("C", question.getOptionC()));
+        options.add(new AnswerOption("D", question.getOptionD()));
+
+        Collections.shuffle(options, random);
+
+        String correctOption = normalizeOptionKey(question.getCorrectOption());
+        String shuffledCorrectOption = "A";
+        String[] displayKeys = {"A", "B", "C", "D"};
+        for (int i = 0; i < options.size(); i++) {
+            if (options.get(i).key().equals(correctOption)) {
+                shuffledCorrectOption = displayKeys[i];
+                break;
+            }
+        }
+
+        return QuestionPayload.builder()
+                .questionId(question.getId())
+                .prompt(question.getPrompt())
+                .optionA(options.get(0).text())
+                .optionB(options.get(1).text())
+                .optionC(options.get(2).text())
+                .optionD(options.get(3).text())
+                .correctOption(shuffledCorrectOption)
+                .build();
+    }
+
+    private String normalizeOptionKey(String option) {
+        if (option == null || option.isBlank()) {
+            return "A";
+        }
+        return option.trim().substring(0, 1).toUpperCase();
+    }
+
+    private record AnswerOption(String key, String text) {
     }
 
     private void broadcast(String roomId, GameStateResponse state) {
