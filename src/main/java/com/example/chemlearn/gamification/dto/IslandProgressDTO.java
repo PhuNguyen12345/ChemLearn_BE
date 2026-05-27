@@ -14,5 +14,6 @@ public class IslandProgressDTO {
     private String description;
     private Boolean isLocked;
     private Integer requiredLevel;
+    private String imageUrl;
     private List<NodeProgressDTO> nodes;
 }

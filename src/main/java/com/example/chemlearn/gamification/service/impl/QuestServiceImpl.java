@@ -50,6 +50,10 @@ public class QuestServiceImpl implements QuestService {
         LocalDate today = LocalDate.now();
         List<StudentQuest> todayQuests = studentQuestRepository.findByStudentIdAndAssignedDate(studentId, today);
         
+        if (todayQuests.isEmpty()) {
+            todayQuests = assignDailyQuests(studentId, today);
+        }
+        
         for (StudentQuest sq : todayQuests) {
             if (!sq.getIsClaimed() && sq.getQuest().getActionType().equalsIgnoreCase(actionType)) {
                 int current = sq.getCurrentProgress() != null ? sq.getCurrentProgress() : 0;
@@ -126,11 +130,11 @@ public class QuestServiceImpl implements QuestService {
     private List<Quest> createDefaultDailyQuests() {
         List<Quest> defaults = new ArrayList<>();
         
-        defaults.add(createQuest("Hoàn thành bài Thực hành", "DO_LAB", 1, 100, 50));
-        defaults.add(createQuest("Học một bài học mới", "LEARN_LESSON", 1, 100, 50));
-        defaults.add(createQuest("Đăng nhập vào hệ thống", "LOGIN", 1, 50, 20));
-        defaults.add(createQuest("Cho Pet ăn", "FEED_PET", 1, 80, 40));
-        defaults.add(createQuest("Tham gia Đấu trường (PVP)", "PLAY_PVP", 1, 150, 100));
+        defaults.add(createQuest("Hoàn thành bài Thực hành", "DO_LAB", 1, 100, 300));
+        defaults.add(createQuest("Học một bài học mới", "LEARN_LESSON", 1, 100, 300));
+        defaults.add(createQuest("Đăng nhập vào hệ thống", "LOGIN", 1, 50, 200));
+        defaults.add(createQuest("Cho Pet ăn", "FEED_PET", 1, 80, 250));
+        defaults.add(createQuest("Tham gia Đấu trường (PVP)", "PLAY_PVP", 1, 150, 450));
         
         return defaults;
     }

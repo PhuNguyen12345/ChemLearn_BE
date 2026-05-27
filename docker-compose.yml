@@ -9,7 +9,7 @@ services:
     environment:
       POSTGRES_USER: admin           # Username đăng nhập
       POSTGRES_PASSWORD: Nguyenanphu2005@ # Password (đừng dùng cái này cho production nhé)
-      POSTGRES_DB: chemlearn_db      # Tên Database sẽ được tạo tự động
+      POSTGRES_DB: chemlearn      # Tên Database sẽ được tạo tự động
     ports:
       - "5432:5432" # Map port 5432 của máy thật vào port 5432 của Docker
     volumes:

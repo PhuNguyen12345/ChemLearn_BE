@@ -3,6 +3,7 @@ package com.example.chemlearn.lms.service.impl;
 import com.example.chemlearn.lms.entity.LessonProgress;
 import com.example.chemlearn.lms.repository.LessonProgressRepository;
 import com.example.chemlearn.lms.service.LessonProgressService;
+import com.example.chemlearn.gamification.service.QuestService;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +15,9 @@ import org.springframework.stereotype.Service;
 public class LessonProgressServiceImpl implements LessonProgressService {
     @Autowired
     private LessonProgressRepository lessonProgressRepository;
+
+    @Autowired
+    private QuestService questService;
 
     @Override
     public LessonProgress create(LessonProgress progress) {
@@ -56,7 +60,17 @@ public class LessonProgressServiceImpl implements LessonProgressService {
     @Override
     public LessonProgress update(UUID id, LessonProgress progress) {
         LessonProgress existing = findById(id).orElseThrow(() -> new RuntimeException("LessonProgress not found"));
-        if (progress.getIsCompleted() != null) existing.setIsCompleted(progress.getIsCompleted());
+        if (progress.getIsCompleted() != null) {
+            boolean wasCompleted = existing.getIsCompleted() != null ? existing.getIsCompleted() : false;
+            existing.setIsCompleted(progress.getIsCompleted());
+            if (progress.getIsCompleted() && !wasCompleted) {
+                try {
+                    questService.updateProgress(existing.getStudent().getId(), "LEARN_LESSON", 1);
+                } catch (Exception e) {
+                    // Suppress or log it safely
+                }
+            }
+        }
         if (progress.getIsLocked() != null) existing.setIsLocked(progress.getIsLocked());
         existing.setLastAccessedAt(Instant.now());
         return lessonProgressRepository.save(existing);

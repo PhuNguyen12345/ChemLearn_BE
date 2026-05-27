@@ -107,7 +107,7 @@ public class ParentDashboardServiceImpl implements ParentDashboardService {
         validateParentChildRelationship(username, studentId);
 
         Student student = studentRepository.findById(studentId).orElseThrow();
-        int level = (student.getExperience() / 100) + 1;
+        int level = (student.getExperience() / 1000) + 1;
 
         List<StudentQuest> pendingQuests = studentQuestRepository.findByStudentIdAndIsClaimedFalse(studentId);
         
