@@ -17,10 +17,18 @@ public class RegisterRequestDTO {
     @Pattern(regexp = "^\\S+$", message = "Username must not contain whitespace")
     private String username;
 
+    public void setUsername(String username) {
+        this.username = username == null ? null : username.trim();
+    }
+
     @Size(min = 3, max = 100)
     @NotBlank
-    @Pattern(regexp = "^[\\p{L}]+(?: [\\p{L}]+)*$", message = "Full name must not contain special characters")
+    @Pattern(regexp = "^\\p{L}+(?: \\p{L}+)*$", message = "Full name must not contain special characters")
     private String fullName;
+
+    public void setFullName(String fullName) {
+        this.fullName = fullName == null ? null : fullName.trim();
+    }
 
     @Email
     @NotBlank
