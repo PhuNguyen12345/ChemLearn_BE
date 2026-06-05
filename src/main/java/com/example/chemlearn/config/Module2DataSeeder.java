@@ -38,6 +38,7 @@ import com.example.chemlearn.gamification.enums.ItemType;
 import com.example.chemlearn.gamification.repository.ItemRepository;
 import com.example.chemlearn.gamification.repository.PetSpeciesRepository;
 import com.example.chemlearn.gamification.repository.EggDropRateRepository;
+import com.example.chemlearn.lab.entity.InventoryItem;
 
 import lombok.RequiredArgsConstructor;
 
@@ -75,6 +76,7 @@ public class Module2DataSeeder {
     private final ItemRepository itemRepository;
     private final PetSpeciesRepository petSpeciesRepository;
     private final EggDropRateRepository eggDropRateRepository;
+    private final com.example.chemlearn.lab.repository.InventoryRepository inventoryRepository;
     private Set<String> pvpQuestionPrompts;
 
     @Bean
@@ -638,6 +640,9 @@ public class Module2DataSeeder {
 
             // Seed monster details and chemistry questions for map nodes
             seedMonsterQuestionsAndDetails();
+
+            // Seed 22 Inventory Items for Virtual Lab
+            seedInventoryItems();
         };
     }
 
@@ -1060,5 +1065,236 @@ public class Module2DataSeeder {
         q.setCorrectOption(correct);
         q.setExplanation(explanation);
         mapNodeQuestionRepository.save(q);
+    }
+
+    private void seedInventoryItems() {
+        if (inventoryRepository.count() > 0) return;
+
+        List<InventoryItem> items = new ArrayList<>();
+
+        InventoryItem beaker = new InventoryItem();
+        beaker.setItemCode("beaker");
+        beaker.setName("Cốc thủy tinh");
+        beaker.setType(com.example.chemlearn.lab.enums.ItemType.CONTAINER);
+        beaker.setIconName("Beaker");
+        beaker.setIconColor("text-blue-500");
+        items.add(beaker);
+
+        InventoryItem testTube = new InventoryItem();
+        testTube.setItemCode("test_tube");
+        testTube.setName("Ống nghiệm");
+        testTube.setType(com.example.chemlearn.lab.enums.ItemType.CONTAINER);
+        testTube.setIconName("TestTube");
+        testTube.setIconColor("text-sky-400");
+        items.add(testTube);
+
+        InventoryItem bunsenBurner = new InventoryItem();
+        bunsenBurner.setItemCode("bunsen_burner");
+        bunsenBurner.setName("Đèn cồn");
+        bunsenBurner.setType(com.example.chemlearn.lab.enums.ItemType.EQUIPMENT);
+        bunsenBurner.setIconName("Flame");
+        bunsenBurner.setIconColor("text-orange-500");
+        items.add(bunsenBurner);
+
+        InventoryItem sodium = new InventoryItem();
+        sodium.setItemCode("sodium");
+        sodium.setName("Natri (Na)");
+        sodium.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        sodium.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        sodium.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.METAL);
+        sodium.setIconName("Square");
+        sodium.setIconColor("text-slate-300");
+        sodium.setProperties("{\"metalType\": \"soft\"}");
+        items.add(sodium);
+
+        InventoryItem copper = new InventoryItem();
+        copper.setItemCode("copper");
+        copper.setName("Đồng (Cu)");
+        copper.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        copper.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        copper.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.METAL);
+        copper.setIconName("Square");
+        copper.setIconColor("text-orange-700");
+        copper.setProperties("{\"metalType\": \"hard\"}");
+        items.add(copper);
+
+        InventoryItem fePowder = new InventoryItem();
+        fePowder.setItemCode("fe_powder");
+        fePowder.setName("Bột sắt (Fe)");
+        fePowder.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        fePowder.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        fePowder.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.METAL);
+        fePowder.setIconName("CircleDot");
+        fePowder.setIconColor("text-gray-600");
+        fePowder.setIconFill("currentColor");
+        items.add(fePowder);
+
+        InventoryItem znGrain = new InventoryItem();
+        znGrain.setItemCode("zn_grain");
+        znGrain.setName("Kẽm (Zn)");
+        znGrain.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        znGrain.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        znGrain.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.METAL);
+        znGrain.setIconName("CircleDot");
+        znGrain.setIconColor("text-slate-400");
+        znGrain.setIconFill("currentColor");
+        items.add(znGrain);
+
+        InventoryItem caco3 = new InventoryItem();
+        caco3.setItemCode("caco3");
+        caco3.setName("Đá vôi (CaCO3)");
+        caco3.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        caco3.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        caco3.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLID);
+        caco3.setIconName("Square");
+        caco3.setIconColor("text-stone-200");
+        items.add(caco3);
+
+        com.example.chemlearn.lab.entity.InventoryItem kmno4 = new com.example.chemlearn.lab.entity.InventoryItem();
+        kmno4.setItemCode("kmno4");
+        kmno4.setName("Thuốc tím (KMnO4)");
+        kmno4.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        kmno4.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        kmno4.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLID);
+        kmno4.setIconName("CircleDot");
+        kmno4.setIconColor("text-fuchsia-800");
+        kmno4.setIconFill("currentColor");
+        items.add(kmno4);
+
+        InventoryItem nacl = new InventoryItem();
+        nacl.setItemCode("nacl");
+        nacl.setName("Muối ăn (NaCl)");
+        nacl.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        nacl.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        nacl.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLID);
+        nacl.setIconName("CircleDot");
+        nacl.setIconColor("text-white");
+        nacl.setIconFill("currentColor");
+        items.add(nacl);
+
+        InventoryItem na2co3 = new InventoryItem();
+        na2co3.setItemCode("na2co3");
+        na2co3.setName("Natri Cacbonat");
+        na2co3.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        na2co3.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        na2co3.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLID);
+        na2co3.setIconName("CircleDot");
+        na2co3.setIconColor("text-white");
+        na2co3.setIconFill("currentColor");
+        items.add(na2co3);
+
+        InventoryItem cao = new InventoryItem();
+        cao.setItemCode("cao");
+        cao.setName("Vôi sống (CaO)");
+        cao.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        cao.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        cao.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.OXIDE);
+        cao.setIconName("Square");
+        cao.setIconColor("text-stone-300");
+        items.add(cao);
+
+        InventoryItem water = new InventoryItem();
+        water.setItemCode("water");
+        water.setName("Nước cất");
+        water.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        water.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        water.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SOLVENT);
+        water.setIconName("Droplet");
+        water.setIconColor("text-blue-300");
+        items.add(water);
+
+        InventoryItem hcl = new InventoryItem();
+        hcl.setItemCode("hcl");
+        hcl.setName("Axit HCl");
+        hcl.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        hcl.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        hcl.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.ACID);
+        hcl.setIconName("Droplet");
+        hcl.setIconColor("text-stone-200");
+        items.add(hcl);
+
+        InventoryItem h2c2o4 = new InventoryItem();
+        h2c2o4.setItemCode("h2c2o4");
+        h2c2o4.setName("Axit Oxalic");
+        h2c2o4.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        h2c2o4.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        h2c2o4.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.ACID);
+        h2c2o4.setIconName("Droplet");
+        h2c2o4.setIconColor("text-stone-200");
+        items.add(h2c2o4);
+
+        InventoryItem naohSol = new InventoryItem();
+        naohSol.setItemCode("naoh_sol");
+        naohSol.setName("Dung dịch NaOH");
+        naohSol.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        naohSol.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        naohSol.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.ALKALI);
+        naohSol.setIconName("Droplet");
+        naohSol.setIconColor("text-stone-200");
+        items.add(naohSol);
+
+        InventoryItem cuso4 = new InventoryItem();
+        cuso4.setItemCode("cuso4");
+        cuso4.setName("Dung dịch CuSO4");
+        cuso4.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        cuso4.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        cuso4.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLUTION);
+        cuso4.setIconName("Droplet");
+        cuso4.setIconColor("text-blue-500");
+        cuso4.setIconFill("currentColor");
+        items.add(cuso4);
+
+        InventoryItem bacl2 = new InventoryItem();
+        bacl2.setItemCode("bacl2");
+        bacl2.setName("Dung dịch BaCl2");
+        bacl2.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        bacl2.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        bacl2.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLUTION);
+        bacl2.setIconName("Droplet");
+        bacl2.setIconColor("text-stone-200");
+        items.add(bacl2);
+
+        InventoryItem na2so4 = new InventoryItem();
+        na2so4.setItemCode("na2so4");
+        na2so4.setName("Dung dịch Na2SO4");
+        na2so4.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        na2so4.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        na2so4.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLUTION);
+        na2so4.setIconName("Droplet");
+        na2so4.setIconColor("text-stone-200");
+        items.add(na2so4);
+
+        InventoryItem fecl3 = new InventoryItem();
+        fecl3.setItemCode("fecl3");
+        fecl3.setName("Dung dịch FeCl3");
+        fecl3.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        fecl3.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        fecl3.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLUTION);
+        fecl3.setIconName("Droplet");
+        fecl3.setIconColor("text-amber-600");
+        fecl3.setIconFill("currentColor");
+        items.add(fecl3);
+
+        InventoryItem agno3 = new InventoryItem();
+        agno3.setItemCode("agno3");
+        agno3.setName("Dung dịch AgNO3");
+        agno3.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        agno3.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        agno3.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLUTION);
+        agno3.setIconName("Droplet");
+        agno3.setIconColor("text-stone-200");
+        items.add(agno3);
+
+        InventoryItem phenolphthalein = new InventoryItem();
+        phenolphthalein.setItemCode("phenolphthalein");
+        phenolphthalein.setName("Phenolphtalein");
+        phenolphthalein.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        phenolphthalein.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        phenolphthalein.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.INDICATOR);
+        phenolphthalein.setIconName("Droplet");
+        phenolphthalein.setIconColor("text-stone-200");
+        items.add(phenolphthalein);
+
+        inventoryRepository.saveAll(items);
     }
 }
