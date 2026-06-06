@@ -765,53 +765,73 @@ public class Module2DataSeeder {
             labRepository.deleteAll();
         }
 
-        // 1. [PREMADE] Chuẩn độ Axit - Bazơ cơ bản
+        // 1. [PREMADE] Điều chế Hidro (Lớp 8)
         Lab lab1 = new Lab();
-        lab1.setTitle("Chuẩn độ Axit - Bazơ cơ bản");
-        lab1.setDescription("Thực hành phản ứng trung hòa giữa dung dịch HCl và NaOH. Quan sát sự đổi màu của chất chỉ thị Phenolphtalein.");
-        lab1.setCategory(LabCategory.AXIT_BAZO);
+        lab1.setTitle("Điều chế khí Hidro");
+        lab1.setDescription("Thực hành phản ứng giữa kim loại Kẽm (Zn) và Axit Clohidric (HCl) để sinh ra khí Hidro.");
+        lab1.setCategory(LabCategory.KIM_LOAI);
         lab1.setDifficulty(Difficulty.EASY);
         lab1.setType(LabType.PREMADE);
         lab1.setAuthorId(admin.getId());
         lab1.setMaxScore(0);
         lab1 = labRepository.save(lab1);
-        seedLabConfiguration(lab1, new HashMap<>(), Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
+        seedLabConfiguration(lab1, 
+                Map.of("allowed_chemicals", List.of("beaker", "test_tube", "bunsen_burner", "zn_grain", "hcl")), 
+                Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
 
-        // 2. [PREMADE] Nhiệt nhôm và Tính chất của Sắt
+        // 2. [PREMADE] Tính chất hoá học của nước (Lớp 8)
         Lab lab2 = new Lab();
-        lab2.setTitle("Nhiệt nhôm và Tính chất của Sắt");
-        lab2.setDescription("Mô phỏng phản ứng nhiệt nhôm kinh điển và kiểm tra tính chất hóa học của kim loại Sắt với các loại axit khác nhau.");
-        lab2.setCategory(LabCategory.KIM_LOAI);
+        lab2.setTitle("Tính chất hoá học của Nước");
+        lab2.setDescription("Khảo sát phản ứng mãnh liệt của Natri (Na) với nước, sau đó dùng Phenolphtalein để kiểm chứng dung dịch sinh ra có tính kiềm.");
+        lab2.setCategory(LabCategory.GENERAL);
         lab2.setDifficulty(Difficulty.MEDIUM);
         lab2.setType(LabType.PREMADE);
         lab2.setAuthorId(admin.getId());
         lab2.setMaxScore(0);
         lab2 = labRepository.save(lab2);
-        seedLabConfiguration(lab2, new HashMap<>(), Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
+        seedLabConfiguration(lab2, 
+                Map.of("allowed_chemicals", List.of("beaker", "test_tube", "bunsen_burner", "sodium", "water", "phenolphthalein")), 
+                Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
 
-        // 3. [PREMADE] Thuốc tím KMnO4 và quá trình Oxi hóa
+        // 3. [PREMADE] Phân loại chất bằng quỳ tím (Lớp 9)
         Lab lab3 = new Lab();
-        lab3.setTitle("Thuốc tím KMnO4 và quá trình Oxi hóa");
-        lab3.setDescription("Thực hành chuẩn độ Oxi hóa - Khử với dung dịch thuốc tím trong các môi trường Axit, Bazơ, Trung tính.");
-        lab3.setCategory(LabCategory.OXI_HOA_KHU);
-        lab3.setDifficulty(Difficulty.HARD);
+        lab3.setTitle("Phân loại chất bằng chất chỉ thị");
+        lab3.setDescription("Dùng Quỳ tím và Phenolphtalein để nhận biết môi trường Axit (HCl) và Bazơ (NaOH).");
+        lab3.setCategory(LabCategory.AXIT_BAZO);
+        lab3.setDifficulty(Difficulty.EASY);
         lab3.setType(LabType.PREMADE);
         lab3.setAuthorId(admin.getId());
         lab3.setMaxScore(0);
         lab3 = labRepository.save(lab3);
-        seedLabConfiguration(lab3, new HashMap<>(), Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
+        seedLabConfiguration(lab3, 
+                Map.of("allowed_chemicals", List.of("beaker", "test_tube", "bunsen_burner", "hcl", "naoh_sol", "phenolphthalein", "litmus_paper")), 
+                Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
 
-        // 4. [ASSIGNMENT] Kiểm tra Thực hành: Phân biệt dung dịch
+        // 4. [PREMADE] Phản ứng trao đổi trong dung dịch (Lớp 9)
         Lab lab4 = new Lab();
-        lab4.setTitle("Kiểm tra Thực hành: Phân biệt dung dịch");
-        lab4.setDescription("Bằng phương pháp hóa học, hãy phân biệt 3 lọ dung dịch không dán nhãn chứa: HCl, NaOH và NaCl. Kéo thả các lọ hóa chất và dụng cụ ra bàn làm việc, thực hiện phản ứng và sắp xếp chúng theo đúng thứ tự.");
-        lab4.setCategory(LabCategory.AXIT_BAZO);
-        lab4.setDifficulty(Difficulty.HARD);
-        lab4.setType(LabType.ASSIGNMENT);
-        lab4.setAuthorId(teacher.getId());
-        lab4.setMaxScore(100);
+        lab4.setTitle("Phản ứng trao đổi trong dung dịch");
+        lab4.setDescription("Quan sát phản ứng trao đổi tạo kết tủa trắng đặc trưng. Thử nghiệm với các cặp muối: AgNO3 - NaCl và BaCl2 - Na2SO4.");
+        lab4.setCategory(LabCategory.KET_TUA);
+        lab4.setDifficulty(Difficulty.MEDIUM);
+        lab4.setType(LabType.PREMADE);
+        lab4.setAuthorId(admin.getId());
+        lab4.setMaxScore(0);
         lab4 = labRepository.save(lab4);
-        seedLabConfiguration(lab4,
+        seedLabConfiguration(lab4, 
+                Map.of("allowed_chemicals", List.of("beaker", "test_tube", "bunsen_burner", "bacl2", "na2so4", "agno3", "nacl")), 
+                Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
+
+        // 5. [ASSIGNMENT] Kiểm tra Thực hành: Phân biệt dung dịch
+        Lab lab5 = new Lab();
+        lab5.setTitle("Kiểm tra Thực hành: Phân biệt dung dịch");
+        lab5.setDescription("Bằng phương pháp hóa học, hãy phân biệt 3 lọ dung dịch không dán nhãn chứa: HCl, NaOH và NaCl. Kéo thả các lọ hóa chất và dụng cụ ra bàn làm việc, thực hiện phản ứng và sắp xếp chúng theo đúng thứ tự.");
+        lab5.setCategory(LabCategory.AXIT_BAZO);
+        lab5.setDifficulty(Difficulty.HARD);
+        lab5.setType(LabType.ASSIGNMENT);
+        lab5.setAuthorId(teacher.getId());
+        lab5.setMaxScore(100);
+        lab5 = labRepository.save(lab5);
+        seedLabConfiguration(lab5,
                 Map.of("allowHints", false, "durationMinutes", 15, "showReactionToast", false),
                 Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0)
         );
@@ -821,21 +841,21 @@ public class Module2DataSeeder {
             StudyClassAssignment assignment = new StudyClassAssignment();
             assignment.setStudyClassField(targetClass);
             assignment.setTitle("Kiểm tra Thực hành: Phân biệt dung dịch (15 phút)");
-            assignment.setLab(lab4);
+            assignment.setLab(lab5);
             assignment.setDueDate(Instant.now().plus(7, ChronoUnit.DAYS));
             studyClassAssignmentRepository.save(assignment);
         }
 
-        // 5. [SANDBOX] Bàn thực hành tự do của tôi
-        Lab lab5 = new Lab();
-        lab5.setTitle("Phòng thí nghiệm tự do của " + studentUser.getFullName());
-        lab5.setDescription("Phòng thí nghiệm tự do của bạn. Hãy thoả sức sáng tạo.");
-        lab5.setCategory(LabCategory.GENERAL);
-        lab5.setType(LabType.SANDBOX);
-        lab5.setAuthorId(student.getUsers().getId());
-        lab5.setMaxScore(0);
-        lab5 = labRepository.save(lab5);
-        seedLabConfiguration(lab5, new HashMap<>(), Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
+        // 6. [SANDBOX] Bàn thực hành tự do của tôi
+        Lab lab6 = new Lab();
+        lab6.setTitle("Phòng thí nghiệm tự do của " + studentUser.getFullName());
+        lab6.setDescription("Phòng thí nghiệm tự do của bạn. Hãy thoả sức sáng tạo.");
+        lab6.setCategory(LabCategory.GENERAL);
+        lab6.setType(LabType.SANDBOX);
+        lab6.setAuthorId(student.getUsers().getId());
+        lab6.setMaxScore(0);
+        lab6 = labRepository.save(lab6);
+        seedLabConfiguration(lab6, new HashMap<>(), Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
 
         // 6. Seed UserLabProgress cho học sinh
         // Progress cho bài lab 1 (Đang làm)
@@ -1294,6 +1314,16 @@ public class Module2DataSeeder {
         phenolphthalein.setIconName("Droplet");
         phenolphthalein.setIconColor("text-stone-200");
         items.add(phenolphthalein);
+
+        InventoryItem litmusPaper = new InventoryItem();
+        litmusPaper.setItemCode("litmus_paper");
+        litmusPaper.setName("Giấy quỳ tím");
+        litmusPaper.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        litmusPaper.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        litmusPaper.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.INDICATOR);
+        litmusPaper.setIconName("Square");
+        litmusPaper.setIconColor("text-purple-300");
+        items.add(litmusPaper);
 
         inventoryRepository.saveAll(items);
     }
