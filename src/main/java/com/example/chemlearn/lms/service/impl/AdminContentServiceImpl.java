@@ -170,7 +170,7 @@ public class AdminContentServiceImpl implements AdminContentService {
         chapter.setUpdatedAt(Instant.now());
 
         Chapter updatedChapter = chapterRepository.save(chapter);
-        log.info("Chapter updated: {} by admin: {}", updatedChapter.getId(), adminUsername);
+        log.info("Chapter updated: {}, OI: {} by admin: {}", updatedChapter.getId(), updatedChapter.getOrderIndex(), adminUsername);
 
         return convertChapterToDto(updatedChapter);
     }

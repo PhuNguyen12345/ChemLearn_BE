@@ -12,6 +12,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class TeacherChapterResponseDTO {
     private UUID id;
+    private UUID ownerClassId;
     private String title;
     private String description;
     private Integer orderIndex;

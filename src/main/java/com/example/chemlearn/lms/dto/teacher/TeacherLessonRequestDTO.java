@@ -19,8 +19,13 @@ public class TeacherLessonRequestDTO {
 
     private Integer estimatedMinutes;
 
+    private Integer orderIndex;
+
     private Integer displayOrder;
 
     private Boolean published;
-}
 
+    public Integer getEffectiveOrderIndex() {
+        return orderIndex != null ? orderIndex : displayOrder;
+    }
+}

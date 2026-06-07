@@ -181,7 +181,7 @@ public class TeacherServiceImpl implements TeacherService {
         chapter.setTitle(dto.getTitle());
         chapter.setDescription(dto.getDescription());
         chapter.setGradeLevel(10);
-        chapter.setOrderIndex(dto.getDisplayOrder() == null ? 0 : dto.getDisplayOrder());
+        chapter.setOrderIndex(dto.getEffectiveOrderIndex() == null ? 0 : dto.getEffectiveOrderIndex());
         chapter.setPublished(dto.getPublished() == null ? Boolean.TRUE : dto.getPublished());
         chapter.setCreatedAt(Instant.now());
         chapter.setUpdatedAt(Instant.now());
@@ -211,7 +211,7 @@ public class TeacherServiceImpl implements TeacherService {
 
         chapter.setTitle(dto.getTitle());
         chapter.setDescription(dto.getDescription());
-        chapter.setOrderIndex(dto.getDisplayOrder() == null ? 0 : dto.getDisplayOrder());
+        chapter.setOrderIndex(dto.getEffectiveOrderIndex() == null ? 0 : dto.getEffectiveOrderIndex());
         chapter.setPublished(dto.getPublished() == null ? Boolean.TRUE : dto.getPublished());
         chapter.setUpdatedAt(Instant.now());
         chapter.setUpdatedBy(teacherUser);
@@ -250,7 +250,7 @@ public class TeacherServiceImpl implements TeacherService {
         lesson.setTextContent(dto.getContent());
         lesson.setContentType("TEXT");
         lesson.setDurationMinutes(dto.getEstimatedMinutes() == null ? 0 : dto.getEstimatedMinutes());
-        lesson.setOrderIndex(dto.getDisplayOrder() == null ? 0 : dto.getDisplayOrder());
+        lesson.setOrderIndex(dto.getEffectiveOrderIndex() == null ? 0 : dto.getEffectiveOrderIndex());
         lesson.setPublished(dto.getPublished() == null ? Boolean.TRUE : dto.getPublished());
         lesson.setCreatedAt(Instant.now());
         lesson.setUpdatedAt(Instant.now());
@@ -275,7 +275,7 @@ public class TeacherServiceImpl implements TeacherService {
         lesson.setTitle(dto.getTitle());
         lesson.setTextContent(dto.getContent());
         lesson.setDurationMinutes(dto.getEstimatedMinutes() == null ? 0 : dto.getEstimatedMinutes());
-        lesson.setOrderIndex(dto.getDisplayOrder() == null ? 0 : dto.getDisplayOrder());
+        lesson.setOrderIndex(dto.getEffectiveOrderIndex() == null ? 0 : dto.getEffectiveOrderIndex());
         lesson.setPublished(dto.getPublished() == null ? Boolean.TRUE : dto.getPublished());
         lesson.setUpdatedAt(Instant.now());
         lesson.setUpdatedBy(teacherUser);
@@ -1109,6 +1109,7 @@ public class TeacherServiceImpl implements TeacherService {
         if (chapter == null) return null;
         return TeacherChapterResponseDTO.builder()
                 .id(chapter.getId())
+                .ownerClassId(chapter.getOwnerClass() != null ? chapter.getOwnerClass().getId() : null)
                 .title(chapter.getTitle())
                 .description(chapter.getDescription())
                 .orderIndex(chapter.getOrderIndex())
