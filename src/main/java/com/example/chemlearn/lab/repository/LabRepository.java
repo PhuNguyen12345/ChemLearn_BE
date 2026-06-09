@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -49,4 +50,9 @@ public interface LabRepository extends JpaRepository<Lab, UUID> {
             @Param("category") LabCategory category,
             Pageable pageable
     );
+
+    @Query("SELECT l FROM Lab l WHERE l.type = 'PREMADE' AND " +
+            "(LOWER(l.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
+            "LOWER(COALESCE(l.description, '')) LIKE LOWER(CONCAT('%', :keyword, '%')))")
+    List<Lab> searchPremadeLabsByKeyword(@Param("keyword") String keyword, Pageable pageable);
 }
