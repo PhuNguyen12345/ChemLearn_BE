@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 public class AiProperties {
     private String provider = "mock";
     private boolean cacheEnabled = true;
+    private boolean fallbackEnabled = true;
     private String model = "mock";
     private String apiKey;
     private Double temperature = 0.4;

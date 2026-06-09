@@ -85,12 +85,22 @@ public class AiService {
         String curriculumContext = buildCurriculumContext(request.getGrade(), request.getBookType(), chatTopic);
         List<SuggestedLabDTO> suggestedLabs = findSuggestedLabs(request.getGrade(), request.getBookType(), chatTopic);
         String prompt = buildChatPrompt(request, chatTopic, curriculumContext, suggestedLabs);
-        String answer = sanitizeAiAnswer(aiProviderClient.chat(prompt));
+        boolean fallbackUsed = false;
+        String answer;
+        try {
+            answer = sanitizeAiAnswer(aiProviderClient.chat(prompt));
+        } catch (RuntimeException ex) {
+            if (!shouldUseAiFallback(ex)) {
+                throw ex;
+            }
+            fallbackUsed = true;
+            answer = buildChatFallbackAnswer(chatTopic, request.getMessage(), curriculumContext);
+        }
 
         saveMessage(session, AiMessageRole.ASSISTANT, answer);
         touchSession(session);
 
-        if (aiProperties.isCacheEnabled()) {
+        if (aiProperties.isCacheEnabled() && !fallbackUsed) {
             AiResponseCache cache = new AiResponseCache();
             cache.setCacheKey(cacheKey);
             cache.setNormalizedQuestion(normalizedQuestion);
@@ -156,12 +166,22 @@ public class AiService {
         String curriculumContext = buildCurriculumContext(grade, bookType, chatTopic);
         List<SuggestedLabDTO> suggestedLabs = findSuggestedLabs(grade, bookType, chatTopic);
         String prompt = buildImageChatPrompt(grade, bookType, chatTopic, userPrompt, curriculumContext, suggestedLabs);
-        String answer = sanitizeAiAnswer(aiProviderClient.chatWithImage(prompt, mimeType, imageBytes));
+        boolean fallbackUsed = false;
+        String answer;
+        try {
+            answer = sanitizeAiAnswer(aiProviderClient.chatWithImage(prompt, mimeType, imageBytes));
+        } catch (RuntimeException ex) {
+            if (!shouldUseAiFallback(ex)) {
+                throw ex;
+            }
+            fallbackUsed = true;
+            answer = buildImageChatFallbackAnswer(chatTopic, userPrompt);
+        }
 
         saveMessage(session, AiMessageRole.ASSISTANT, answer);
         touchSession(session);
 
-        if (aiProperties.isCacheEnabled()) {
+        if (aiProperties.isCacheEnabled() && !fallbackUsed) {
             AiResponseCache cache = new AiResponseCache();
             cache.setCacheKey(cacheKey);
             cache.setNormalizedQuestion(normalizedQuestion);
@@ -186,7 +206,15 @@ public class AiService {
         Student student = getAuthorizedStudent(request.getStudentId());
         String curriculumContext = buildCurriculumContext(request.getGrade(), request.getBookType(), request.getTopic());
         String prompt = buildGenerateExamPrompt(request, curriculumContext);
-        GenerateExamResponse response = parseAndValidateExam(aiProviderClient.generateExam(prompt));
+        GenerateExamResponse response;
+        try {
+            response = parseAndValidateExam(aiProviderClient.generateExam(prompt));
+        } catch (RuntimeException ex) {
+            if (!shouldUseAiFallback(ex)) {
+                throw ex;
+            }
+            response = buildFallbackExam(request);
+        }
 
         AiGeneratedExam exam = new AiGeneratedExam();
         exam.setStudent(student);
@@ -579,6 +607,227 @@ public class AiService {
         }
 
         return lessons.values().stream().limit(MAX_RECOMMENDATIONS).toList();
+    }
+
+    private boolean shouldUseAiFallback(RuntimeException ex) {
+        if (!aiProperties.isFallbackEnabled()) {
+            return false;
+        }
+
+        String message = exceptionText(ex);
+        if (message.contains("missing gemini_api_key")
+                || message.contains("missing ai_api_key")
+                || message.contains("missing ai.model")
+                || message.contains("unauthorized")
+                || message.contains("forbidden")
+                || message.contains("invalid api key")
+                || message.contains("blocked the prompt")
+                || message.contains("image is required")
+                || message.contains("only jpeg")
+                || message.contains("not configured")) {
+            return false;
+        }
+
+        return message.contains("429")
+                || message.contains("quota")
+                || message.contains("rate")
+                || message.contains("resource_exhausted")
+                || message.contains("too many requests")
+                || message.contains("limit")
+                || message.contains("exceeded")
+                || message.contains("500")
+                || message.contains("502")
+                || message.contains("503")
+                || message.contains("504")
+                || message.contains("timeout")
+                || message.contains("timed out")
+                || message.contains("unavailable")
+                || message.contains("overloaded")
+                || message.contains("cannot call gemini")
+                || message.contains("request was interrupted")
+                || message.contains("empty response")
+                || message.contains("ai generated invalid json")
+                || message.contains("ai generated exam")
+                || message.contains("multiple-choice");
+    }
+
+    private String exceptionText(Throwable throwable) {
+        List<String> messages = new ArrayList<>();
+        Throwable current = throwable;
+        while (current != null) {
+            if (current.getMessage() != null) {
+                messages.add(current.getMessage());
+            }
+            current = current.getCause();
+        }
+        return String.join(" ", messages).toLowerCase(Locale.ROOT);
+    }
+
+    private String buildChatFallbackAnswer(String topic, String message, String curriculumContext) {
+        String contextHint = truncate(stripHtml(curriculumContext), 280);
+        return sanitizeAiAnswer("""
+                ChemAI đang ở chế độ dự phòng vì dịch vụ AI đang quá tải hoặc hết lượt request tạm thời.
+
+                Mình vẫn có thể giúp em theo cách cơ bản:
+                - Chủ đề: %s
+                - Câu hỏi của em: %s
+                - Trước hết, hãy gạch chân dữ kiện chính trong đề.
+                - Nếu là câu hỏi lý thuyết, hãy xác định khái niệm, hiện tượng, dấu hiệu nhận biết và ví dụ an toàn.
+                - Nếu là bài tính toán, hãy viết dữ kiện, đổi về mol nếu cần, lập phương trình hóa học đã cân bằng, rồi tính theo tỉ lệ mol.
+                - Nếu có phản ứng hóa học, nhớ kiểm tra chất tạo thành và cân bằng số nguyên tử hai vế.
+
+                Gợi ý từ nội dung bài học đang có:
+                %s
+
+                Em có thể gửi lại câu hỏi ngắn hơn hoặc thử lại sau vài phút để ChemAI giải chi tiết bằng AI.
+                """.formatted(cleanTopic(topic), blankToNull(message) == null ? "Chưa có nội dung cụ thể." : message.trim(), contextHint));
+    }
+
+    private String buildImageChatFallbackAnswer(String topic, String message) {
+        return sanitizeAiAnswer("""
+                ChemAI đang ở chế độ dự phòng vì dịch vụ đọc ảnh bằng AI đang quá tải hoặc hết lượt request tạm thời.
+
+                Mình chưa thể đọc nội dung trong ảnh ở thời điểm này. Em có thể:
+                - Gõ lại nội dung đề hoặc phần dữ kiện chính.
+                - Chụp lại ảnh rõ nét hơn và thử gửi lại sau vài phút.
+                - Nếu là bài tính toán hóa học, hãy nhập các số liệu như khối lượng, thể tích khí, chất tham gia và yêu cầu cần tính.
+
+                Chủ đề dự đoán: %s
+                Câu hỏi thêm của em: %s
+                """.formatted(cleanTopic(topic), blankToNull(message) == null ? "Không có." : message.trim()));
+    }
+
+    private GenerateExamResponse buildFallbackExam(GenerateExamRequest request) {
+        String topic = cleanTopic(request.getTopic());
+        List<GeneratedQuestionDTO> questions = new ArrayList<>();
+        questions.add(fallbackMultipleChoice(
+                "Khi ôn tập chủ đề " + topic + ", bước nào nên làm đầu tiên?",
+                List.of("Ghi lại dữ kiện và khái niệm chính", "Đoán đáp án ngay", "Bỏ qua hiện tượng", "Chỉ học thuộc đáp án"),
+                "Ghi lại dữ kiện và khái niệm chính",
+                "Xác định dữ kiện và khái niệm giúp tránh nhầm lẫn khi giải bài.",
+                topic
+        ));
+        questions.add(fallbackMultipleChoice(
+                "Một mẫu chất có khối lượng 11,2 g và khối lượng mol là 56 g/mol. Số mol của mẫu chất là bao nhiêu?",
+                List.of("0,1 mol", "0,2 mol", "0,5 mol", "2 mol"),
+                "0,2 mol",
+                "Dùng công thức n = m / M = 11,2 / 56 = 0,2 mol.",
+                "Tính toán hóa học"
+        ));
+        questions.add(fallbackMultipleChoice(
+                "Khi viết phương trình hóa học, yêu cầu nào là quan trọng nhất?",
+                List.of("Hai vế có cùng số nguyên tử mỗi nguyên tố", "Chỉ cần viết chất tham gia", "Không cần sản phẩm", "Đổi tùy ý công thức hóa học"),
+                "Hai vế có cùng số nguyên tử mỗi nguyên tố",
+                "Phương trình hóa học đúng phải bảo toàn số nguyên tử của từng nguyên tố.",
+                topic
+        ));
+        questions.add(fallbackEssay(
+                "Trình bày ngắn gọn các ý chính cần nhớ về chủ đề " + topic + ".",
+                "Nêu khái niệm chính, dấu hiệu nhận biết hoặc công thức cần dùng, sau đó đưa một ví dụ phù hợp với bài học.",
+                "Câu trả lời cần có khái niệm, dấu hiệu/công thức và ví dụ.",
+                topic
+        ));
+        questions.add(fallbackLabApplication(
+                "Nếu gặp một thí nghiệm liên quan đến " + topic + ", em cần ghi lại những quan sát nào?",
+                "Ghi chất ban đầu, hiện tượng quan sát được, màu sắc, khí/kết tủa nếu có, điều kiện thí nghiệm và kết luận.",
+                "Quan sát đầy đủ giúp giải thích hiện tượng chính xác hơn.",
+                topic
+        ));
+        questions.add(fallbackMultipleChoice(
+                "Ở điều kiện tiêu chuẩn, 0,25 mol khí có thể tích bao nhiêu?",
+                List.of("2,24 lít", "5,6 lít", "11,2 lít", "22,4 lít"),
+                "5,6 lít",
+                "Ở ĐKTC, 1 mol khí chiếm 22,4 lít nên V = 0,25 x 22,4 = 5,6 lít.",
+                "Tính toán hóa học"
+        ));
+        questions.add(fallbackEssay(
+                "Vì sao khi giải bài tập hóa học cần cân bằng phương trình trước khi tính toán?",
+                "Vì phương trình đã cân bằng cho biết đúng tỉ lệ mol giữa các chất tham gia và sản phẩm.",
+                "Tỉ lệ mol chỉ dùng được khi phương trình đã cân bằng.",
+                topic
+        ));
+        questions.add(fallbackMultipleChoice(
+                "Dấu hiệu nào thường cho thấy có phản ứng hóa học xảy ra?",
+                List.of("Có chất khí, kết tủa, đổi màu hoặc tỏa nhiệt", "Chỉ thay đổi hình dạng", "Chỉ thay đổi kích thước", "Chỉ thay đổi vị trí"),
+                "Có chất khí, kết tủa, đổi màu hoặc tỏa nhiệt",
+                "Phản ứng hóa học tạo chất mới, thường có các dấu hiệu như khí, kết tủa, đổi màu hoặc tỏa nhiệt.",
+                topic
+        ));
+        questions.add(fallbackMultipleChoice(
+                "Nếu m = 8 g và M = 40 g/mol, số mol bằng bao nhiêu?",
+                List.of("0,1 mol", "0,2 mol", "0,4 mol", "5 mol"),
+                "0,2 mol",
+                "n = m / M = 8 / 40 = 0,2 mol.",
+                "Tính toán hóa học"
+        ));
+        questions.add(fallbackEssay(
+                "Nêu một lỗi thường gặp khi làm bài về " + topic + " và cách tránh lỗi đó.",
+                "Một lỗi thường gặp là bỏ sót dữ kiện hoặc dùng phương trình chưa cân bằng. Cách tránh là đọc kỹ đề, ghi dữ kiện và kiểm tra phương trình trước khi tính.",
+                "Câu trả lời cần chỉ ra lỗi và cách phòng tránh.",
+                topic
+        ));
+
+        int count = Math.min(questionCountForExamType(request.getExamType()), questions.size());
+        List<GeneratedQuestionDTO> selectedQuestions = questions.subList(0, count);
+        List<AnswerKeyDTO> answerKey = new ArrayList<>();
+        for (int i = 0; i < selectedQuestions.size(); i++) {
+            GeneratedQuestionDTO question = selectedQuestions.get(i);
+            answerKey.add(AnswerKeyDTO.builder()
+                    .questionIndex(i + 1)
+                    .answer(question.getAnswer())
+                    .explanation(question.getExplanation())
+                    .build());
+        }
+
+        return GenerateExamResponse.builder()
+                .title("Đề ôn tập dự phòng - " + topic)
+                .durationMinutes(durationMinutesForExamType(request.getExamType()))
+                .questions(selectedQuestions)
+                .answerKey(answerKey)
+                .build();
+    }
+
+    private GeneratedQuestionDTO fallbackMultipleChoice(String question, List<String> options, String answer, String explanation, String topic) {
+        return GeneratedQuestionDTO.builder()
+                .type(AiQuestionType.MULTIPLE_CHOICE)
+                .question(question)
+                .options(options)
+                .answer(answer)
+                .explanation(explanation)
+                .topic(topic)
+                .build();
+    }
+
+    private GeneratedQuestionDTO fallbackEssay(String question, String answer, String explanation, String topic) {
+        return GeneratedQuestionDTO.builder()
+                .type(AiQuestionType.ESSAY)
+                .question(question)
+                .options(List.of())
+                .answer(answer)
+                .explanation(explanation)
+                .topic(topic)
+                .build();
+    }
+
+    private GeneratedQuestionDTO fallbackLabApplication(String question, String answer, String explanation, String topic) {
+        return GeneratedQuestionDTO.builder()
+                .type(AiQuestionType.LAB_APPLICATION)
+                .question(question)
+                .options(List.of())
+                .answer(answer)
+                .explanation(explanation)
+                .topic(topic)
+                .build();
+    }
+
+    private int durationMinutesForExamType(ExamType examType) {
+        if (examType == ExamType.QUIZ_15_MIN) {
+            return 15;
+        }
+        if (examType == ExamType.MIDTERM || examType == ExamType.FINAL) {
+            return 60;
+        }
+        return 45;
     }
 
     private String buildChatPrompt(AiChatRequest request, String topic, String curriculumContext, List<SuggestedLabDTO> labs) {
