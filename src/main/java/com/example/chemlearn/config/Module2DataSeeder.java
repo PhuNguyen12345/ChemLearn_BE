@@ -643,6 +643,9 @@ public class Module2DataSeeder {
 
             // Seed 22 Inventory Items for Virtual Lab
             seedInventoryItems();
+            
+            // Update existing Inventory Items with explicit HEX iconFill colors
+            updateInventoryIconFills();
         };
     }
 
@@ -1124,6 +1127,7 @@ public class Module2DataSeeder {
         sodium.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.METAL);
         sodium.setIconName("Square");
         sodium.setIconColor("text-slate-300");
+        sodium.setIconFill("#cbd5e1"); // Slate 300
         sodium.setProperties("{\"metalType\": \"soft\"}");
         items.add(sodium);
 
@@ -1135,6 +1139,7 @@ public class Module2DataSeeder {
         copper.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.METAL);
         copper.setIconName("Square");
         copper.setIconColor("text-orange-700");
+        copper.setIconFill("#c2410c"); // Orange 700
         copper.setProperties("{\"metalType\": \"hard\"}");
         items.add(copper);
 
@@ -1146,7 +1151,7 @@ public class Module2DataSeeder {
         fePowder.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.METAL);
         fePowder.setIconName("CircleDot");
         fePowder.setIconColor("text-gray-600");
-        fePowder.setIconFill("currentColor");
+        fePowder.setIconFill("#4b5563"); // Gray 600
         items.add(fePowder);
 
         InventoryItem znGrain = new InventoryItem();
@@ -1157,7 +1162,7 @@ public class Module2DataSeeder {
         znGrain.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.METAL);
         znGrain.setIconName("CircleDot");
         znGrain.setIconColor("text-slate-400");
-        znGrain.setIconFill("currentColor");
+        znGrain.setIconFill("#94a3b8"); // Slate 400
         items.add(znGrain);
 
         InventoryItem caco3 = new InventoryItem();
@@ -1168,6 +1173,7 @@ public class Module2DataSeeder {
         caco3.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLID);
         caco3.setIconName("Square");
         caco3.setIconColor("text-stone-200");
+        caco3.setIconFill("#e7e5e4"); // Stone 200
         items.add(caco3);
 
         com.example.chemlearn.lab.entity.InventoryItem kmno4 = new com.example.chemlearn.lab.entity.InventoryItem();
@@ -1178,7 +1184,7 @@ public class Module2DataSeeder {
         kmno4.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLID);
         kmno4.setIconName("CircleDot");
         kmno4.setIconColor("text-fuchsia-800");
-        kmno4.setIconFill("currentColor");
+        kmno4.setIconFill("#86198f"); // Fuchsia 800
         items.add(kmno4);
 
         InventoryItem nacl = new InventoryItem();
@@ -1189,7 +1195,7 @@ public class Module2DataSeeder {
         nacl.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLID);
         nacl.setIconName("CircleDot");
         nacl.setIconColor("text-white");
-        nacl.setIconFill("currentColor");
+        nacl.setIconFill("#ffffff"); // White
         items.add(nacl);
 
         InventoryItem na2co3 = new InventoryItem();
@@ -1200,7 +1206,7 @@ public class Module2DataSeeder {
         na2co3.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLID);
         na2co3.setIconName("CircleDot");
         na2co3.setIconColor("text-white");
-        na2co3.setIconFill("currentColor");
+        na2co3.setIconFill("#f8fafc"); // Slate 50
         items.add(na2co3);
 
         InventoryItem cao = new InventoryItem();
@@ -1211,6 +1217,7 @@ public class Module2DataSeeder {
         cao.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.OXIDE);
         cao.setIconName("Square");
         cao.setIconColor("text-stone-300");
+        cao.setIconFill("#d6d3d1"); // Stone 300
         items.add(cao);
 
         InventoryItem water = new InventoryItem();
@@ -1323,8 +1330,41 @@ public class Module2DataSeeder {
         litmusPaper.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.INDICATOR);
         litmusPaper.setIconName("Square");
         litmusPaper.setIconColor("text-purple-300");
+        litmusPaper.setIconFill("#d8b4fe"); // Purple 300
         items.add(litmusPaper);
 
         inventoryRepository.saveAll(items);
+    }
+
+    private void updateInventoryIconFills() {
+        List<InventoryItem> allItems = inventoryRepository.findAll();
+        for (InventoryItem item : allItems) {
+            switch (item.getItemCode()) {
+                // Rắn (Solid)
+                case "sodium": item.setIconFill("#cbd5e1"); break;
+                case "copper": item.setIconFill("#c2410c"); break;
+                case "fe_powder": item.setIconFill("#4b5563"); break;
+                case "zn_grain": item.setIconFill("#94a3b8"); break;
+                case "caco3": item.setIconFill("#e7e5e4"); break;
+                case "kmno4": item.setIconFill("#86198f"); break;
+                case "nacl": item.setIconFill("#ffffff"); break;
+                case "na2co3": item.setIconFill("#f8fafc"); break;
+                case "cao": item.setIconFill("#d6d3d1"); break;
+                case "litmus_paper": item.setIconFill("#d8b4fe"); break;
+                
+                // Lỏng (Liquid)
+                case "water": item.setIconFill("#60a5fa"); break; // Blue 400
+                case "hcl": item.setIconFill("#f1f5f9"); break; // Slate 100 (Trong suốt)
+                case "h2c2o4": item.setIconFill("#f1f5f9"); break;
+                case "naoh_sol": item.setIconFill("#f1f5f9"); break;
+                case "cuso4": item.setIconFill("#3b82f6"); break; // Blue 500
+                case "bacl2": item.setIconFill("#f1f5f9"); break;
+                case "na2so4": item.setIconFill("#f1f5f9"); break;
+                case "fecl3": item.setIconFill("#d97706"); break; // Amber 600
+                case "agno3": item.setIconFill("#f1f5f9"); break;
+                case "phenolphthalein": item.setIconFill("#f1f5f9"); break;
+            }
+        }
+        inventoryRepository.saveAll(allItems);
     }
 }
