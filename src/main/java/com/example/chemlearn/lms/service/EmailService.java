@@ -18,9 +18,12 @@ public class EmailService {
     @Value("${app.mail.from:${spring.mail.username:no-reply@chemlearn.local}}")
     private String fromEmail;
 
+    @Value("${app.frontend.base-url:http://localhost:5173}")
+    private String frontendBaseUrl;
+
     @Async
     public void sendLinkConfirmationEmail(String toEmail, String initiatorName, String token) {
-        String confirmUrl = "http://localhost:5173/confirm-link?token=" + token;
+        String confirmUrl = frontendUrl("/confirm-link?token=" + token);
         String subject = "ChemLearn - Yêu cầu liên kết tài khoản từ " + initiatorName;
         String body = "Xin chào,\n\n" +
                 initiatorName + " đã gửi yêu cầu liên kết tài khoản với bạn trên ChemLearn.\n" +
@@ -45,7 +48,7 @@ public class EmailService {
 
     @Async
     public void sendPasswordResetEmail(String toEmail, String fullName, String token) {
-        String resetUrl = "http://localhost:5173/reset-password?token=" + token;
+        String resetUrl = frontendUrl("/reset-password?token=" + token);
         String subject = "ChemLearn - Yêu cầu đặt lại mật khẩu";
         String body = "Xin chào " + fullName + ",\n\n" +
                 "Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản của bạn trên ChemLearn.\n" +
@@ -87,5 +90,13 @@ public class EmailService {
             log.error("Failed to send OTP email to {}", toEmail, e);
             throw new IllegalStateException("Failed to send OTP email", e);
         }
+    }
+
+    private String frontendUrl(String path) {
+        String baseUrl = frontendBaseUrl == null ? "http://localhost:5173" : frontendBaseUrl.trim();
+        while (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+        return baseUrl + path;
     }
 }
