@@ -70,12 +70,13 @@ public class AiService {
             if (cached.isPresent()) {
                 AiResponseCache cache = cached.get();
                 List<SuggestedLabDTO> cachedLabs = toSuggestedLabs(cache.getSuggestedLabs());
-                saveMessage(session, AiMessageRole.ASSISTANT, cache.getAnswer());
+                String cachedAnswer = sanitizeAiAnswer(cache.getAnswer());
+                saveMessage(session, AiMessageRole.ASSISTANT, cachedAnswer);
                 touchSession(session);
                 return AiChatResponse.builder()
                         .sessionId(session.getId())
                         .topic(chatTopic)
-                        .answer(cache.getAnswer())
+                        .answer(cachedAnswer)
                         .suggestedLabs(cachedLabs)
                         .build();
             }
@@ -84,7 +85,7 @@ public class AiService {
         String curriculumContext = buildCurriculumContext(request.getGrade(), request.getBookType(), chatTopic);
         List<SuggestedLabDTO> suggestedLabs = findSuggestedLabs(request.getGrade(), request.getBookType(), chatTopic);
         String prompt = buildChatPrompt(request, chatTopic, curriculumContext, suggestedLabs);
-        String answer = aiProviderClient.chat(prompt);
+        String answer = sanitizeAiAnswer(aiProviderClient.chat(prompt));
 
         saveMessage(session, AiMessageRole.ASSISTANT, answer);
         touchSession(session);
@@ -140,12 +141,13 @@ public class AiService {
             if (cached.isPresent()) {
                 AiResponseCache cache = cached.get();
                 List<SuggestedLabDTO> cachedLabs = toSuggestedLabs(cache.getSuggestedLabs());
-                saveMessage(session, AiMessageRole.ASSISTANT, cache.getAnswer());
+                String cachedAnswer = sanitizeAiAnswer(cache.getAnswer());
+                saveMessage(session, AiMessageRole.ASSISTANT, cachedAnswer);
                 touchSession(session);
                 return AiChatResponse.builder()
                         .sessionId(session.getId())
                         .topic(chatTopic)
-                        .answer(cache.getAnswer())
+                        .answer(cachedAnswer)
                         .suggestedLabs(cachedLabs)
                         .build();
             }
@@ -154,7 +156,7 @@ public class AiService {
         String curriculumContext = buildCurriculumContext(grade, bookType, chatTopic);
         List<SuggestedLabDTO> suggestedLabs = findSuggestedLabs(grade, bookType, chatTopic);
         String prompt = buildImageChatPrompt(grade, bookType, chatTopic, userPrompt, curriculumContext, suggestedLabs);
-        String answer = aiProviderClient.chatWithImage(prompt, mimeType, imageBytes);
+        String answer = sanitizeAiAnswer(aiProviderClient.chatWithImage(prompt, mimeType, imageBytes));
 
         saveMessage(session, AiMessageRole.ASSISTANT, answer);
         touchSession(session);
@@ -601,6 +603,10 @@ public class AiService {
                 Nguyên tắc:
                 - Trả lời bằng tiếng Việt.
                 - Giải thích dễ hiểu cho học sinh cấp 2.
+                - Không dùng Markdown như **in đậm**, tiêu đề #, bảng hoặc danh sách dùng dấu *.
+                - Không dùng LaTeX hoặc ký tự backslash. Viết công thức bằng văn bản thường, ví dụ n_Fe = m_Fe / M_Fe = 11,2 / 56 = 0,2 mol.
+                - Với công thức hóa học, viết dạng H2O, CO2, FeCl2, H2; không dùng chỉ số LaTeX.
+                - Không dùng HTML như <sub>, <sup>, <br>. Viết FeCl2, H2, n_Fe bằng văn bản thường.
                 - Không bịa chương trình học.
                 - Không dạy vượt quá chương trình nếu không cần thiết.
                 - Nếu câu hỏi ngoài phạm vi, hãy nói nhẹ nhàng rằng phần này sẽ học ở lớp cao hơn.
@@ -652,6 +658,9 @@ public class AiService {
                 - Ưu tiên hướng dẫn từng bước: nhận dạng dữ kiện, kiến thức cần dùng, cách làm, kết luận.
                 - Không bịa dữ kiện không có trong ảnh.
                 - Không dạy vượt quá chương trình nếu không cần thiết; nếu ngoài phạm vi, hãy nói nhẹ nhàng.
+                - Không dùng Markdown như **in đậm**, tiêu đề #, bảng hoặc danh sách dùng dấu *.
+                - Không dùng LaTeX hoặc ký tự backslash.
+                - Không dùng HTML như <sub>, <sup>, <br>. Viết FeCl2, H2, n_Fe bằng văn bản thường.
                 - Với bài tính toán, ghi công thức và phép thế số rõ ràng, dùng công thức hóa học dạng văn bản như H2O, CO2, FeCl2.
                 - Nếu có lab ảo phù hợp, gợi ý ngắn gọn ở cuối.
 
@@ -808,6 +817,64 @@ public class AiService {
         }
 
         return trimmed.substring(firstBrace, lastBrace + 1);
+    }
+
+    private String sanitizeAiAnswer(String answer) {
+        if (answer == null) {
+            return "";
+        }
+        String cleaned = answer
+                .replaceAll("(?is)<sub[^>]*>(.*?)</sub>", "_$1")
+                .replaceAll("(?is)<sup[^>]*>(.*?)</sup>", "^$1")
+                .replaceAll("(?i)<br\\s*/?>", "\n")
+                .replaceAll("(?is)<[^>]+>", "")
+                .replace("&nbsp;", " ")
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replaceAll("\\\\frac\\{([^{}]+)}\\{([^{}]+)}", "($1)/($2)")
+                .replaceAll("\\\\text\\{([^{}]+)}", "$1")
+                .replace("\\left", "")
+                .replace("\\right", "")
+                .replace("\\times", " x ")
+                .replace("\\cdot", " . ")
+                .replace("\\_", "_")
+                .replace("$", "")
+                .replaceAll("\\*\\*([^*]+)\\*\\*", "$1")
+                .replaceAll("__([^_]+)__", "$1")
+                .replaceAll("(?m)^\\s{0,3}#{1,6}\\s+", "")
+                .replaceAll("(?m)^\\s{0,3}[-*]\\s+", "- ")
+                .replaceAll("\\\\([a-zA-Z]+)", "$1")
+                .replaceAll("[ \\t]+\\n", "\n");
+        return normalizeChemText(cleaned).trim();
+    }
+
+    private String normalizeChemText(String value) {
+        return value
+                .replace('₀', '0')
+                .replace('₁', '1')
+                .replace('₂', '2')
+                .replace('₃', '3')
+                .replace('₄', '4')
+                .replace('₅', '5')
+                .replace('₆', '6')
+                .replace('₇', '7')
+                .replace('₈', '8')
+                .replace('₉', '9')
+                .replace("â‚€", "0")
+                .replace("â‚", "1")
+                .replace("â‚‚", "2")
+                .replace("â‚ƒ", "3")
+                .replace("â‚„", "4")
+                .replace("â‚…", "5")
+                .replace("â‚†", "6")
+                .replace("â‚‡", "7")
+                .replace("â‚ˆ", "8")
+                .replace("â‚‰", "9")
+                .replace("â†’", "->")
+                .replace("→", "->")
+                .replace("â€¢", "-")
+                .replace("•", "-");
     }
 
     private boolean isAutoGradable(GeneratedQuestionDTO question) {
@@ -987,7 +1054,7 @@ public class AiService {
         return AiChatMessageResponse.builder()
                 .id(message.getId())
                 .role(message.getRole())
-                .content(message.getContent())
+                .content(message.getRole() == AiMessageRole.ASSISTANT ? sanitizeAiAnswer(message.getContent()) : message.getContent())
                 .createdAt(message.getCreatedAt())
                 .build();
     }
