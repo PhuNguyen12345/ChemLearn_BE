@@ -1,7 +1,6 @@
 package com.example.chemlearn.payment.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -15,16 +14,13 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class PaymentData {
-	@NotNull
 	private Long orderCode;
 
-	@NotNull
 	private java.util.UUID userId;
 
 	@NotBlank
 	private String packageCode;
 
-	@NotNull
 	@Positive
 	private Long amount;
 

@@ -53,6 +53,12 @@ public class UserPackageEntitlement {
     @Column(name = "end_at")
     private LocalDateTime endAt;
 
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
+    @Column(name = "cancellation_reason")
+    private String cancellationReason;
+
     @Column(name = "metadata_json", columnDefinition = "TEXT")
     private String metadataJson;
 
