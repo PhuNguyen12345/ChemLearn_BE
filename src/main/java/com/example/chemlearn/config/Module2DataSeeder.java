@@ -1128,7 +1128,6 @@ public class Module2DataSeeder {
         sodium.setIconName("Square");
         sodium.setIconColor("text-slate-300");
         sodium.setIconFill("#cbd5e1"); // Slate 300
-        sodium.setProperties("{\"metalType\": \"soft\"}");
         items.add(sodium);
 
         InventoryItem copper = new InventoryItem();
@@ -1140,7 +1139,6 @@ public class Module2DataSeeder {
         copper.setIconName("Square");
         copper.setIconColor("text-orange-700");
         copper.setIconFill("#c2410c"); // Orange 700
-        copper.setProperties("{\"metalType\": \"hard\"}");
         items.add(copper);
 
         InventoryItem fePowder = new InventoryItem();
