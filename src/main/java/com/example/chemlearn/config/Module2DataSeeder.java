@@ -646,6 +646,47 @@ public class Module2DataSeeder {
             
             // Update existing Inventory Items with explicit HEX iconFill colors
             updateInventoryIconFills();
+
+            // Seed missing special acids if they don't exist
+            inventoryRepository.findByItemCode("hcl_dac").ifPresentOrElse(
+                existing -> {
+                    existing.setIconColor("text-stone-200");
+                    existing.setIconFill("#f1f5f9");
+                    inventoryRepository.save(existing);
+                },
+                () -> {
+                    InventoryItem hclDac = new InventoryItem();
+                    hclDac.setItemCode("hcl_dac");
+                    hclDac.setName("Axit HCl (Đặc)");
+                    hclDac.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+                    hclDac.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+                    hclDac.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.ACID);
+                    hclDac.setIconName("Droplet");
+                    hclDac.setIconColor("text-stone-200");
+                    hclDac.setIconFill("#f1f5f9");
+                    inventoryRepository.save(hclDac);
+                }
+            );
+
+            inventoryRepository.findByItemCode("h2so4_dac").ifPresentOrElse(
+                existing -> {
+                    existing.setIconColor("text-stone-200");
+                    existing.setIconFill("#f1f5f9");
+                    inventoryRepository.save(existing);
+                },
+                () -> {
+                    InventoryItem h2so4Dac = new InventoryItem();
+                    h2so4Dac.setItemCode("h2so4_dac");
+                    h2so4Dac.setName("Axit H2SO4 (Đặc)");
+                    h2so4Dac.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+                    h2so4Dac.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+                    h2so4Dac.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.ACID);
+                    h2so4Dac.setIconName("Droplet");
+                    h2so4Dac.setIconColor("text-stone-200");
+                    h2so4Dac.setIconFill("#f1f5f9");
+                    inventoryRepository.save(h2so4Dac);
+                }
+            );
         };
     }
 
@@ -1238,6 +1279,28 @@ public class Module2DataSeeder {
         hcl.setIconColor("text-stone-200");
         items.add(hcl);
 
+        InventoryItem hclDac = new InventoryItem();
+        hclDac.setItemCode("hcl_dac");
+        hclDac.setName("Axit HCl (Đặc)");
+        hclDac.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        hclDac.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        hclDac.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.ACID);
+        hclDac.setIconName("Droplet");
+        hclDac.setIconColor("text-red-500");
+        hclDac.setIconFill("currentColor");
+        items.add(hclDac);
+
+        InventoryItem h2so4Dac = new InventoryItem();
+        h2so4Dac.setItemCode("h2so4_dac");
+        h2so4Dac.setName("Axit H2SO4 (Đặc)");
+        h2so4Dac.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        h2so4Dac.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        h2so4Dac.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.ACID);
+        h2so4Dac.setIconName("Droplet");
+        h2so4Dac.setIconColor("text-red-600");
+        h2so4Dac.setIconFill("currentColor");
+        items.add(h2so4Dac);
+
         InventoryItem h2c2o4 = new InventoryItem();
         h2c2o4.setItemCode("h2c2o4");
         h2c2o4.setName("Axit Oxalic");
@@ -1353,6 +1416,8 @@ public class Module2DataSeeder {
                 // Lỏng (Liquid)
                 case "water": item.setIconFill("#60a5fa"); break; // Blue 400
                 case "hcl": item.setIconFill("#f1f5f9"); break; // Slate 100 (Trong suốt)
+                case "hcl_dac": item.setIconFill("#f1f5f9"); break;
+                case "h2so4_dac": item.setIconFill("#f1f5f9"); break;
                 case "h2c2o4": item.setIconFill("#f1f5f9"); break;
                 case "naoh_sol": item.setIconFill("#f1f5f9"); break;
                 case "cuso4": item.setIconFill("#3b82f6"); break; // Blue 500
