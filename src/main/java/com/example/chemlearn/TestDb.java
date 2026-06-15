@@ -1,3 +1,5 @@
+package com.example.chemlearn;
+
 import java.sql.*;
 import java.util.UUID;
 

@@ -11,11 +11,14 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Repository
 public interface LabRepository extends JpaRepository<Lab, UUID> {
     Page<Lab> findAll(Pageable pageable);
+    Optional<Lab> findByTitle(String title);
+    
     // PREMADE for all
     @Query("SELECT l FROM Lab l WHERE l.type = 'PREMADE' AND " +
             "(:keyword IS NULL OR LOWER(l.title) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND " +

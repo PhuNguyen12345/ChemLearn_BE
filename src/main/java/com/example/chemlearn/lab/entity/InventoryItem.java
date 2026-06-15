@@ -7,6 +7,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.Map;
+
 @Getter
 @Setter
 @Entity
@@ -49,5 +51,5 @@ public class InventoryItem {
 
     @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "properties", columnDefinition = "JSONB")
-    private String properties;
+    private Map<String, Object> properties;
 }
