@@ -52,6 +52,9 @@ public class AccountServiceImpl implements AccountService {
         if (repo.existsByUsername(dto.getUsername())) {
             throw new CustomExceptions.BadRequestException("Username already exists");
         }
+        if (repo.existsByEmail(dto.getEmail())) {
+            throw new CustomExceptions.BadRequestException("Email already exists");
+        }
         User user = new User();
         user.setUsername(dto.getUsername());
         user.setEmail(dto.getEmail());
@@ -69,9 +72,11 @@ public class AccountServiceImpl implements AccountService {
         user.setFailedLoginAttempts(0);
         user.setLockoutUntil(null);
 
+        User savedUser = repo.save(user);
+
         if(user.getRole().equals(UserRole.ROLE_STUDENT)){
             Student student = new Student();
-            student.setUsers(user);
+            student.setUsers(savedUser);
             student.setGradeLevel(0);
             student.setLastActiveDate(LocalDate.now());
 
@@ -79,18 +84,18 @@ public class AccountServiceImpl implements AccountService {
         }
         if(user.getRole().equals(UserRole.ROLE_TEACHER)){
             Teacher teacher = new Teacher();
-            teacher.setUsers(user);
+            teacher.setUsers(savedUser);
 
             teacherRepository.save(teacher);
         }
         if(user.getRole().equals(UserRole.ROLE_PARENT)){
             Parent parent = new Parent();
-            parent.setUsers(user);
+            parent.setUsers(savedUser);
 
             parentRepository.save(parent);
         }
 
-        return new AccountResponseDTO(repo.save(user));
+        return new AccountResponseDTO(savedUser);
     }
 
     @Override
