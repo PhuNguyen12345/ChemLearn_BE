@@ -8,6 +8,7 @@ import com.example.chemlearn.ai.provider.AiProviderClient;
 import com.example.chemlearn.ai.repository.*;
 import com.example.chemlearn.core.entity.Student;
 import com.example.chemlearn.lab.entity.Lab;
+import com.example.chemlearn.lab.enums.LabType;
 import com.example.chemlearn.lab.repository.LabRepository;
 import com.example.chemlearn.lms.entity.Lesson;
 import com.example.chemlearn.lms.enums.MaterialScope;
@@ -581,7 +582,7 @@ public class AiService {
         }
 
         if (labs.size() < MAX_RECOMMENDATIONS && keyword != null) {
-            labRepository.searchPremadeLabsByKeyword(keyword, PageRequest.of(0, MAX_RECOMMENDATIONS))
+            labRepository.searchPremadeLabsByKeyword(LabType.PREMADE, keyword, PageRequest.of(0, MAX_RECOMMENDATIONS))
                     .forEach(lab -> addLab(labs, lab));
         }
 

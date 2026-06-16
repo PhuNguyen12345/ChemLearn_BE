@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Configuration;
 import java.time.Instant;
 
 import static com.example.chemlearn.util.PasswordUtil.hash;
+import static com.example.chemlearn.util.PasswordUtil.matches;
 
 @Configuration
 @RequiredArgsConstructor
@@ -35,6 +36,9 @@ public class AdminAccountSeeder {
     @Value("${app.seed-admin.full-name:Duck Hisuu}")
     private String adminFullName;
 
+    @Value("${app.seed-admin.sync-password:true}")
+    private boolean syncPassword;
+
     @Bean
     public CommandLineRunner seedDefaultAdminAccount() {
         return args -> {
@@ -47,6 +51,12 @@ public class AdminAccountSeeder {
                         existing.setRole(UserRole.ROLE_ADMIN);
                         existing.setIsActive(true);
                         existing.setAuthProvider(AuthProvider.LOCAL);
+                        existing.setFailedLoginAttempts(0);
+                        existing.setLockoutUntil(null);
+                        existing.setLastFailedAt(null);
+                        if (syncPassword && !matches(adminPassword, existing.getPassword())) {
+                            existing.setPassword(hash(adminPassword));
+                        }
                         existing.setUpdatedAt(Instant.now());
                         return userRepository.save(existing);
                     })

@@ -20,20 +20,22 @@ public interface LabRepository extends JpaRepository<Lab, UUID> {
     Optional<Lab> findByTitle(String title);
     
     // PREMADE for all
-    @Query("SELECT l FROM Lab l WHERE l.type = 'PREMADE' AND " +
+    @Query("SELECT l FROM Lab l WHERE l.type = :type AND " +
             "(:keyword IS NULL OR LOWER(l.title) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND " +
             "(:category IS NULL OR l.category = :category)")
     Page<Lab> findPremadeLabs(
+            @Param("type") LabType type,
             @Param("keyword") String keyword,
             @Param("category") LabCategory category,
             Pageable pageable
     );
 
     // SANDBOX for particular user
-    @Query("SELECT l FROM Lab l WHERE l.type = 'SANDBOX' AND l.authorId = :studentId AND " +
+    @Query("SELECT l FROM Lab l WHERE l.type = :type AND l.authorId = :studentId AND " +
             "(:keyword IS NULL OR LOWER(l.title) LIKE LOWER(CONCAT('%', :keyword, '%'))) AND " +
             "(:category IS NULL OR l.category = :category)")
     Page<Lab> findMySandboxLabs(
+            @Param("type") LabType type,
             @Param("studentId") UUID studentId,
             @Param("keyword") String keyword,
             @Param("category") LabCategory category,
@@ -54,8 +56,12 @@ public interface LabRepository extends JpaRepository<Lab, UUID> {
             Pageable pageable
     );
 
-    @Query("SELECT l FROM Lab l WHERE l.type = 'PREMADE' AND " +
+    @Query("SELECT l FROM Lab l WHERE l.type = :type AND " +
             "(LOWER(l.title) LIKE LOWER(CONCAT('%', :keyword, '%')) OR " +
             "LOWER(COALESCE(l.description, '')) LIKE LOWER(CONCAT('%', :keyword, '%')))")
-    List<Lab> searchPremadeLabsByKeyword(@Param("keyword") String keyword, Pageable pageable);
+    List<Lab> searchPremadeLabsByKeyword(
+            @Param("type") LabType type,
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
 }

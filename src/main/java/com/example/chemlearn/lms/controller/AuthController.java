@@ -1,14 +1,15 @@
 package com.example.chemlearn.lms.controller;
 
-import java.util.Map;
-
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.example.chemlearn.config.RequiredProductionDataSeeder;
 import com.example.chemlearn.lms.dto.core.auth.AccessRequestCreateDTO;
 import com.example.chemlearn.lms.dto.core.auth.AuthResponseDTO;
 import com.example.chemlearn.lms.dto.core.auth.GoogleLoginRequestDTO;
@@ -24,6 +25,10 @@ import com.example.chemlearn.lms.service.PasswordResetService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 @RestController
 @RequestMapping("api/auth")
 @RequiredArgsConstructor()
@@ -32,6 +37,73 @@ public class AuthController {
     private final AuthService authService;
     private final AuthOnboardingService onboardingService;
     private final PasswordResetService passwordResetService;
+    private final JdbcTemplate jdbcTemplate;
+
+    @GetMapping("/deployment-info")
+    public ResponseEntity<Map<String, Object>> deploymentInfo() {
+        Map<String, Object> info = new LinkedHashMap<>();
+        info.put("buildMarker", RequiredProductionDataSeeder.buildMarker());
+        info.put("admin", jdbcTemplate.query("""
+                        SELECT username, role, is_active, failed_login_attempts, lockout_until
+                        FROM users
+                        WHERE username = 'duckhisuu'
+                        """,
+                rs -> {
+                    if (!rs.next()) {
+                        return Map.of("exists", false);
+                    }
+                    Map<String, Object> admin = new LinkedHashMap<>();
+                    admin.put("exists", true);
+                    admin.put("username", rs.getString("username"));
+                    admin.put("role", rs.getString("role"));
+                    admin.put("isActive", rs.getBoolean("is_active"));
+                    admin.put("failedLoginAttempts", rs.getObject("failed_login_attempts"));
+                    admin.put("lockoutUntil", rs.getObject("lockout_until"));
+                    return admin;
+                }));
+        info.put("premadeLabCount", jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM lab WHERE type = 'PREMADE'",
+                Integer.class
+        ));
+        info.put("premadeLabs", jdbcTemplate.query("""
+                        SELECT title, category, difficulty
+                        FROM lab
+                        WHERE type = 'PREMADE'
+                        ORDER BY title
+                        """,
+                (rs, rowNum) -> {
+                    Map<String, Object> lab = new LinkedHashMap<>();
+                    lab.put("title", rs.getString("title"));
+                    lab.put("category", rs.getString("category"));
+                    lab.put("difficulty", rs.getString("difficulty"));
+                    return lab;
+                }));
+        info.put("latestFlyway", latestFlyway());
+        return ResponseEntity.ok(info);
+    }
+
+    private Object latestFlyway() {
+        try {
+            return jdbcTemplate.query("""
+                            SELECT version, description, success
+                            FROM flyway_schema_history
+                            ORDER BY installed_rank DESC
+                            LIMIT 1
+                            """,
+                    rs -> {
+                        if (!rs.next()) {
+                            return Map.of("status", "empty");
+                        }
+                        Map<String, Object> flyway = new LinkedHashMap<>();
+                        flyway.put("version", rs.getString("version"));
+                        flyway.put("description", rs.getString("description"));
+                        flyway.put("success", rs.getBoolean("success"));
+                        return flyway;
+                    });
+        } catch (Exception ex) {
+            return Map.of("status", "unavailable", "message", ex.getMessage());
+        }
+    }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequestDTO dto) {
