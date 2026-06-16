@@ -33,7 +33,7 @@ public class LearningPackage {
     @Column(name = "package_code", nullable = false, unique = true, length = 50)
     private String packageCode;
 
-    @Column(name = "grade_level", nullable = false)
+    @Column(name = "grade_level")
     private Integer gradeLevel;
 
     @Column(name = "package_name", nullable = false, length = 100)
