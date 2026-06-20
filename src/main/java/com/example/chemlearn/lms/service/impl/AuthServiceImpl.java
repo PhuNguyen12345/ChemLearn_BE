@@ -198,29 +198,36 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void registerWithOtp(RegisterRequestDTO dto) {
-        // Validate role
         String role = dto.getRole();
         if (role == null || role.isBlank()) {
-            throw new CustomExceptions.BadRequestException("Role is required");
+            role = "ROLE_STUDENT";
+            dto.setRole(role);
         }
-        if (!"ROLE_TEACHER".equals(role) && !"ROLE_PARENT".equals(role)) {
-            throw new CustomExceptions.BadRequestException("OTP registration is only for teacher or parent roles");
-        }
-
-        // Validate common fields
-        if (dto.getPhoneNumber() == null || dto.getPhoneNumber().isBlank()) {
-            throw new CustomExceptions.BadRequestException("Phone number is required");
+        if (!"ROLE_STUDENT".equals(role) && !"ROLE_TEACHER".equals(role) && !"ROLE_PARENT".equals(role)) {
+            throw new CustomExceptions.BadRequestException("Role is invalid");
         }
 
-        // Validate role-specific fields
-        if ("ROLE_TEACHER".equals(role)) {
+        if ("ROLE_STUDENT".equals(role)) {
+            if (dto.getGradeLevel() == null || dto.getGradeLevel() < 6 || dto.getGradeLevel() > 12) {
+                throw new CustomExceptions.BadRequestException("Grade level must be between 6 and 12");
+            }
+            if (dto.getGender() == null || dto.getGender().isBlank()) {
+                throw new CustomExceptions.BadRequestException("Gender is required");
+            }
+        } else if ("ROLE_TEACHER".equals(role)) {
+            if (dto.getPhoneNumber() == null || dto.getPhoneNumber().isBlank()) {
+                throw new CustomExceptions.BadRequestException("Phone number is required");
+            }
             if (dto.getDegree() == null || dto.getDegree().isBlank()) {
                 throw new CustomExceptions.BadRequestException("Degree is required for teachers");
             }
             if (dto.getSpecialization() == null || dto.getSpecialization().isBlank()) {
                 throw new CustomExceptions.BadRequestException("Specialization is required for teachers");
             }
-        } else { // ROLE_PARENT
+        } else {
+            if (dto.getPhoneNumber() == null || dto.getPhoneNumber().isBlank()) {
+                throw new CustomExceptions.BadRequestException("Phone number is required");
+            }
             if (dto.getJobTitle() == null || dto.getJobTitle().isBlank()) {
                 throw new CustomExceptions.BadRequestException("Job title is required for parents");
             }
@@ -272,6 +279,10 @@ public class AuthServiceImpl implements AuthService {
                 .findByEmailAndOtpCodeAndVerifiedFalse(dto.getEmail(), dto.getOtpCode())
                 .orElseThrow(() -> new CustomExceptions.BadRequestException("Invalid OTP code"));
 
+        if (otp.getPendingRegistrationData() == null || otp.getPendingRegistrationData().isBlank()) {
+            throw new CustomExceptions.BadRequestException("No pending registration found for this OTP");
+        }
+
         // Check expiration
         if (otp.getExpiresAt().isBefore(Instant.now())) {
             throw new CustomExceptions.BadRequestException("OTP has expired. Please request a new one.");
@@ -304,6 +315,9 @@ public class AuthServiceImpl implements AuthService {
         user.setFullName((fullName == null || fullName.isBlank()) ? regDto.getUsername() : fullName);
         user.setRole(targetRole);
         user.setPhoneNumber(regDto.getPhoneNumber());
+        if (targetRole == UserRole.ROLE_STUDENT && regDto.getGender() != null) {
+            user.setGender(regDto.getGender().trim());
+        }
         user.setCreatedAt(Instant.now());
         user.setUpdatedAt(Instant.now());
         user.setIsActive(true);
@@ -314,7 +328,13 @@ public class AuthServiceImpl implements AuthService {
         User savedUser = repo.save(user);
 
         // Create role-specific entity
-        if (targetRole == UserRole.ROLE_TEACHER) {
+        if (targetRole == UserRole.ROLE_STUDENT) {
+            Student student = new Student();
+            student.setUsers(savedUser);
+            student.setGradeLevel(regDto.getGradeLevel());
+            student.setLastActiveDate(LocalDate.now());
+            studentRepository.save(student);
+        } else if (targetRole == UserRole.ROLE_TEACHER) {
             Teacher teacher = new Teacher();
             teacher.setUsers(savedUser);
             teacher.setDegree(regDto.getDegree());
@@ -348,6 +368,9 @@ public class AuthServiceImpl implements AuthService {
 
         if (Boolean.TRUE.equals(existing.getVerified())) {
             throw new CustomExceptions.BadRequestException("This email has already been verified");
+        }
+        if (existing.getPendingRegistrationData() == null || existing.getPendingRegistrationData().isBlank()) {
+            throw new CustomExceptions.BadRequestException("No pending registration found for this email");
         }
 
         // Rate limit: reject if last OTP was sent < 60 seconds ago

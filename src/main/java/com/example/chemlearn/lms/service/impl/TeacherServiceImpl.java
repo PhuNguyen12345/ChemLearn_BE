@@ -50,6 +50,7 @@ import com.example.chemlearn.lms.repository.AttemptAnswerRepository;
 import com.example.chemlearn.lms.entity.AttemptAnswer;
 import com.example.chemlearn.lms.service.TeacherService;
 import com.example.chemlearn.lms.service.StudyClassCodeGenerator;
+import com.example.chemlearn.lms.service.AutoMailNotificationService;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -84,6 +85,7 @@ public class TeacherServiceImpl implements TeacherService {
     private final StudyClassCodeGenerator studyClassCodeGenerator;
     private final AttemptAnswerRepository attemptAnswerRepository;
     private final EntityManager entityManager;
+    private final AutoMailNotificationService autoMailNotificationService;
 
     @Override
     public List<TeacherClassInfoDTO> getAssignedClasses(String teacherUsername) {
@@ -258,7 +260,9 @@ public class TeacherServiceImpl implements TeacherService {
         lesson.setUpdatedBy(teacherUser);
         lesson.setMaterialScope(MaterialScope.CLASS_PRIVATE);
         lesson.setOwnerClass(chapter.getOwnerClass());
-        return toLessonResponse(lessonRepository.save(lesson));
+        Lesson savedLesson = lessonRepository.save(lesson);
+        autoMailNotificationService.notifyClassLessonCreated(savedLesson);
+        return toLessonResponse(savedLesson);
     }
 
     @Override
@@ -281,7 +285,9 @@ public class TeacherServiceImpl implements TeacherService {
         lesson.setUpdatedBy(teacherUser);
         lesson.setMaterialScope(MaterialScope.CLASS_PRIVATE);
         lesson.setOwnerClass(chapter.getOwnerClass());
-        return toLessonResponse(lessonRepository.save(lesson));
+        Lesson savedLesson = lessonRepository.save(lesson);
+        autoMailNotificationService.notifyClassLessonUpdated(savedLesson);
+        return toLessonResponse(savedLesson);
     }
 
     @Override
@@ -341,7 +347,8 @@ public class TeacherServiceImpl implements TeacherService {
         if (isTimedQuiz(savedQuiz.getQuizType())) {
             assignment.setDueDate(savedQuiz.getEndTime());
         }
-        studyClassAssignmentRepository.save(assignment);
+        StudyClassAssignment savedAssignment = studyClassAssignmentRepository.save(assignment);
+        autoMailNotificationService.notifyQuizPublished(savedQuiz, savedAssignment);
 
         return mapToTeacherQuizResponseDTO(savedQuiz);
     }
@@ -578,7 +585,9 @@ public class TeacherServiceImpl implements TeacherService {
         assignment.setQuiz(quiz);
         assignment.setDueDate(dto.getDueDate());
         assignment.setCreatedAt(Instant.now());
-        return toTeacherAssignmentDto(studyClassAssignmentRepository.save(assignment));
+        StudyClassAssignment savedAssignment = studyClassAssignmentRepository.save(assignment);
+        autoMailNotificationService.notifyAssignmentCreated(savedAssignment);
+        return toTeacherAssignmentDto(savedAssignment);
     }
 
     @Override

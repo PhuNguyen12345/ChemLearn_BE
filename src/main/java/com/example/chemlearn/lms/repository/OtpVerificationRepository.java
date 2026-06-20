@@ -9,6 +9,11 @@ import java.util.UUID;
 public interface OtpVerificationRepository extends JpaRepository<OtpVerification, UUID> {
     Optional<OtpVerification> findByEmailAndOtpCodeAndVerifiedFalse(String email, String otpCode);
 
+    Optional<OtpVerification> findTopByEmailAndOtpCodeAndVerifiedFalseAndPendingRegistrationDataIsNullOrderByCreatedAtDesc(
+            String email,
+            String otpCode
+    );
+
     Optional<OtpVerification> findTopByEmailOrderByCreatedAtDesc(String email);
 
     void deleteByEmail(String email);

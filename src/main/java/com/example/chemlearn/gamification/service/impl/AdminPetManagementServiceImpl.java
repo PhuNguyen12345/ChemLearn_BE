@@ -12,6 +12,7 @@ import com.example.chemlearn.gamification.repository.ItemRepository;
 import com.example.chemlearn.gamification.repository.PetSpeciesRepository;
 import com.example.chemlearn.gamification.service.AdminPetManagementService;
 import com.example.chemlearn.lms.exception.CustomExceptions;
+import com.example.chemlearn.lms.service.AutoMailNotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +26,7 @@ public class AdminPetManagementServiceImpl implements AdminPetManagementService 
     private final PetSpeciesRepository petSpeciesRepository;
     private final ItemRepository itemRepository;
     private final EggDropRateRepository eggDropRateRepository;
+    private final AutoMailNotificationService autoMailNotificationService;
 
     @Override
     public List<AdminPetSpeciesDTO> getPetSpecies() {
@@ -68,7 +70,9 @@ public class AdminPetManagementServiceImpl implements AdminPetManagementService 
         Item item = new Item();
         item.setItemType(ItemType.EGG);
         applyEggDto(item, dto);
-        return toEggDto(itemRepository.save(item));
+        Item savedItem = itemRepository.save(item);
+        autoMailNotificationService.notifyShopItemCreated(savedItem);
+        return toEggDto(savedItem);
     }
 
     @Override
@@ -76,9 +80,12 @@ public class AdminPetManagementServiceImpl implements AdminPetManagementService 
     public AdminEggItemDTO updateEggItem(UUID id, AdminEggItemDTO dto) {
         Item item = itemRepository.findById(id)
                 .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Egg item not found"));
+        Integer previousPrice = item.getPriceCoins();
         item.setItemType(ItemType.EGG);
         applyEggDto(item, dto);
-        return toEggDto(itemRepository.save(item));
+        Item savedItem = itemRepository.save(item);
+        autoMailNotificationService.notifyShopItemUpdated(savedItem, previousPrice);
+        return toEggDto(savedItem);
     }
 
     @Override

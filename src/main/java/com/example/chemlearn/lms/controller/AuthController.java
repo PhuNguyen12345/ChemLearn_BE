@@ -1,14 +1,5 @@
 package com.example.chemlearn.lms.controller;
 
-import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
 import com.example.chemlearn.config.RequiredProductionDataSeeder;
 import com.example.chemlearn.lms.dto.core.auth.AccessRequestCreateDTO;
 import com.example.chemlearn.lms.dto.core.auth.AuthResponseDTO;
@@ -21,17 +12,23 @@ import com.example.chemlearn.lms.dto.core.auth.RegisterRequestDTO;
 import com.example.chemlearn.lms.service.AuthOnboardingService;
 import com.example.chemlearn.lms.service.AuthService;
 import com.example.chemlearn.lms.service.PasswordResetService;
-
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("api/auth")
-@RequiredArgsConstructor()
+@RequiredArgsConstructor
 public class AuthController {
 
     private final AuthService authService;
@@ -113,7 +110,7 @@ public class AuthController {
         }
 
         authService.register(dto);
-        return ResponseEntity.ok("Registered successfully");
+        return ResponseEntity.ok(Map.of("message", "Registered successfully"));
     }
 
     @PostMapping("/register/otp")
@@ -135,61 +132,65 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<AuthResponseDTO> login(
-            @Valid @RequestBody LoginRequestDTO dto) {
+    public ResponseEntity<AuthResponseDTO> login(@Valid @RequestBody LoginRequestDTO dto) {
         return ResponseEntity.ok(authService.login(dto));
     }
 
     @PostMapping("/google")
-    public ResponseEntity<AuthResponseDTO> googleLogin(
-            @Valid @RequestBody GoogleLoginRequestDTO dto) {
+    public ResponseEntity<AuthResponseDTO> googleLogin(@Valid @RequestBody GoogleLoginRequestDTO dto) {
         return ResponseEntity.ok(authService.loginWithGoogle(dto));
     }
 
     @PostMapping("/requests")
-    public ResponseEntity<?> submitAccessRequest(
-            @Valid @RequestBody AccessRequestCreateDTO dto) {
+    public ResponseEntity<?> submitAccessRequest(@Valid @RequestBody AccessRequestCreateDTO dto) {
         onboardingService.submitAccessRequest(dto);
-        return ResponseEntity.ok("Request submitted");
+        return ResponseEntity.ok(Map.of("message", "Request submitted"));
     }
 
     @PostMapping("/invites/accept")
-    public ResponseEntity<?> acceptInvite(
-            @Valid @RequestBody InviteAcceptRequestDTO dto) {
+    public ResponseEntity<?> acceptInvite(@Valid @RequestBody InviteAcceptRequestDTO dto) {
         onboardingService.acceptInvite(dto);
-        return ResponseEntity.ok("Invite accepted");
+        return ResponseEntity.ok(Map.of("message", "Invite accepted"));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    public ResponseEntity<?> logout(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         String token = null;
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
         }
 
         authService.logout(token);
-        return ResponseEntity.ok("Logged out successfully");
+        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }
 
     @PostMapping("/forgot-password")
-    public ResponseEntity<?> forgotPassword(@RequestBody java.util.Map<String, String> body) {
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
         String email = body.get("email");
         if (email == null || email.isBlank()) {
-            return ResponseEntity.badRequest().body("{\"message\":\"Email is required\"}");
+            return ResponseEntity.badRequest().body(Map.of("message", "Email là bắt buộc."));
         }
         passwordResetService.requestPasswordReset(email);
-        return ResponseEntity.ok().body("{\"message\":\"Nếu email tồn tại trong hệ thống, chúng tôi đã gửi link đặt lại mật khẩu.\"}" );
+        return ResponseEntity.ok(Map.of("message", "Nếu email tồn tại trong hệ thống, chúng tôi đã gửi mã OTP đặt lại mật khẩu."));
+    }
+
+    @PostMapping("/forgot-password/verify-otp")
+    public ResponseEntity<?> verifyForgotPasswordOtp(@RequestBody Map<String, String> body) {
+        String resetToken = passwordResetService.verifyPasswordResetOtp(body.get("email"), body.get("otpCode"));
+        return ResponseEntity.ok(Map.of(
+                "message", "OTP hợp lệ. Bạn có thể đặt lại mật khẩu.",
+                "resetToken", resetToken
+        ));
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestBody java.util.Map<String, String> body) {
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
         String token = body.get("token");
         String newPassword = body.get("newPassword");
         if (token == null || newPassword == null || newPassword.length() < 6) {
-            return ResponseEntity.badRequest().body("{\"message\":\"Token và mật khẩu mới là bắt buộc (tối thiểu 6 ký tự).\"}");
+            return ResponseEntity.badRequest().body(Map.of("message", "Token và mật khẩu mới là bắt buộc (tối thiểu 6 ký tự)."));
         }
         passwordResetService.resetPassword(token, newPassword);
-        return ResponseEntity.ok().body("{\"message\":\"Mật khẩu đã được đặt lại thành công!\"}" );
+        return ResponseEntity.ok(Map.of("message", "Mật khẩu đã được đặt lại thành công!"));
     }
 }
