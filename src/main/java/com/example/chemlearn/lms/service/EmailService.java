@@ -1,11 +1,9 @@
 package com.example.chemlearn.lms.service;
 
-import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
@@ -21,8 +19,6 @@ import java.util.Properties;
 @RequiredArgsConstructor
 public class EmailService {
 
-    private static final String MASCOT_CONTENT_ID = "chemlearnMascot";
-    private static final String MASCOT_RESOURCE = "static/mail/chemlearn-mascot.png";
     private static final String VIETNAMESE_EMAIL_FONT_STACK = "'Segoe UI',Roboto,Arial,'Helvetica Neue',Helvetica,sans-serif";
     private static final String VIETNAMESE_EMAIL_FONT_STYLE = "font-family:" + VIETNAMESE_EMAIL_FONT_STACK + ";";
 
@@ -54,6 +50,9 @@ public class EmailService {
 
     @Value("${app.frontend.base-url:http://localhost:5173}")
     private String frontendBaseUrl;
+
+    @Value("${app.mail.mascot-url:}")
+    private String mascotUrl;
 
     @Async
     public void sendLinkConfirmationEmail(String toEmail, String initiatorName, String token) {
@@ -263,7 +262,7 @@ public class EmailService {
         MimeMessage message = sender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(
                 message,
-                true,
+                false,
                 StandardCharsets.UTF_8.name()
         );
         if (hasText(fromName)) {
@@ -277,11 +276,6 @@ public class EmailService {
         helper.setTo(toEmail);
         helper.setSubject(subject);
         helper.setText(plainText, html);
-
-        ClassPathResource mascot = new ClassPathResource(MASCOT_RESOURCE);
-        if (mascot.exists()) {
-            helper.addInline(MASCOT_CONTENT_ID, mascot);
-        }
 
         sender.send(message);
     }
@@ -321,16 +315,32 @@ public class EmailService {
             String ctaLabel,
             String ctaUrl,
             String footerNote
-    ) throws MessagingException {
+    ) {
+        if (modernEmailTemplateEnabled()) {
+            return buildCampaignHtml(eyebrow, title, greeting, intro, highlights, ctaLabel, ctaUrl, footerNote);
+        }
+
         String escapedTitle = escapeHtml(title);
         String escapedGreeting = escapeHtml(greeting);
         String escapedIntro = escapeHtml(intro);
         String escapedEyebrow = escapeHtml(eyebrow);
         String safeCtaUrl = escapeHtml(frontendUrl(ctaUrl));
-        String escapedCtaLabel = escapeHtml(ctaLabel);
+        String escapedCtaLabel = escapeHtml(hasText(ctaLabel) ? ctaLabel : "Mở ChemLearn");
+        String escapedMascotUrl = escapeHtml(resolveMascotUrl());
+        String escapedFooter = escapeHtml(hasText(footerNote)
+                ? footerNote
+                : "ChemLearn gửi email này để đồng hành cùng hành trình học của bạn.");
+
+        List<String> safeHighlights = safeList(highlights);
+        if (safeHighlights.isEmpty()) {
+            safeHighlights = List.of(
+                    "Mở ChemLearn để tiếp tục hành trình học hôm nay.",
+                    "Bi sẽ nhắc bạn từng bước nhỏ để việc học nhẹ hơn."
+            );
+        }
 
         StringBuilder highlightHtml = new StringBuilder();
-        for (String highlight : safeList(highlights)) {
+        for (String highlight : safeHighlights) {
             highlightHtml.append("""
                     <tr>
                       <td style="padding:8px 0;">
@@ -357,17 +367,16 @@ public class EmailService {
                     body, table, td, div, p, h1, a { font-family: __FONT_STACK__ !important; }
                   </style>
                 </head>
-                <body style="margin:0;padding:0;background:#eaf6f8;__FONT_STYLE__color:#0f172a;-webkit-text-size-adjust:100%%;text-size-adjust:100%%;">
+                <body style="margin:0;padding:0;background:#111114;__FONT_STYLE__color:#f8fafc;-webkit-text-size-adjust:100%%;text-size-adjust:100%%;">
                   <div style="display:none;max-height:0;overflow:hidden;color:transparent;">%s</div>
-                  <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background:#eaf6f8;padding:28px 12px;__FONT_STYLE__">
+                  <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background:#111114;padding:28px 12px;__FONT_STYLE__">
                     <tr>
                       <td align="center">
-                        <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="max-width:640px;background:#ffffff;border-radius:24px;overflow:hidden;border:1px solid #c8edf2;box-shadow:0 18px 45px rgba(15,118,110,0.18);__FONT_STYLE__">
+                        <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="max-width:640px;background:#1d1d22;border-radius:0;overflow:hidden;border:1px solid #2c2c33;__FONT_STYLE__">
                           <tr>
-                            <td style="background:#0891b2;padding:24px 28px 20px;text-align:center;__FONT_STYLE__">
-                              <img src="cid:%s" width="220" alt="ChemLearn mascot" style="display:block;margin:0 auto 12px;max-width:220px;width:52%%;height:auto;border:0;">
-                              <div style="__FONT_STYLE__font-size:12px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#cffafe;">%s</div>
-                              <h1 style="margin:10px 0 0;__FONT_STYLE__font-size:28px;line-height:39px;color:#ffffff;font-weight:700;letter-spacing:0;">%s</h1>
+                            <td style="background:#2b1065;background-image:linear-gradient(180deg,#35117f 0%%,#211733 100%%);padding:36px 28px 24px;text-align:center;__FONT_STYLE__">
+                              <div style="__FONT_STYLE__font-size:34px;line-height:40px;color:#a7f3d0;font-weight:900;letter-spacing:0;margin-bottom:16px;">ChemLearn</div>
+                              <img src="%s" width="260" alt="Bi ChemLearn" style="display:block;margin:0 auto;max-width:260px;width:72%%;height:auto;border:0;">
                             </td>
                           </tr>
                           <tr>
@@ -397,7 +406,7 @@ public class EmailService {
                 """.formatted(
                 escapedTitle,
                 escapedIntro,
-                MASCOT_CONTENT_ID,
+                escapedMascotUrl,
                 escapedEyebrow,
                 escapedTitle,
                 escapedGreeting,
@@ -410,6 +419,144 @@ public class EmailService {
         return html
                 .replace("__FONT_STACK__", VIETNAMESE_EMAIL_FONT_STACK)
                 .replace("__FONT_STYLE__", VIETNAMESE_EMAIL_FONT_STYLE);
+    }
+
+    private String buildCampaignHtml(
+            String eyebrow,
+            String title,
+            String greeting,
+            String intro,
+            List<String> highlights,
+            String ctaLabel,
+            String ctaUrl,
+            String footerNote
+    ) {
+        String escapedTitle = escapeHtml(title);
+        String escapedGreeting = escapeHtml(greeting);
+        String escapedIntro = escapeHtml(intro);
+        String escapedEyebrow = escapeHtml(hasText(eyebrow) ? eyebrow : "ChemLearn reminder");
+        String safeCtaUrl = escapeHtml(frontendUrl(ctaUrl));
+        String escapedCtaLabel = escapeHtml(hasText(ctaLabel) ? ctaLabel : "Mở ChemLearn");
+        String escapedMascotUrl = escapeHtml(resolveMascotUrl());
+        String escapedFooter = escapeHtml(hasText(footerNote)
+                ? footerNote
+                : "ChemLearn gửi email này để đồng hành cùng hành trình học của bạn.");
+
+        List<String> safeHighlights = safeList(highlights);
+        if (safeHighlights.isEmpty()) {
+            safeHighlights = List.of(
+                    "Mở ChemLearn để tiếp tục hành trình học hôm nay.",
+                    "Bi sẽ nhắc bạn từng bước nhỏ để việc học nhẹ hơn."
+            );
+        }
+
+        StringBuilder actionRows = new StringBuilder();
+        String[] icons = {"🔔", "🧪", "🔥", "⭐", "💬"};
+        int index = 0;
+        for (String highlight : safeHighlights) {
+            String icon = icons[index % icons.length];
+            actionRows.append("""
+                    <tr>
+                      <td style="padding:0 0 18px;">
+                        <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                          <tr>
+                            <td width="58" valign="top">
+                              <div style="width:48px;height:48px;border-radius:14px;background:#2a2733;text-align:center;line-height:48px;__FONT_STYLE__font-size:24px;">%s</div>
+                            </td>
+                            <td valign="middle" style="padding-left:10px;">
+                              <div style="__FONT_STYLE__font-size:17px;line-height:24px;color:#f3f4f6;font-weight:800;letter-spacing:0;">%s</div>
+                              <div style="__FONT_STYLE__font-size:14px;line-height:22px;color:#a8a8b3;margin-top:3px;">Bi sẽ đồng hành cùng bạn từng bước.</div>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    """.formatted(icon, escapeHtml(highlight)));
+            index++;
+        }
+
+        String html = """
+                <!doctype html>
+                <html lang="vi">
+                <head>
+                  <meta charset="UTF-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+                  <title>%s</title>
+                  <style>
+                    body, table, td, div, p, h1, h2, a { font-family: __FONT_STACK__ !important; }
+                  </style>
+                </head>
+                <body style="margin:0;padding:0;background:#111114;__FONT_STYLE__color:#f8fafc;-webkit-text-size-adjust:100%%;text-size-adjust:100%%;">
+                  <div style="display:none;max-height:0;overflow:hidden;color:transparent;">%s</div>
+                  <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background:#111114;padding:28px 12px;__FONT_STYLE__">
+                    <tr>
+                      <td align="center">
+                        <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="max-width:640px;background:#1d1d22;border:1px solid #2c2c33;border-radius:0;overflow:hidden;__FONT_STYLE__">
+                          <tr>
+                            <td style="background:#2b1065;background-image:linear-gradient(180deg,#35117f 0%%,#211733 100%%);padding:36px 28px 24px;text-align:center;__FONT_STYLE__">
+                              <div style="__FONT_STYLE__font-size:34px;line-height:40px;color:#a7f3d0;font-weight:900;letter-spacing:0;margin-bottom:16px;">ChemLearn</div>
+                              <img src="%s" width="260" alt="Bi ChemLearn" style="display:block;margin:0 auto;max-width:260px;width:72%%;height:auto;border:0;">
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding:30px 36px 18px;text-align:center;__FONT_STYLE__">
+                              <div style="__FONT_STYLE__font-size:12px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:#38bdf8;margin-bottom:14px;">%s</div>
+                              <h1 style="margin:0 auto 18px;max-width:520px;__FONT_STYLE__font-size:36px;line-height:46px;color:#f4f4f5;font-weight:900;letter-spacing:0;">%s</h1>
+                              <p style="margin:0 auto 10px;max-width:500px;__FONT_STYLE__font-size:18px;line-height:29px;color:#d4d4d8;font-weight:800;">%s</p>
+                              <p style="margin:0 auto 26px;max-width:520px;__FONT_STYLE__font-size:16px;line-height:27px;color:#a8a8b3;">%s</p>
+                              <a href="%s" style="display:inline-block;background:#1d8ed7;color:#111114;text-decoration:none;__FONT_STYLE__font-weight:900;font-size:16px;line-height:22px;letter-spacing:.5px;text-transform:uppercase;padding:16px 42px;border-radius:10px;border-bottom:4px solid #0d5e98;">%s</a>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding:10px 48px 8px;__FONT_STYLE__">
+                              <div style="height:1px;background:#2d2d33;line-height:1px;font-size:1px;">&nbsp;</div>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding:28px 48px 16px;__FONT_STYLE__">
+                              <h2 style="margin:0 0 24px;text-align:center;__FONT_STYLE__font-size:30px;line-height:38px;color:#f4f4f5;font-weight:900;letter-spacing:0;">Cùng Bi làm ngay nhé</h2>
+                              <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+                                %s
+                              </table>
+                              <div style="text-align:center;padding:8px 0 28px;">
+                                <a href="%s" style="display:inline-block;background:#1d8ed7;color:#111114;text-decoration:none;__FONT_STYLE__font-weight:900;font-size:16px;line-height:22px;letter-spacing:.5px;text-transform:uppercase;padding:15px 40px;border-radius:10px;border-bottom:4px solid #0d5e98;">Bắt đầu học</a>
+                              </div>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style="padding:22px 44px 30px;background:#1d1d22;border-top:1px solid #2d2d33;__FONT_STYLE__">
+                              <p style="margin:0;__FONT_STYLE__font-size:13px;line-height:22px;color:#85858f;text-align:center;">%s</p>
+                              <p style="margin:16px 0 0;__FONT_STYLE__font-size:12px;line-height:19px;color:#6f6f78;text-align:center;">ChemLearn - Học hóa dễ hiểu, nhớ lâu, đạt điểm cao</p>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </body>
+                </html>
+                """.formatted(
+                escapedTitle,
+                escapedIntro,
+                escapedMascotUrl,
+                escapedEyebrow,
+                escapedTitle,
+                escapedGreeting,
+                escapedIntro,
+                safeCtaUrl,
+                escapedCtaLabel,
+                actionRows,
+                safeCtaUrl,
+                escapedFooter
+        );
+        return html
+                .replace("__FONT_STACK__", VIETNAMESE_EMAIL_FONT_STACK)
+                .replace("__FONT_STYLE__", VIETNAMESE_EMAIL_FONT_STYLE);
+    }
+
+    private boolean modernEmailTemplateEnabled() {
+        return true;
     }
 
     private String buildPlainText(
@@ -441,6 +588,17 @@ public class EmailService {
             baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
         }
         return baseUrl;
+    }
+
+    private String resolveMascotUrl() {
+        if (hasText(mascotUrl)) {
+            String value = mascotUrl.trim();
+            if (value.startsWith("http://") || value.startsWith("https://")) {
+                return value;
+            }
+            return frontendUrl(value);
+        }
+        return frontendUrl("/bi-companion.png");
     }
 
     private String greeting(String fullName) {

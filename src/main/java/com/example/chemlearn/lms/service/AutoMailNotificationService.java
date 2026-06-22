@@ -24,6 +24,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -43,6 +44,7 @@ public class AutoMailNotificationService {
     private final StudentRepository studentRepository;
     private final ClassStudentLinkRepository classStudentLinkRepository;
     private final QuestService questService;
+    private final BiCompanionMessageService biCompanionMessageService;
 
     @Value("${app.mail.notifications.enabled:true}")
     private boolean notificationsEnabled;
@@ -52,6 +54,9 @@ public class AutoMailNotificationService {
 
     @Value("${app.mail.daily-reminder.enabled:true}")
     private boolean dailyReminderEnabled;
+
+    @Value("${app.companion-reminder.enabled:true}")
+    private boolean companionReminderEnabled;
 
     @Value("${app.mail.scheduler-zone:Asia/Ho_Chi_Minh}")
     private String schedulerZone;
@@ -164,11 +169,37 @@ public class AutoMailNotificationService {
         notifyShopItem(item, "Cập nhật shop ChemLearn", intro);
     }
 
-    @Scheduled(cron = "${app.mail.daily-reminder.cron:0 0 7 * * *}", zone = "${app.mail.scheduler-zone:Asia/Ho_Chi_Minh}")
+    @Scheduled(cron = "${app.mail.daily-reminder.cron:0 0 7,20 * * *}", zone = "${app.mail.scheduler-zone:Asia/Ho_Chi_Minh}")
     public void sendDailyReminderBatch() {
-        if (!shouldSendAutomatic() || !dailyReminderEnabled) {
+        if (!automaticEnabled) {
             return;
         }
+
+        boolean eveningReminder = ZonedDateTime.now(resolveZone()).getHour() >= 12;
+        int companionSent = companionReminderEnabled
+                ? biCompanionMessageService.sendScheduledReminderBatch(eveningReminder)
+                : 0;
+
+        if (!notificationsEnabled || !dailyReminderEnabled) {
+            log.info("{} companion reminder batch created {} in-app messages. Email reminder skipped.",
+                    eveningReminder ? "Evening" : "Morning",
+                    companionSent);
+            return;
+        }
+
+        String subject = eveningReminder
+                ? "ChemLearn - Nhắc ôn bài buổi tối"
+                : "ChemLearn - Nhiệm vụ hôm nay đang chờ bạn";
+        String eyebrow = eveningReminder ? "Evening reminder" : "Daily reminder";
+        String title = eveningReminder
+                ? "Tổng kết nhẹ trước khi nghỉ nào"
+                : "Bắt đầu ngày học mới nào";
+        String intro = eveningReminder
+                ? "Bi nhắc bạn ôn lại phần đã học hôm nay, nhận thưởng nhiệm vụ nếu đã hoàn thành và chuẩn bị nhịp học cho ngày mai."
+                : "ChemLearn đã chuẩn bị nhiệm vụ hằng ngày để bạn luyện tập nhẹ nhàng mà vẫn nhận thưởng đều.";
+        String finalHighlight = eveningReminder
+                ? "Nếu còn nhiệm vụ chưa nhận thưởng, hãy vào ChemLearn để chốt trước khi kết thúc ngày."
+                : "Hoàn thành nhiệm vụ để giữ nhịp học và tích lũy coins cho shop.";
 
         int sent = 0;
         for (Student student : studentRepository.findActiveStudentsWithUsers()) {
@@ -189,22 +220,25 @@ public class AutoMailNotificationService {
                     .map(quest -> quest.getTitle() + " - thưởng " + quest.getRewardXp() + " XP và "
                             + nullToZero(quest.getRewardCoins()) + " coins")
                     .forEach(highlights::add);
-            highlights.add("Hoàn thành nhiệm vụ để giữ nhịp học và tích lũy coins cho shop.");
+            highlights.add(finalHighlight);
 
             emailService.sendNotificationEmail(
                     user.getEmail(),
                     user.getFullName(),
-                    "ChemLearn - Nhiệm vụ hôm nay đang chờ bạn",
-                    "Daily reminder",
-                    "Bắt đầu ngày học mới nào",
-                    "ChemLearn đã chuẩn bị nhiệm vụ hằng ngày để bạn luyện tập nhẹ nhàng mà vẫn nhận thưởng đều.",
+                    subject,
+                    eyebrow,
+                    title,
+                    intro,
                     highlights,
                     "Xem nhiệm vụ",
-                    "/student/missions"
+                    "/student/home"
             );
             sent++;
         }
-        log.info("Daily reminder batch queued {} emails", sent);
+        log.info("{} reminder batch queued {} emails and created {} in-app messages",
+                eveningReminder ? "Evening" : "Morning",
+                sent,
+                companionSent);
     }
 
     private void notifyGlobalLesson(Lesson lesson, String eyebrow, String intro) {

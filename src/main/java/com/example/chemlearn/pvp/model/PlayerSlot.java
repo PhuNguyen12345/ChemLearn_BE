@@ -24,6 +24,9 @@ public class PlayerSlot {
     private boolean connected = true;
 
     @Builder.Default
+    private boolean automated = false;
+
+    @Builder.Default
     private long lastHeartbeat = System.currentTimeMillis();
 
     public void markDisconnected() {
