@@ -18,11 +18,18 @@ import com.example.chemlearn.lms.repository.ChapterRepository;
 import com.example.chemlearn.lms.repository.LessonRepository;
 import com.example.chemlearn.lms.repository.MiniQuizQuestionRepository;
 import com.example.chemlearn.lms.service.StudyService;
+import com.example.chemlearn.payment.entity.UserPackageEntitlement;
+import com.example.chemlearn.payment.enums.EntitlementStatus;
+import com.example.chemlearn.payment.repository.UserPackageEntitlementRepository;
+import com.example.chemlearn.util.SecurityUtils;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -30,27 +37,21 @@ public class StudyServiceImpl implements StudyService {
         private final ChapterRepository chapterRepository;
         private final LessonRepository lessonRepository;
         private final MiniQuizQuestionRepository miniQuizQuestionRepository;
+        private final UserPackageEntitlementRepository userPackageEntitlementRepository;
 
         @Override
         public List<StudyChapterDTO> getChaptersWithLessons() {
+                UUID currentUserId = SecurityUtils.getCurrentUserId();
                 return chapterRepository.findByPublishedTrueAndMaterialScopeOrderByOrderIndexAsc(MaterialScope.GLOBAL)
                                 .stream()
-                                .map(chapter -> new StudyChapterDTO(
-                                                chapter.getId(),
-                                                chapter.getTitle(),
-                                                chapter.getDescription(),
-                                                lessonRepository.findByChapterIdAndPublishedTrueAndMaterialScopeOrderByOrderIndexAsc(
-                                                                chapter.getId(),
-                                                                MaterialScope.GLOBAL)
-                                                                .stream()
-                                                                .map(lesson -> new LessonSummaryDTO(lesson.getId(), lesson.getTitle(), lesson.getDurationMinutes()))
-                                                                .toList()))
+                                .map(chapter -> toStudyChapterDTO(chapter, currentUserId))
                                 .toList();
         }
 
         @Override
         public LessonDetailDTO getLessonDetail(UUID lessonId) {
                 Lesson lesson = getVisibleStudyLessonOrThrow(lessonId);
+                ensureChapterAccess(lesson.getChapter());
                 List<MiniQuizQuestionDTO> miniQuestions = miniQuizQuestionRepository.findByLessonIdOrderByIdAsc(lessonId).stream()
                                 .map(question -> new MiniQuizQuestionDTO(
                                                 question.getId(),
@@ -66,7 +67,8 @@ public class StudyServiceImpl implements StudyService {
 
         @Override
         public MiniQuizSubmitResponseDTO submitMiniQuiz(UUID lessonId, MiniQuizSubmitRequestDTO requestDTO) {
-                getVisibleStudyLessonOrThrow(lessonId);
+                Lesson lesson = getVisibleStudyLessonOrThrow(lessonId);
+                ensureChapterAccess(lesson.getChapter());
                 List<MiniQuizQuestion> questions = miniQuizQuestionRepository.findByLessonIdOrderByIdAsc(lessonId);
                 if (questions.isEmpty()) {
                         throw new CustomExceptions.BadRequestException("This lesson does not have a mini quiz");
@@ -116,5 +118,55 @@ public class StudyServiceImpl implements StudyService {
                 }
 
                 return lesson;
+        }
+
+        private StudyChapterDTO toStudyChapterDTO(Chapter chapter, UUID currentUserId) {
+                String requiredPackageCode = resolveRequiredPackageCode(chapter);
+                boolean needPurchase = Boolean.TRUE.equals(chapter.getNeedPurchase());
+                boolean hasAccess = !needPurchase || hasActiveEntitlement(currentUserId, requiredPackageCode);
+
+                return new StudyChapterDTO(
+                                chapter.getId(),
+                                chapter.getTitle(),
+                                chapter.getDescription(),
+                                chapter.getGradeLevel(),
+                                needPurchase,
+                                hasAccess,
+                                needPurchase ? requiredPackageCode : null,
+                                lessonRepository.findByChapterIdAndPublishedTrueAndMaterialScopeOrderByOrderIndexAsc(
+                                                chapter.getId(),
+                                                MaterialScope.GLOBAL)
+                                                .stream()
+                                                .map(lesson -> new LessonSummaryDTO(lesson.getId(), lesson.getTitle(), lesson.getDurationMinutes()))
+                                                .toList());
+        }
+
+        private void ensureChapterAccess(Chapter chapter) {
+                if (!Boolean.TRUE.equals(chapter.getNeedPurchase())) {
+                        return;
+                }
+
+                if (!hasActiveEntitlement(SecurityUtils.getCurrentUserId(), resolveRequiredPackageCode(chapter))) {
+                        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Study zone package is required for this grade");
+                }
+        }
+
+        private boolean hasActiveEntitlement(UUID userId, String packageCode) {
+                if (userId == null || packageCode == null) {
+                        return false;
+                }
+
+                return userPackageEntitlementRepository
+                                .findByUserIdAndPackageCodeAndStatus(userId, packageCode, EntitlementStatus.ACTIVE)
+                                .map(this::entitlementIsCurrent)
+                                .orElse(false);
+        }
+
+        private boolean entitlementIsCurrent(UserPackageEntitlement entitlement) {
+                return entitlement.getEndAt() == null || entitlement.getEndAt().isAfter(LocalDateTime.now());
+        }
+
+        private String resolveRequiredPackageCode(Chapter chapter) {
+                return chapter.getGradeLevel() == null ? null : "GRADE_" + chapter.getGradeLevel();
         }
 }

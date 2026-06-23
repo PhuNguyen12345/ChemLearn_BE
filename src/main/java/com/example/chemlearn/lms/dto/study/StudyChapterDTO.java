@@ -12,6 +12,9 @@ public class StudyChapterDTO {
     private UUID id;
     private String title;
     private String description;
+    private Integer gradeLevel;
+    private Boolean needPurchase;
+    private Boolean hasAccess;
+    private String requiredPackageCode;
     private List<LessonSummaryDTO> lessons;
 }
-

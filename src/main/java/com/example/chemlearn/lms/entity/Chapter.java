@@ -45,6 +45,10 @@ public class Chapter {
     @Column(name = "published")
     private Boolean published;
 
+    @ColumnDefault("false")
+    @Column(name = "need_purchase", nullable = false)
+    private Boolean needPurchase = false;
+
     @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(name = "updated_at")
     private Instant updatedAt;
