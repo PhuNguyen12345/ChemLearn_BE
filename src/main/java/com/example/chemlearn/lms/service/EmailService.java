@@ -54,6 +54,9 @@ public class EmailService {
     @Value("${app.mail.mascot-url:}")
     private String mascotUrl;
 
+    @Value("${app.mail.header-url:}")
+    private String mailHeaderUrl;
+
     @Async
     public void sendLinkConfirmationEmail(String toEmail, String initiatorName, String token) {
         String confirmUrl = frontendUrl("/confirm-link?token=" + token);
@@ -262,7 +265,7 @@ public class EmailService {
         MimeMessage message = sender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(
                 message,
-                false,
+                true,
                 StandardCharsets.UTF_8.name()
         );
         if (hasText(fromName)) {
@@ -323,6 +326,7 @@ public class EmailService {
         String escapedTitle = escapeHtml(title);
         String escapedGreeting = escapeHtml(greeting);
         String escapedIntro = escapeHtml(intro);
+        String introHtml = escapeHtmlWithLineBreaks(intro);
         String escapedEyebrow = escapeHtml(eyebrow);
         String safeCtaUrl = escapeHtml(frontendUrl(ctaUrl));
         String escapedCtaLabel = escapeHtml(hasText(ctaLabel) ? ctaLabel : "Mở ChemLearn");
@@ -361,9 +365,12 @@ public class EmailService {
                 <head>
                   <meta charset="UTF-8">
                   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <meta name="color-scheme" content="light">
+                  <meta name="supported-color-schemes" content="light">
                   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
                   <title>%s</title>
                   <style>
+                    :root { color-scheme: light; supported-color-schemes: light; }
                     body, table, td, div, p, h1, a { font-family: __FONT_STACK__ !important; }
                   </style>
                 </head>
@@ -410,11 +417,11 @@ public class EmailService {
                 escapedEyebrow,
                 escapedTitle,
                 escapedGreeting,
-                escapedIntro,
+                introHtml,
                 highlightHtml,
                 safeCtaUrl,
                 escapedCtaLabel,
-                escapeHtml(footerNote)
+                escapedFooter
         );
         return html
                 .replace("__FONT_STACK__", VIETNAMESE_EMAIL_FONT_STACK)
@@ -434,10 +441,11 @@ public class EmailService {
         String escapedTitle = escapeHtml(title);
         String escapedGreeting = escapeHtml(greeting);
         String escapedIntro = escapeHtml(intro);
+        String introHtml = escapeHtmlWithLineBreaks(intro);
         String escapedEyebrow = escapeHtml(hasText(eyebrow) ? eyebrow : "ChemLearn reminder");
         String safeCtaUrl = escapeHtml(frontendUrl(ctaUrl));
         String escapedCtaLabel = escapeHtml(hasText(ctaLabel) ? ctaLabel : "Mở ChemLearn");
-        String escapedMascotUrl = escapeHtml(resolveMascotUrl());
+        String escapedHeaderUrl = escapeHtml(resolveMailHeaderUrl());
         String escapedFooter = escapeHtml(hasText(footerNote)
                 ? footerNote
                 : "ChemLearn gửi email này để đồng hành cùng hành trình học của bạn.");
@@ -461,11 +469,11 @@ public class EmailService {
                         <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
                           <tr>
                             <td width="58" valign="top">
-                              <div style="width:48px;height:48px;border-radius:14px;background:#2a2733;text-align:center;line-height:48px;__FONT_STYLE__font-size:24px;">%s</div>
+                              <div style="width:48px;height:48px;border-radius:14px;background:#efe7ff;text-align:center;line-height:48px;__FONT_STYLE__font-size:24px;">%s</div>
                             </td>
                             <td valign="middle" style="padding-left:10px;">
-                              <div style="__FONT_STYLE__font-size:17px;line-height:24px;color:#f3f4f6;font-weight:800;letter-spacing:0;">%s</div>
-                              <div style="__FONT_STYLE__font-size:14px;line-height:22px;color:#a8a8b3;margin-top:3px;">Bi sẽ đồng hành cùng bạn từng bước.</div>
+                              <div style="__FONT_STYLE__font-size:17px;line-height:24px;color:#1f2937;font-weight:800;letter-spacing:0;">%s</div>
+                              <div style="__FONT_STYLE__font-size:14px;line-height:22px;color:#6b6280;margin-top:3px;">Bi sẽ đồng hành cùng bạn từng bước.</div>
                             </td>
                           </tr>
                         </table>
@@ -481,53 +489,54 @@ public class EmailService {
                 <head>
                   <meta charset="UTF-8">
                   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                  <meta name="color-scheme" content="light">
+                  <meta name="supported-color-schemes" content="light">
                   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
                   <title>%s</title>
                   <style>
+                    :root { color-scheme: light; supported-color-schemes: light; }
                     body, table, td, div, p, h1, h2, a { font-family: __FONT_STACK__ !important; }
                   </style>
                 </head>
-                <body style="margin:0;padding:0;background:#111114;__FONT_STYLE__color:#f8fafc;-webkit-text-size-adjust:100%%;text-size-adjust:100%%;">
+                <body style="margin:0;padding:0;background:#f4f2fb;__FONT_STYLE__color:#1f2937;-webkit-text-size-adjust:100%%;text-size-adjust:100%%;">
                   <div style="display:none;max-height:0;overflow:hidden;color:transparent;">%s</div>
-                  <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background:#111114;padding:28px 12px;__FONT_STYLE__">
+                  <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="background:#f4f2fb;padding:22px 10px;__FONT_STYLE__">
                     <tr>
                       <td align="center">
-                        <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="max-width:640px;background:#1d1d22;border:1px solid #2c2c33;border-radius:0;overflow:hidden;__FONT_STYLE__">
+                        <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="max-width:640px;background:#ffffff;border:1px solid #e3ddf5;border-radius:0;overflow:hidden;__FONT_STYLE__">
                           <tr>
-                            <td style="background:#2b1065;background-image:linear-gradient(180deg,#35117f 0%%,#211733 100%%);padding:36px 28px 24px;text-align:center;__FONT_STYLE__">
-                              <div style="__FONT_STYLE__font-size:34px;line-height:40px;color:#a7f3d0;font-weight:900;letter-spacing:0;margin-bottom:16px;">ChemLearn</div>
-                              <img src="%s" width="260" alt="Bi ChemLearn" style="display:block;margin:0 auto;max-width:260px;width:72%%;height:auto;border:0;">
+                            <td style="background:#050316;padding:0;line-height:0;font-size:0;__FONT_STYLE__">
+                              <img src="%s" width="640" alt="ChemLearn" style="display:block;width:100%%;max-width:640px;height:auto;border:0;outline:none;text-decoration:none;">
                             </td>
                           </tr>
                           <tr>
-                            <td style="padding:30px 36px 18px;text-align:center;__FONT_STYLE__">
-                              <div style="__FONT_STYLE__font-size:12px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:#38bdf8;margin-bottom:14px;">%s</div>
-                              <h1 style="margin:0 auto 18px;max-width:520px;__FONT_STYLE__font-size:36px;line-height:46px;color:#f4f4f5;font-weight:900;letter-spacing:0;">%s</h1>
-                              <p style="margin:0 auto 10px;max-width:500px;__FONT_STYLE__font-size:18px;line-height:29px;color:#d4d4d8;font-weight:800;">%s</p>
-                              <p style="margin:0 auto 26px;max-width:520px;__FONT_STYLE__font-size:16px;line-height:27px;color:#a8a8b3;">%s</p>
-                              <a href="%s" style="display:inline-block;background:#1d8ed7;color:#111114;text-decoration:none;__FONT_STYLE__font-weight:900;font-size:16px;line-height:22px;letter-spacing:.5px;text-transform:uppercase;padding:16px 42px;border-radius:10px;border-bottom:4px solid #0d5e98;">%s</a>
+                            <td style="padding:30px 28px 18px;text-align:left;__FONT_STYLE__">
+                              <div style="__FONT_STYLE__font-size:12px;font-weight:900;letter-spacing:1.5px;text-transform:uppercase;color:#1f7a2e;margin-bottom:14px;">%s</div>
+                              <h1 style="margin:0 0 18px;__FONT_STYLE__font-size:32px;line-height:40px;color:#2b2835;font-weight:900;letter-spacing:0;">%s</h1>
+                              <p style="margin:0 0 10px;__FONT_STYLE__font-size:17px;line-height:28px;color:#34303d;font-weight:800;">%s</p>
+                              <p style="margin:0 0 24px;__FONT_STYLE__font-size:16px;line-height:27px;color:#665f7c;">%s</p>
                             </td>
                           </tr>
                           <tr>
-                            <td style="padding:10px 48px 8px;__FONT_STYLE__">
-                              <div style="height:1px;background:#2d2d33;line-height:1px;font-size:1px;">&nbsp;</div>
+                            <td style="padding:8px 28px;__FONT_STYLE__">
+                              <div style="height:1px;background:#e6e0f4;line-height:1px;font-size:1px;">&nbsp;</div>
                             </td>
                           </tr>
                           <tr>
-                            <td style="padding:28px 48px 16px;__FONT_STYLE__">
-                              <h2 style="margin:0 0 24px;text-align:center;__FONT_STYLE__font-size:30px;line-height:38px;color:#f4f4f5;font-weight:900;letter-spacing:0;">Cùng Bi làm ngay nhé</h2>
+                            <td style="padding:26px 28px 16px;text-align:left;__FONT_STYLE__">
+                              <h2 style="margin:0 0 24px;__FONT_STYLE__font-size:28px;line-height:36px;color:#2b2835;font-weight:900;letter-spacing:0;">Cùng Bi làm ngay nhé</h2>
                               <table role="presentation" width="100%%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
                                 %s
                               </table>
-                              <div style="text-align:center;padding:8px 0 28px;">
-                                <a href="%s" style="display:inline-block;background:#1d8ed7;color:#111114;text-decoration:none;__FONT_STYLE__font-weight:900;font-size:16px;line-height:22px;letter-spacing:.5px;text-transform:uppercase;padding:15px 40px;border-radius:10px;border-bottom:4px solid #0d5e98;">Bắt đầu học</a>
+                              <div style="text-align:left;padding:8px 0 28px;">
+                                <a href="%s" style="display:inline-block;background:#78f51d;color:#07120d;text-decoration:none;__FONT_STYLE__font-weight:900;font-size:16px;line-height:22px;letter-spacing:.5px;text-transform:uppercase;padding:15px 34px;border-radius:10px;border-bottom:4px solid #48ad09;">%s</a>
                               </div>
                             </td>
                           </tr>
                           <tr>
-                            <td style="padding:22px 44px 30px;background:#1d1d22;border-top:1px solid #2d2d33;__FONT_STYLE__">
-                              <p style="margin:0;__FONT_STYLE__font-size:13px;line-height:22px;color:#85858f;text-align:center;">%s</p>
-                              <p style="margin:16px 0 0;__FONT_STYLE__font-size:12px;line-height:19px;color:#6f6f78;text-align:center;">ChemLearn - Học hóa dễ hiểu, nhớ lâu, đạt điểm cao</p>
+                            <td style="padding:22px 28px 30px;background:#f7f5fc;border-top:1px solid #e6e0f4;__FONT_STYLE__">
+                              <p style="margin:0;__FONT_STYLE__font-size:13px;line-height:22px;color:#746c87;text-align:left;">%s</p>
+                              <p style="margin:16px 0 0;__FONT_STYLE__font-size:12px;line-height:19px;color:#8a8399;text-align:left;">ChemLearn - Học hóa dễ hiểu, nhớ lâu, đạt điểm cao</p>
                             </td>
                           </tr>
                         </table>
@@ -539,15 +548,14 @@ public class EmailService {
                 """.formatted(
                 escapedTitle,
                 escapedIntro,
-                escapedMascotUrl,
+                escapedHeaderUrl,
                 escapedEyebrow,
                 escapedTitle,
                 escapedGreeting,
-                escapedIntro,
-                safeCtaUrl,
-                escapedCtaLabel,
+                introHtml,
                 actionRows,
                 safeCtaUrl,
+                escapedCtaLabel,
                 escapedFooter
         );
         return html
@@ -601,6 +609,17 @@ public class EmailService {
         return frontendUrl("/bi-companion.png");
     }
 
+    private String resolveMailHeaderUrl() {
+        if (hasText(mailHeaderUrl)) {
+            String value = mailHeaderUrl.trim();
+            if (value.startsWith("http://") || value.startsWith("https://")) {
+                return value;
+            }
+            return frontendUrl(value);
+        }
+        return frontendUrl("/chemlearn-mail-header.png");
+    }
+
     private String greeting(String fullName) {
         return "Xin chào " + safeName(fullName) + ",";
     }
@@ -642,5 +661,9 @@ public class EmailService {
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&#39;");
+    }
+
+    private String escapeHtmlWithLineBreaks(String value) {
+        return escapeHtml(value).replace("\r\n", "\n").replace("\r", "\n").replace("\n", "<br>");
     }
 }

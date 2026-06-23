@@ -21,8 +21,11 @@ public class ChemLearnApplication {
 	}
 
 	private static void loadDotenv() {
-		Path dotenvPath = Path.of(".env");
-		if (!Files.exists(dotenvPath)) {
+		Path dotenvPath = List.of(Path.of(".env"), Path.of("ChemLearn_BE", ".env")).stream()
+				.filter(Files::exists)
+				.findFirst()
+				.orElse(null);
+		if (dotenvPath == null) {
 			return;
 		}
 
