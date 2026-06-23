@@ -52,11 +52,20 @@ public class AutoMailNotificationService {
     @Value("${app.mail.automatic.enabled:true}")
     private boolean automaticEnabled;
 
-    @Value("${app.mail.daily-reminder.enabled:true}")
+    @Value("${app.mail.daily-reminder.enabled:false}")
     private boolean dailyReminderEnabled;
 
     @Value("${app.companion-reminder.enabled:true}")
     private boolean companionReminderEnabled;
+
+    @Value("${app.mail.content-updates.enabled:false}")
+    private boolean contentUpdateEmailsEnabled;
+
+    @Value("${app.mail.assignment-notifications.enabled:false}")
+    private boolean assignmentEmailsEnabled;
+
+    @Value("${app.mail.shop-updates.enabled:false}")
+    private boolean shopUpdateEmailsEnabled;
 
     @Value("${app.mail.scheduler-zone:Asia/Ho_Chi_Minh}")
     private String schedulerZone;
@@ -104,7 +113,7 @@ public class AutoMailNotificationService {
     }
 
     public void notifyQuizPublished(Quiz quiz, StudyClassAssignment assignment) {
-        if (!shouldSendAutomatic() || !Boolean.TRUE.equals(quiz.getPublished()) || quiz.getStudyClass() == null) {
+        if (!assignmentEmailsEnabled || !shouldSendAutomatic() || !Boolean.TRUE.equals(quiz.getPublished()) || quiz.getStudyClass() == null) {
             return;
         }
 
@@ -131,7 +140,7 @@ public class AutoMailNotificationService {
     }
 
     public void notifyAssignmentCreated(StudyClassAssignment assignment) {
-        if (!shouldSendAutomatic() || assignment.getStudyClassField() == null || assignment.getQuiz() == null) {
+        if (!assignmentEmailsEnabled || !shouldSendAutomatic() || assignment.getStudyClassField() == null || assignment.getQuiz() == null) {
             return;
         }
 
@@ -242,7 +251,7 @@ public class AutoMailNotificationService {
     }
 
     private void notifyGlobalLesson(Lesson lesson, String eyebrow, String intro) {
-        if (!shouldSendAutomatic() || !Boolean.TRUE.equals(lesson.getPublished())) {
+        if (!contentUpdateEmailsEnabled || !shouldSendAutomatic() || !Boolean.TRUE.equals(lesson.getPublished())) {
             return;
         }
 
@@ -267,7 +276,7 @@ public class AutoMailNotificationService {
     }
 
     private void notifyClassLesson(Lesson lesson, String eyebrow, String intro) {
-        if (!shouldSendAutomatic() || !Boolean.TRUE.equals(lesson.getPublished()) || lesson.getOwnerClass() == null) {
+        if (!contentUpdateEmailsEnabled || !shouldSendAutomatic() || !Boolean.TRUE.equals(lesson.getPublished()) || lesson.getOwnerClass() == null) {
             return;
         }
 
@@ -295,7 +304,7 @@ public class AutoMailNotificationService {
     }
 
     private void notifyShopItem(Item item, String eyebrow, String intro) {
-        if (!shouldSendAutomatic()) {
+        if (!shopUpdateEmailsEnabled || !shouldSendAutomatic()) {
             return;
         }
 

@@ -11,8 +11,12 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Slf4j
 @Service
@@ -23,11 +27,13 @@ public class EmailService {
     private static final String VIETNAMESE_EMAIL_FONT_STYLE = "font-family:" + VIETNAMESE_EMAIL_FONT_STACK + ";";
 
     private final JavaMailSender mailSender;
+    private final AtomicInteger primarySentToday = new AtomicInteger();
+    private volatile LocalDate primaryCounterDate = LocalDate.MIN;
 
     @Value("${app.mail.from:${spring.mail.username:no-reply@chemlearn.local}}")
     private String fromEmail;
 
-    @Value("${app.mail.from-name:ChemLearn}")
+    @Value("${app.mail.from-name:ChemLearn.vn}")
     private String fromName;
 
     @Value("${app.mail.reply-to:}")
@@ -47,6 +53,24 @@ public class EmailService {
 
     @Value("${app.mail.fallback.password:}")
     private String fallbackMailPassword;
+
+    @Value("${app.mail.fallback.from:}")
+    private String fallbackMailFrom;
+
+    @Value("${app.mail.fallback.from-name:${app.mail.from-name:ChemLearn.vn}}")
+    private String fallbackMailFromName;
+
+    @Value("${app.mail.fallback.reply-to:${app.mail.reply-to:}}")
+    private String fallbackMailReplyTo;
+
+    @Value("${app.mail.primary.daily-limit.enabled:true}")
+    private boolean primaryDailyLimitEnabled;
+
+    @Value("${app.mail.primary.daily-limit:280}")
+    private int primaryDailyLimit;
+
+    @Value("${app.mail.scheduler-zone:Asia/Ho_Chi_Minh}")
+    private String mailSchedulerZone;
 
     @Value("${app.frontend.base-url:http://localhost:5173}")
     private String frontendBaseUrl;
@@ -99,8 +123,7 @@ public class EmailService {
         );
     }
 
-    @Async
-    public void sendPasswordResetOtpEmail(String toEmail, String fullName, String otpCode) {
+    public void sendPasswordResetOtpEmail(String toEmail, String fullName, String otpCode, Instant expiresAt) {
         sendHtmlEmail(
                 toEmail,
                 "ChemLearn - Mã OTP đặt lại mật khẩu",
@@ -116,11 +139,16 @@ public class EmailService {
                 "Nhập OTP",
                 frontendUrl("/forgot-password"),
                 "ChemLearn không bao giờ yêu cầu bạn gửi lại OTP qua tin nhắn hoặc cuộc gọi.",
-                false
+                true,
+                expiresAt
         );
     }
 
     public void sendOtpEmail(String toEmail, String fullName, String otpCode) {
+        sendOtpEmail(toEmail, fullName, otpCode, null);
+    }
+
+    public void sendOtpEmail(String toEmail, String fullName, String otpCode, Instant expiresAt) {
         sendHtmlEmail(
                 toEmail,
                 "ChemLearn - Mã xác thực OTP",
@@ -136,7 +164,8 @@ public class EmailService {
                 "Quay lại ChemLearn",
                 frontendUrl("/auth/register"),
                 "Nếu bạn không yêu cầu mã này, vui lòng bỏ qua email.",
-                true
+                true,
+                expiresAt
         );
     }
 
@@ -213,6 +242,23 @@ public class EmailService {
             String footerNote,
             boolean throwOnFailure
     ) {
+        sendHtmlEmail(toEmail, subject, eyebrow, title, greeting, intro, highlights, ctaLabel, ctaUrl, footerNote, throwOnFailure, null);
+    }
+
+    private void sendHtmlEmail(
+            String toEmail,
+            String subject,
+            String eyebrow,
+            String title,
+            String greeting,
+            String intro,
+            List<String> highlights,
+            String ctaLabel,
+            String ctaUrl,
+            String footerNote,
+            boolean throwOnFailure,
+            Instant expiresAt
+    ) {
         String plainText;
         String html;
         try {
@@ -226,32 +272,31 @@ public class EmailService {
             return;
         }
 
+        if (isExpired(expiresAt)) {
+            String message = "Email expired before SMTP send";
+            log.warn("{} for {}", message, toEmail);
+            if (throwOnFailure) {
+                throw new IllegalStateException(message);
+            }
+            return;
+        }
+
+        if (primaryDailyLimitReached() && fallbackConfigured()) {
+            log.warn("Primary SMTP daily limit reached. Sending {} via fallback SMTP", toEmail);
+            sendFallback(toEmail, subject, plainText, html, throwOnFailure, null);
+            return;
+        }
+
         try {
-            sendWith(mailSender, toEmail, subject, plainText, html);
+            sendWith(mailSender, toEmail, subject, plainText, html, fromEmail, fromName, replyToEmail);
+            recordPrimarySend();
             log.info("Email sent to {} via primary SMTP", toEmail);
         } catch (Exception primaryException) {
             log.warn("Primary SMTP failed for {}. Trying fallback SMTP if configured. Reason: {}",
                     toEmail,
                     primaryException.getMessage());
 
-            if (fallbackConfigured()) {
-                try {
-                    sendWith(createFallbackMailSender(), toEmail, subject, plainText, html);
-                    log.info("Email sent to {} via fallback SMTP", toEmail);
-                    return;
-                } catch (Exception fallbackException) {
-                    log.error("Fallback SMTP also failed for {}", toEmail, fallbackException);
-                    if (throwOnFailure) {
-                        throw new IllegalStateException("Failed to send email", fallbackException);
-                    }
-                    return;
-                }
-            }
-
-            log.error("Failed to send email to {} and fallback SMTP is not configured", toEmail, primaryException);
-            if (throwOnFailure) {
-                throw new IllegalStateException("Failed to send email", primaryException);
-            }
+            sendFallback(toEmail, subject, plainText, html, throwOnFailure, primaryException);
         }
     }
 
@@ -260,7 +305,10 @@ public class EmailService {
             String toEmail,
             String subject,
             String plainText,
-            String html
+            String html,
+            String mailFrom,
+            String mailFromName,
+            String mailReplyTo
     ) throws Exception {
         MimeMessage message = sender.createMimeMessage();
         MimeMessageHelper helper = new MimeMessageHelper(
@@ -268,19 +316,55 @@ public class EmailService {
                 true,
                 StandardCharsets.UTF_8.name()
         );
-        if (hasText(fromName)) {
-            helper.setFrom(fromEmail, fromName);
+        if (hasText(mailFromName)) {
+            helper.setFrom(mailFrom, mailFromName);
         } else {
-            helper.setFrom(fromEmail);
+            helper.setFrom(mailFrom);
         }
-        if (hasText(replyToEmail)) {
-            helper.setReplyTo(replyToEmail);
+        if (hasText(mailReplyTo)) {
+            helper.setReplyTo(mailReplyTo);
         }
         helper.setTo(toEmail);
         helper.setSubject(subject);
         helper.setText(plainText, html);
 
         sender.send(message);
+    }
+
+    private void sendFallback(
+            String toEmail,
+            String subject,
+            String plainText,
+            String html,
+            boolean throwOnFailure,
+            Exception primaryException
+    ) {
+        if (!fallbackConfigured()) {
+            log.error("Failed to send email to {} and fallback SMTP is not configured", toEmail, primaryException);
+            if (throwOnFailure) {
+                throw new IllegalStateException("Failed to send email", primaryException);
+            }
+            return;
+        }
+
+        try {
+            sendWith(
+                    createFallbackMailSender(),
+                    toEmail,
+                    subject,
+                    plainText,
+                    html,
+                    fallbackFromEmail(),
+                    fallbackFromName(),
+                    fallbackReplyToEmail()
+            );
+            log.info("Email sent to {} via fallback SMTP", toEmail);
+        } catch (Exception fallbackException) {
+            log.error("Fallback SMTP also failed for {}", toEmail, fallbackException);
+            if (throwOnFailure) {
+                throw new IllegalStateException("Failed to send email", fallbackException);
+            }
+        }
     }
 
     private JavaMailSender createFallbackMailSender() {
@@ -307,6 +391,59 @@ public class EmailService {
                 && fallbackMailPort > 0
                 && hasText(fallbackMailUsername)
                 && hasText(fallbackMailPassword);
+    }
+
+    private String fallbackFromEmail() {
+        return hasText(fallbackMailFrom) ? fallbackMailFrom.trim() : fallbackMailUsername.trim();
+    }
+
+    private String fallbackFromName() {
+        return hasText(fallbackMailFromName) ? fallbackMailFromName.trim() : fromName;
+    }
+
+    private String fallbackReplyToEmail() {
+        return hasText(fallbackMailReplyTo) ? fallbackMailReplyTo.trim() : replyToEmail;
+    }
+
+    private boolean isExpired(Instant expiresAt) {
+        return expiresAt != null && !Instant.now().isBefore(expiresAt);
+    }
+
+    private boolean primaryDailyLimitReached() {
+        if (!primaryDailyLimitEnabled || primaryDailyLimit <= 0) {
+            return false;
+        }
+        resetPrimaryCounterIfNeeded();
+        return primarySentToday.get() >= primaryDailyLimit;
+    }
+
+    private void recordPrimarySend() {
+        if (!primaryDailyLimitEnabled || primaryDailyLimit <= 0) {
+            return;
+        }
+        resetPrimaryCounterIfNeeded();
+        primarySentToday.incrementAndGet();
+    }
+
+    private void resetPrimaryCounterIfNeeded() {
+        LocalDate today = LocalDate.now(resolveMailZone());
+        if (today.equals(primaryCounterDate)) {
+            return;
+        }
+        synchronized (this) {
+            if (!today.equals(primaryCounterDate)) {
+                primaryCounterDate = today;
+                primarySentToday.set(0);
+            }
+        }
+    }
+
+    private ZoneId resolveMailZone() {
+        try {
+            return ZoneId.of(mailSchedulerZone);
+        } catch (Exception ex) {
+            return ZoneId.of("Asia/Ho_Chi_Minh");
+        }
     }
 
     private String buildHtml(

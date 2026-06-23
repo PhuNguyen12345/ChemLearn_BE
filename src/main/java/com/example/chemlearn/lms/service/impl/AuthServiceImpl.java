@@ -34,6 +34,7 @@ import com.example.chemlearn.lms.repository.TeacherRepository;
 import com.example.chemlearn.lms.repository.UserRepository;
 import com.example.chemlearn.lms.service.AuthService;
 import com.example.chemlearn.lms.service.EmailService;
+import com.example.chemlearn.lms.service.OtpRateLimitService;
 import com.example.chemlearn.util.JwtUtil;
 import static com.example.chemlearn.util.PasswordUtil.hash;
 import static com.example.chemlearn.util.PasswordUtil.matches;
@@ -57,12 +58,14 @@ public class AuthServiceImpl implements AuthService {
     private final GoogleTokenVerifierService googleTokenVerifierService;
     private final OtpVerificationRepository otpVerificationRepository;
     private final EmailService emailService;
+    private final OtpRateLimitService otpRateLimitService;
     private final ObjectMapper objectMapper;
     private final QuestService questService;
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-    private static final int OTP_EXPIRY_MINUTES = 5;
-    private static final int OTP_RESEND_COOLDOWN_SECONDS = 60;
+
+    @Value("${auth.otp.expiry-minutes:5}")
+    private int otpExpiryMinutes;
 
     @Value("${auth.lockout.max-attempts:5}")
     private int lockoutMaxAttempts;
@@ -198,6 +201,9 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void registerWithOtp(RegisterRequestDTO dto) {
+        String normalizedEmail = otpRateLimitService.normalizeEmail(dto.getEmail());
+        dto.setEmail(normalizedEmail);
+
         String role = dto.getRole();
         if (role == null || role.isBlank()) {
             role = "ROLE_STUDENT";
@@ -240,6 +246,7 @@ public class AuthServiceImpl implements AuthService {
         if (repo.existsByEmail(dto.getEmail())) {
             throw new CustomExceptions.BadRequestException("Email exists");
         }
+        otpRateLimitService.assertCanSend(normalizedEmail);
 
         // Generate OTP
         String otpCode = generateOtp();
@@ -252,31 +259,32 @@ public class AuthServiceImpl implements AuthService {
             throw new CustomExceptions.BadRequestException("Failed to process registration data");
         }
 
-        // Clean up any existing OTPs for this email
-        otpVerificationRepository.deleteByEmail(dto.getEmail());
+        otpRateLimitService.invalidateOpenOtps(normalizedEmail);
 
         // Save OTP record
+        Instant now = Instant.now();
         OtpVerification otp = new OtpVerification();
-        otp.setEmail(dto.getEmail());
+        otp.setEmail(normalizedEmail);
         otp.setOtpCode(otpCode);
         otp.setPendingRegistrationData(registrationJson);
-        otp.setCreatedAt(Instant.now());
-        otp.setExpiresAt(Instant.now().plus(Duration.ofMinutes(OTP_EXPIRY_MINUTES)));
+        otp.setCreatedAt(now);
+        otp.setExpiresAt(now.plus(Duration.ofMinutes(otpExpiryMinutes)));
         otp.setVerified(false);
         otpVerificationRepository.save(otp);
 
         // Send OTP email
         String fullName = dto.getFullName() != null ? dto.getFullName() : dto.getUsername();
-        emailService.sendOtpEmail(dto.getEmail(), fullName, otpCode);
+        emailService.sendOtpEmail(normalizedEmail, fullName, otpCode, otp.getExpiresAt());
 
-        log.info("OTP sent for registration to email: {}", dto.getEmail());
+        log.info("OTP sent for registration to email: {}", normalizedEmail);
     }
 
     @Override
     @Transactional
     public void verifyOtpAndCreateAccount(OtpVerifyRequestDTO dto) {
+        String normalizedEmail = otpRateLimitService.normalizeEmail(dto.getEmail());
         OtpVerification otp = otpVerificationRepository
-                .findByEmailAndOtpCodeAndVerifiedFalse(dto.getEmail(), dto.getOtpCode())
+                .findByEmailAndOtpCodeAndVerifiedFalse(normalizedEmail, dto.getOtpCode())
                 .orElseThrow(() -> new CustomExceptions.BadRequestException("Invalid OTP code"));
 
         if (otp.getPendingRegistrationData() == null || otp.getPendingRegistrationData().isBlank()) {
@@ -284,7 +292,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         // Check expiration
-        if (otp.getExpiresAt().isBefore(Instant.now())) {
+        if (otp.getExpiresAt() == null || otp.getExpiresAt().isBefore(Instant.now())) {
             throw new CustomExceptions.BadRequestException("OTP has expired. Please request a new one.");
         }
 
@@ -358,12 +366,10 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void resendOtp(String email) {
-        if (email == null || email.isBlank()) {
-            throw new CustomExceptions.BadRequestException("Email is required");
-        }
+        String normalizedEmail = otpRateLimitService.normalizeEmail(email);
 
         OtpVerification existing = otpVerificationRepository
-                .findTopByEmailOrderByCreatedAtDesc(email)
+                .findTopByEmailOrderByCreatedAtDesc(normalizedEmail)
                 .orElseThrow(() -> new CustomExceptions.BadRequestException("No pending registration found for this email"));
 
         if (Boolean.TRUE.equals(existing.getVerified())) {
@@ -373,23 +379,27 @@ public class AuthServiceImpl implements AuthService {
             throw new CustomExceptions.BadRequestException("No pending registration found for this email");
         }
 
-        // Rate limit: reject if last OTP was sent < 60 seconds ago
-        if (existing.getCreatedAt() != null &&
-                existing.getCreatedAt().plusSeconds(OTP_RESEND_COOLDOWN_SECONDS).isAfter(Instant.now())) {
-            throw new CustomExceptions.BadRequestException("Please wait before requesting a new OTP");
-        }
+        otpRateLimitService.assertCanSend(normalizedEmail);
 
         // Generate new OTP
         String newOtp = generateOtp();
-        existing.setOtpCode(newOtp);
-        existing.setCreatedAt(Instant.now());
-        existing.setExpiresAt(Instant.now().plus(Duration.ofMinutes(OTP_EXPIRY_MINUTES)));
-        otpVerificationRepository.save(existing);
+        String pendingRegistrationData = existing.getPendingRegistrationData();
+        otpRateLimitService.invalidateOpenOtps(normalizedEmail);
+
+        Instant now = Instant.now();
+        OtpVerification resend = new OtpVerification();
+        resend.setEmail(normalizedEmail);
+        resend.setOtpCode(newOtp);
+        resend.setPendingRegistrationData(pendingRegistrationData);
+        resend.setCreatedAt(now);
+        resend.setExpiresAt(now.plus(Duration.ofMinutes(otpExpiryMinutes)));
+        resend.setVerified(false);
+        otpVerificationRepository.save(resend);
 
         // Deserialize to get the full name for the email
-        String fullName = email;
+        String fullName = normalizedEmail;
         try {
-            RegisterRequestDTO regDto = objectMapper.readValue(existing.getPendingRegistrationData(), RegisterRequestDTO.class);
+            RegisterRequestDTO regDto = objectMapper.readValue(pendingRegistrationData, RegisterRequestDTO.class);
             if (regDto.getFullName() != null && !regDto.getFullName().isBlank()) {
                 fullName = regDto.getFullName();
             }
@@ -397,8 +407,8 @@ public class AuthServiceImpl implements AuthService {
             // Use email as fallback
         }
 
-        emailService.sendOtpEmail(email, fullName, newOtp);
-        log.info("OTP resent to: {}", email);
+        emailService.sendOtpEmail(normalizedEmail, fullName, newOtp, resend.getExpiresAt());
+        log.info("OTP resent to: {}", normalizedEmail);
     }
 
     // ===== Login (unchanged) =====

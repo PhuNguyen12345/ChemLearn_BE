@@ -9,6 +9,7 @@ import com.example.chemlearn.lms.repository.PasswordResetTokenRepository;
 import com.example.chemlearn.lms.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,37 +26,43 @@ import java.util.UUID;
 public class PasswordResetService {
 
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
-    private static final int OTP_EXPIRY_MINUTES = 5;
     private static final int RESET_TOKEN_EXPIRY_MINUTES = 30;
 
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository tokenRepository;
     private final OtpVerificationRepository otpVerificationRepository;
     private final EmailService emailService;
+    private final OtpRateLimitService otpRateLimitService;
     private final PasswordEncoder passwordEncoder;
+
+    @Value("${auth.otp.expiry-minutes:5}")
+    private int otpExpiryMinutes;
 
     @Transactional
     public void requestPasswordReset(String email) {
-        User user = userRepository.findByEmail(email).orElse(null);
+        String normalizedEmail = otpRateLimitService.normalizeEmail(email);
+        User user = userRepository.findByEmail(normalizedEmail).orElse(null);
         if (user == null) {
-            log.warn("Password reset requested for unknown email: {}", email);
+            log.warn("Password reset requested for unknown email: {}", normalizedEmail);
             return;
         }
+        otpRateLimitService.assertCanSend(normalizedEmail);
 
-        otpVerificationRepository.deleteByEmail(email);
+        otpRateLimitService.invalidateOpenOtps(normalizedEmail);
         tokenRepository.deleteByUserId(user.getId());
 
         String otpCode = generateOtp();
+        Instant now = Instant.now();
         OtpVerification otp = new OtpVerification();
-        otp.setEmail(email);
+        otp.setEmail(normalizedEmail);
         otp.setOtpCode(otpCode);
         otp.setPendingRegistrationData(null);
-        otp.setCreatedAt(Instant.now());
-        otp.setExpiresAt(Instant.now().plus(Duration.ofMinutes(OTP_EXPIRY_MINUTES)));
+        otp.setCreatedAt(now);
+        otp.setExpiresAt(now.plus(Duration.ofMinutes(otpExpiryMinutes)));
         otp.setVerified(false);
         otpVerificationRepository.save(otp);
 
-        emailService.sendPasswordResetOtpEmail(email, user.getFullName(), otpCode);
+        emailService.sendPasswordResetOtpEmail(normalizedEmail, user.getFullName(), otpCode, otp.getExpiresAt());
     }
 
     @Transactional
@@ -64,14 +71,16 @@ public class PasswordResetService {
             throw new CustomExceptions.BadRequestException("Email và mã OTP là bắt buộc.");
         }
 
-        User user = userRepository.findByEmail(email)
+        String normalizedEmail = otpRateLimitService.normalizeEmail(email);
+
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new CustomExceptions.BadRequestException("Mã OTP không hợp lệ hoặc đã hết hạn."));
 
         OtpVerification otp = otpVerificationRepository
-                .findTopByEmailAndOtpCodeAndVerifiedFalseAndPendingRegistrationDataIsNullOrderByCreatedAtDesc(email, otpCode)
+                .findTopByEmailAndOtpCodeAndVerifiedFalseAndPendingRegistrationDataIsNullOrderByCreatedAtDesc(normalizedEmail, otpCode)
                 .orElseThrow(() -> new CustomExceptions.BadRequestException("Mã OTP không hợp lệ hoặc đã hết hạn."));
 
-        if (otp.getExpiresAt().isBefore(Instant.now())) {
+        if (otp.getExpiresAt() == null || otp.getExpiresAt().isBefore(Instant.now())) {
             throw new CustomExceptions.BadRequestException("Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới.");
         }
 
