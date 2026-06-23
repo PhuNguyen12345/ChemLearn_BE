@@ -16,6 +16,8 @@ public interface UserPackageEntitlementRepository extends JpaRepository<UserPack
 
     List<UserPackageEntitlement> findByUserIdAndStatus(UUID userId, EntitlementStatus status);
 
+    List<UserPackageEntitlement> findByPackageCode(String packageCode);
+
     List<UserPackageEntitlement> findByUserIdAndStatusIn(UUID userId, List<EntitlementStatus> statuses);
 
     Optional<UserPackageEntitlement> findByUserIdAndPackageCodeAndStatus(UUID userId, String packageCode, EntitlementStatus status);
