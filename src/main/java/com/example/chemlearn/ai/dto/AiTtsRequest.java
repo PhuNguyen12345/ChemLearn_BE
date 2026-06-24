@@ -13,6 +13,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AiTtsRequest {
     @NotBlank(message = "Text is required")
-    @Size(max = 5000, message = "Text is too long")
+    @Size(max = 50000, message = "Text is too long")
     private String text;
 }

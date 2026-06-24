@@ -117,11 +117,27 @@ public class GeminiAiProviderClient implements AiProviderClient {
     private String requestGenerateContent(List<Map<String, Object>> parts, boolean jsonMode, double fallbackTemperature) {
         validateConfig();
 
+        String primaryModel = normalizeModelName(aiProperties.getModel());
+        try {
+            return requestGenerateContentWithModel(parts, jsonMode, fallbackTemperature, primaryModel);
+        } catch (RuntimeException ex) {
+            String fallbackModel = normalizeModelName(aiProperties.getGemini().getFallbackModel());
+            if (!isRetryableGeminiError(ex) || fallbackModel.isBlank() || fallbackModel.equals(primaryModel)) {
+                throw ex;
+            }
+            return requestGenerateContentWithModel(parts, jsonMode, fallbackTemperature, fallbackModel);
+        }
+    }
+
+    private String requestGenerateContentWithModel(List<Map<String, Object>> parts,
+                                                   boolean jsonMode,
+                                                   double fallbackTemperature,
+                                                   String modelName) {
         try {
             Map<String, Object> generationConfig = new LinkedHashMap<>();
             generationConfig.put("temperature", aiProperties.getTemperature() == null ? fallbackTemperature : aiProperties.getTemperature());
             generationConfig.put("maxOutputTokens", 8192);
-            if (aiProperties.getModel() != null && aiProperties.getModel().contains("2.5")) {
+            if (modelName.contains("2.5")) {
                 generationConfig.put("thinkingConfig", Map.of("thinkingBudget", 0));
             }
             if (jsonMode) {
@@ -137,7 +153,7 @@ public class GeminiAiProviderClient implements AiProviderClient {
             body.put("generationConfig", generationConfig);
 
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(buildEndpoint()))
+                    .uri(URI.create(buildEndpoint(modelName)))
                     .timeout(Duration.ofSeconds(aiProperties.getRequestTimeoutSeconds()))
                     .header("Content-Type", "application/json")
                     .header("x-goog-api-key", aiProperties.getApiKey())
@@ -166,14 +182,46 @@ public class GeminiAiProviderClient implements AiProviderClient {
         }
     }
 
-    private String buildEndpoint() {
+    private String buildEndpoint(String modelName) {
         String baseUrl = aiProperties.getGemini().getBaseUrl();
         String normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
-        String configuredModel = aiProperties.getModel().startsWith("models/")
-                ? aiProperties.getModel().substring("models/".length())
-                : aiProperties.getModel();
-        String model = URLEncoder.encode(configuredModel, StandardCharsets.UTF_8);
+        String model = URLEncoder.encode(modelName, StandardCharsets.UTF_8);
         return normalizedBaseUrl + "/" + model + ":generateContent";
+    }
+
+    private String normalizeModelName(String model) {
+        if (model == null) {
+            return "";
+        }
+        String normalized = model.trim();
+        if (normalized.startsWith("models/")) {
+            normalized = normalized.substring("models/".length());
+        }
+        if (normalized.startsWith("google/")) {
+            normalized = normalized.substring("google/".length());
+        }
+        if ("gemini-flash-1.5".equalsIgnoreCase(normalized)) {
+            return "gemini-1.5-flash";
+        }
+        if ("gemini-pro-1.5".equalsIgnoreCase(normalized)) {
+            return "gemini-1.5-pro";
+        }
+        return normalized;
+    }
+
+    private boolean isRetryableGeminiError(RuntimeException ex) {
+        String message = ex.getMessage() == null ? "" : ex.getMessage().toLowerCase();
+        return message.contains("429")
+                || message.contains("500")
+                || message.contains("502")
+                || message.contains("503")
+                || message.contains("504")
+                || message.contains("rate")
+                || message.contains("quota")
+                || message.contains("overload")
+                || message.contains("unavailable")
+                || message.contains("timeout")
+                || message.contains("timed out");
     }
 
     private String buildTtsEndpoint() {
@@ -191,6 +239,9 @@ public class GeminiAiProviderClient implements AiProviderClient {
                 Đọc đoạn sau bằng giọng người Việt tự nhiên, thân thiện, rõ ràng, giống một gia sư Hóa/KHTN trẻ đang giải thích cho học sinh cấp 2.
                 Nhịp đọc vừa phải, ấm áp, có năng lượng. Các công thức hóa học đọc theo cách học sinh Việt Nam dễ hiểu.
                 Nếu trong nội dung có cụm trend như "tin chuẩn em nhé", "là ngon luôn", "thế mà lại hay", "mời đoàn mình di chuyển đến phần tiếp theo", hãy đọc tự nhiên, vui vừa phải, không làm quá.
+                Có thể thêm tiếng cười nhẹ "ha ha" sau một ý vui hoặc khi chuyển phần, tối đa 2-3 lần trong cả đoạn; không cười liên tục và không làm mất sự nghiêm túc của lời giải.
+                Đọc tên chất/nguyên tố theo cách gọi của chương trình mới khi phù hợp: hydrogen, oxygen, chlorine, hydrochloric acid, iron(II) chloride... Nếu nội dung dùng công thức, đọc rõ chỉ số như H hai, O hai, C O hai, H C lờ, Fe Cl hai.
+                Không tự đổi sang cách gọi cũ như hiđro/oxi/clo nếu nội dung đang dùng danh pháp mới hoặc công thức hiện đại. Với "đktc/điều kiện chuẩn" theo chương trình mới, đọc là 25 độ C và 1 bar, thể tích mol khí 24 phẩy 79 lít trên mol; không đọc thành 22 phẩy 4 trừ khi nội dung nói rõ 0 độ C, 1 atm hoặc quy ước cũ.
 
                 Nội dung cần đọc:
                 %s

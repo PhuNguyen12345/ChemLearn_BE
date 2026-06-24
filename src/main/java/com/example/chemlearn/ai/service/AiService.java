@@ -26,6 +26,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -33,6 +34,8 @@ import java.security.NoSuchAlgorithmException;
 import java.text.Normalizer;
 import java.time.Instant;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,9 +45,9 @@ public class AiService {
     private static final int MAX_RECOMMENDATIONS = 4;
     private static final long MAX_CHAT_IMAGE_BYTES = 8L * 1024 * 1024;
     private static final String TTS_EXPLANATION_DELIMITER = "===TTS_EXPLANATION===";
-    private static final String CHAT_CACHE_VERSION = "chat-solution-only-tts-trends-v3";
-    private static final int MAX_VISIBLE_CHAT_LINES = 80;
-    private static final int MAX_VISIBLE_CHAT_CHARS = 6000;
+    private static final String CHAT_CACHE_VERSION = "chat-solution-only-tts-trends-v8";
+    private static final int MAX_VISIBLE_CHAT_LINES = 420;
+    private static final int MAX_VISIBLE_CHAT_CHARS = 40000;
 
     private final AiProviderClient aiProviderClient;
     private final AiProperties aiProperties;
@@ -95,6 +98,7 @@ public class AiService {
         String rawAnswer;
         try {
             rawAnswer = aiProviderClient.chat(prompt);
+            rawAnswer = correctModernGasConventionIfNeeded(rawAnswer, request.getMessage(), prompt);
         } catch (RuntimeException ex) {
             if (!shouldUseAiFallback(ex)) {
                 throw ex;
@@ -179,6 +183,7 @@ public class AiService {
         String rawAnswer;
         try {
             rawAnswer = aiProviderClient.chatWithImage(prompt, mimeType, imageBytes);
+            rawAnswer = correctModernGasConventionIfNeeded(rawAnswer, userPrompt, prompt);
         } catch (RuntimeException ex) {
             if (!shouldUseAiFallback(ex)) {
                 throw ex;
@@ -375,11 +380,25 @@ public class AiService {
         if (text == null) {
             throw new CustomExceptions.BadRequestException("Text is required");
         }
-        int maxChars = aiProperties.getTts().getMaxChars() == null ? 5000 : aiProperties.getTts().getMaxChars();
+        text = sanitizeTtsText(text);
+        int maxChars = aiProperties.getTts().getMaxChars() == null ? 30000 : aiProperties.getTts().getMaxChars();
         if (text.length() > maxChars) {
-            text = text.substring(0, maxChars).trim();
+            text = truncateAtSentenceBoundary(text, maxChars);
         }
-        return aiProviderClient.synthesizeSpeech(text);
+
+        List<String> chunks = splitTtsChunks(text);
+        if (chunks.isEmpty()) {
+            throw new CustomExceptions.BadRequestException("Text is required");
+        }
+        if (chunks.size() == 1) {
+            return aiProviderClient.synthesizeSpeech(chunks.get(0));
+        }
+
+        List<byte[]> wavChunks = new ArrayList<>();
+        for (String chunk : chunks) {
+            wavChunks.add(aiProviderClient.synthesizeSpeech(chunk));
+        }
+        return concatenateWavChunks(wavChunks);
     }
 
     @Transactional
@@ -396,6 +415,214 @@ public class AiService {
         AiGeneratedExam exam = aiGeneratedExamRepository.findByIdAndStudent_Id(examId, currentUserId)
                 .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException("Generated exam not found"));
         return toGenerateExamResponse(exam);
+    }
+
+    private String sanitizeTtsText(String value) {
+        return normalizeChemText(value)
+                .replace("\uFEFF", "")
+                .replaceAll("[\\u200B\\u200C\\u200D]", "")
+                .replaceAll("\\$+", " ")
+                .replaceAll("\\\\frac\\{([^{}]+)\\}\\{([^{}]+)\\}", "$1 trên $2")
+                .replaceAll("\\\\rightarrow|\\\\to|->", " tạo thành ")
+                .replaceAll("\\\\times|×", " nhân ")
+                .replaceAll("\\\\cdot", " nhân ")
+                .replaceAll("\\\\text\\{([^{}]+)}", "$1")
+                .replaceAll("\\\\left|\\\\right", "")
+                .replaceAll("[_^]\\{([^{}]+)}", " $1")
+                .replaceAll("[_^]([A-Za-z0-9]+)", " $1")
+                .replaceAll("[*`>#]", " ")
+                .replaceAll("\\s+([,.!?;:])", "$1")
+                .replaceAll("[ \\t\\n\\r]{2,}", " ")
+                .trim();
+    }
+
+    private String truncateAtSentenceBoundary(String text, int maxChars) {
+        String truncated = text.substring(0, Math.max(0, maxChars)).trim();
+        int cutAt = Math.max(
+                Math.max(truncated.lastIndexOf(". "), truncated.lastIndexOf("! ")),
+                truncated.lastIndexOf("? ")
+        );
+        if (cutAt > maxChars / 2) {
+            return truncated.substring(0, cutAt + 1).trim();
+        }
+        return truncated;
+    }
+
+    private List<String> splitTtsChunks(String text) {
+        int configuredChunkChars = aiProperties.getTts().getChunkChars() == null ? 5000 : aiProperties.getTts().getChunkChars();
+        int chunkChars = Math.max(1200, configuredChunkChars);
+        int maxChunks = Math.max(1, aiProperties.getTts().getMaxChunks() == null ? 6 : aiProperties.getTts().getMaxChunks());
+
+        List<String> units = Arrays.stream(text.split("(?<=[.!?])\\s+|\\n+"))
+                .map(String::trim)
+                .filter(unit -> !unit.isBlank())
+                .toList();
+        List<String> chunks = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+
+        for (String unit : units) {
+            if (unit.length() > chunkChars) {
+                if (!current.isEmpty()) {
+                    chunks.add(current.toString().trim());
+                    current.setLength(0);
+                }
+                chunks.addAll(splitLongTtsUnit(unit, chunkChars));
+                continue;
+            }
+            if (current.length() > 0 && current.length() + unit.length() + 1 > chunkChars) {
+                chunks.add(current.toString().trim());
+                current.setLength(0);
+            }
+            if (!current.isEmpty()) {
+                current.append(' ');
+            }
+            current.append(unit);
+        }
+        if (!current.isEmpty()) {
+            chunks.add(current.toString().trim());
+        }
+
+        if (chunks.size() <= maxChunks) {
+            return chunks;
+        }
+        return mergeTtsChunksToLimit(chunks, maxChunks);
+    }
+
+    private List<String> splitLongTtsUnit(String value, int chunkChars) {
+        List<String> chunks = new ArrayList<>();
+        String remaining = value.trim();
+        while (remaining.length() > chunkChars) {
+            int cutAt = Math.max(remaining.lastIndexOf(", ", chunkChars), remaining.lastIndexOf("; ", chunkChars));
+            if (cutAt < chunkChars / 2) {
+                cutAt = chunkChars;
+            }
+            chunks.add(remaining.substring(0, cutAt).trim());
+            remaining = remaining.substring(Math.min(cutAt + 1, remaining.length())).trim();
+        }
+        if (!remaining.isBlank()) {
+            chunks.add(remaining);
+        }
+        return chunks;
+    }
+
+    private List<String> mergeTtsChunksToLimit(List<String> chunks, int maxChunks) {
+        int targetSize = (int) Math.ceil(chunks.stream().mapToInt(String::length).sum() / (double) maxChunks);
+        List<String> merged = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        for (String chunk : chunks) {
+            if (merged.size() < maxChunks - 1 && current.length() > 0 && current.length() + chunk.length() + 1 > targetSize) {
+                merged.add(current.toString().trim());
+                current.setLength(0);
+            }
+            if (!current.isEmpty()) {
+                current.append(' ');
+            }
+            current.append(chunk);
+        }
+        if (!current.isEmpty()) {
+            merged.add(current.toString().trim());
+        }
+        return merged;
+    }
+
+    private byte[] concatenateWavChunks(List<byte[]> chunks) {
+        if (chunks.isEmpty()) {
+            return new byte[0];
+        }
+        if (chunks.size() == 1) {
+            return chunks.get(0);
+        }
+
+        WavInfo first = readWavInfo(chunks.get(0));
+        ByteArrayOutputStream pcm = new ByteArrayOutputStream();
+        for (byte[] chunk : chunks) {
+            WavInfo info = readWavInfo(chunk);
+            if (!info.compatibleWith(first)) {
+                throw new CustomExceptions.BadRequestException("TTS audio chunks have incompatible WAV formats");
+            }
+            pcm.write(chunk, info.dataOffset(), info.dataSize());
+        }
+        return buildWav(pcm.toByteArray(), first.sampleRate(), first.channels(), first.bitsPerSample());
+    }
+
+    private WavInfo readWavInfo(byte[] wav) {
+        if (wav == null || wav.length < 44
+                || wav[0] != 'R' || wav[1] != 'I' || wav[2] != 'F' || wav[3] != 'F'
+                || wav[8] != 'W' || wav[9] != 'A' || wav[10] != 'V' || wav[11] != 'E') {
+            throw new CustomExceptions.BadRequestException("TTS provider returned invalid WAV audio");
+        }
+        int channels = readShortLE(wav, 22);
+        int sampleRate = readIntLE(wav, 24);
+        int bitsPerSample = readShortLE(wav, 34);
+        int dataOffset = 36;
+        while (dataOffset + 8 <= wav.length) {
+            String chunkId = new String(wav, dataOffset, 4, StandardCharsets.US_ASCII);
+            int chunkSize = readIntLE(wav, dataOffset + 4);
+            if ("data".equals(chunkId)) {
+                return new WavInfo(sampleRate, channels, bitsPerSample, dataOffset + 8, Math.min(chunkSize, wav.length - dataOffset - 8));
+            }
+            dataOffset += 8 + chunkSize;
+        }
+        throw new CustomExceptions.BadRequestException("TTS provider returned WAV without data chunk");
+    }
+
+    private byte[] buildWav(byte[] pcm, int sampleRate, int channels, int bitsPerSample) {
+        int byteRate = sampleRate * channels * bitsPerSample / 8;
+        int blockAlign = channels * bitsPerSample / 8;
+        int dataSize = pcm.length;
+        byte[] wav = new byte[44 + dataSize];
+        writeAscii(wav, 0, "RIFF");
+        writeIntLE(wav, 4, 36 + dataSize);
+        writeAscii(wav, 8, "WAVE");
+        writeAscii(wav, 12, "fmt ");
+        writeIntLE(wav, 16, 16);
+        writeShortLE(wav, 20, 1);
+        writeShortLE(wav, 22, channels);
+        writeIntLE(wav, 24, sampleRate);
+        writeIntLE(wav, 28, byteRate);
+        writeShortLE(wav, 32, blockAlign);
+        writeShortLE(wav, 34, bitsPerSample);
+        writeAscii(wav, 36, "data");
+        writeIntLE(wav, 40, dataSize);
+        System.arraycopy(pcm, 0, wav, 44, dataSize);
+        return wav;
+    }
+
+    private void writeAscii(byte[] target, int offset, String value) {
+        byte[] bytes = value.getBytes(StandardCharsets.US_ASCII);
+        System.arraycopy(bytes, 0, target, offset, bytes.length);
+    }
+
+    private void writeIntLE(byte[] target, int offset, int value) {
+        target[offset] = (byte) (value & 0xff);
+        target[offset + 1] = (byte) ((value >> 8) & 0xff);
+        target[offset + 2] = (byte) ((value >> 16) & 0xff);
+        target[offset + 3] = (byte) ((value >> 24) & 0xff);
+    }
+
+    private void writeShortLE(byte[] target, int offset, int value) {
+        target[offset] = (byte) (value & 0xff);
+        target[offset + 1] = (byte) ((value >> 8) & 0xff);
+    }
+
+    private int readIntLE(byte[] source, int offset) {
+        return (source[offset] & 0xff)
+                | ((source[offset + 1] & 0xff) << 8)
+                | ((source[offset + 2] & 0xff) << 16)
+                | ((source[offset + 3] & 0xff) << 24);
+    }
+
+    private int readShortLE(byte[] source, int offset) {
+        return (source[offset] & 0xff) | ((source[offset + 1] & 0xff) << 8);
+    }
+
+    private record WavInfo(int sampleRate, int channels, int bitsPerSample, int dataOffset, int dataSize) {
+        private boolean compatibleWith(WavInfo other) {
+            return other != null
+                    && sampleRate == other.sampleRate
+                    && channels == other.channels
+                    && bitsPerSample == other.bitsPerSample;
+        }
     }
 
     private Student getAuthorizedStudent(UUID studentId) {
@@ -686,38 +913,166 @@ public class AiService {
         return String.join(" ", messages).toLowerCase(Locale.ROOT);
     }
 
+    private String correctModernGasConventionIfNeeded(String rawAnswer, String userQuestion, String originalPrompt) {
+        if (!usesWrongOldGasMolarVolume(userQuestion, rawAnswer)) {
+            return rawAnswer;
+        }
+
+        String correctionPrompt = """
+                Câu trả lời dưới đây đang dùng sai quy ước thể tích mol khí.
+
+                Hãy viết lại toàn bộ câu trả lời theo đúng chương trình mới:
+                - Nếu đề ghi "điều kiện chuẩn", "đkc" hoặc "đktc" mà không ghi rõ 0°C và 1 atm, bắt buộc dùng V_m = 24,79 L/mol.
+                - Không dùng 22,4 L/mol cho đktc/đkc/điều kiện chuẩn hiện nay.
+                - Chỉ dùng 22,4 L/mol nếu đề ghi rõ 0°C, 1 atm hoặc nói rõ "quy ước cũ".
+                - Tính lại tất cả giá trị phụ thuộc, ví dụ số mol, khối lượng mol, khối lượng, thể tích và kết luận cuối.
+                - Giữ đúng định dạng đã yêu cầu trong prompt gốc: phần hiển thị trước "%s", phần giải thích đọc sau "%s".
+                - Mọi công thức/phép tính quan trọng trong phần hiển thị đặt riêng một dòng bằng $$...$$.
+                - Không thêm markdown ngoài bài giải, không nhắc rằng em đã sửa lỗi.
+
+                Câu hỏi của học sinh:
+                %s
+
+                Prompt gốc:
+                %s
+
+                Câu trả lời cần sửa:
+                %s
+                """.formatted(
+                TTS_EXPLANATION_DELIMITER,
+                TTS_EXPLANATION_DELIMITER,
+                blankToNull(userQuestion) == null ? "Không có." : userQuestion.trim(),
+                truncate(originalPrompt, 5000),
+                truncate(rawAnswer, 5000)
+        );
+
+        try {
+            String corrected = aiProviderClient.chat(correctionPrompt);
+            if (!usesWrongOldGasMolarVolume(userQuestion, corrected)) {
+                return corrected;
+            }
+            return repairOldGasMolarVolumeInAnswer(corrected);
+        } catch (RuntimeException ignored) {
+            return repairOldGasMolarVolumeInAnswer(rawAnswer);
+        }
+    }
+
+    private boolean usesWrongOldGasMolarVolume(String userQuestion, String answer) {
+        if (isBlank(answer) || !containsOldGasMolarVolume(answer)) {
+            return false;
+        }
+        String combined = normalizeForCache(nullToBlank(userQuestion) + " " + answer);
+        boolean modernStandardCondition = combined.contains("dktc")
+                || combined.contains("dkc")
+                || combined.contains("dieu kien chuan")
+                || combined.contains("dieu kien tieu chuan");
+        boolean explicitlyOldCondition = combined.contains("0 c 1 atm")
+                || combined.contains("0 do c 1 atm")
+                || combined.contains("0oc 1 atm")
+                || combined.contains("0o c 1 atm")
+                || combined.contains("quy uoc cu")
+                || combined.contains("chuong trinh cu");
+        return modernStandardCondition && !explicitlyOldCondition;
+    }
+
+    private boolean containsOldGasMolarVolume(String value) {
+        return value != null && value.matches("(?s).*\\b22[,.]4\\b.*");
+    }
+
+    private String repairOldGasMolarVolumeInAnswer(String answer) {
+        if (isBlank(answer)) {
+            return "";
+        }
+        String repaired = answer
+                .replaceAll("(?i)V_m\\s*=\\s*22[,.]4\\s*L/mol", "V_m = 24,79 L/mol")
+                .replaceAll("(?i)Vm\\s*=\\s*22[,.]4\\s*L/mol", "Vm = 24,79 L/mol")
+                .replaceAll("(?i)22[,.]4\\s*L/mol", "24,79 L/mol")
+                .replaceAll("\\\\frac\\{V\\}\\{22[,.]4\\}", "\\\\frac{V}{24,79}")
+                .replaceAll("V\\s*/\\s*22[,.]4", "V / 24,79");
+
+        repaired = replaceLatexGasMolarVolumeCalculations(repaired);
+        repaired = replacePlainGasMolarVolumeCalculations(repaired);
+
+        if (!repaired.contains(TTS_EXPLANATION_DELIMITER)) {
+            repaired = repaired + "\n\nLưu ý: Với đktc/điều kiện chuẩn theo chương trình mới, dùng V_m = 24,79 L/mol.";
+        }
+        return repaired;
+    }
+
+    private String replaceLatexGasMolarVolumeCalculations(String value) {
+        Pattern pattern = Pattern.compile("\\\\frac\\{(\\d+(?:[,.]\\d+)?)\\}\\{22[,.]4\\}\\s*=\\s*\\d+(?:[,.]\\d+)?");
+        Matcher matcher = pattern.matcher(value);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            String volume = matcher.group(1);
+            String replacement = "\\\\frac{" + volume + "}{24,79} \\\\approx " + formatDecimal(parseDecimal(volume) / 24.79, 3);
+            matcher.appendReplacement(buffer, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
+    }
+
+    private String replacePlainGasMolarVolumeCalculations(String value) {
+        Pattern pattern = Pattern.compile("(\\d+(?:[,.]\\d+)?)\\s*/\\s*22[,.]4\\s*=\\s*\\d+(?:[,.]\\d+)?");
+        Matcher matcher = pattern.matcher(value);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            String volume = matcher.group(1);
+            String replacement = volume + " / 24,79 ≈ " + formatDecimal(parseDecimal(volume) / 24.79, 3);
+            matcher.appendReplacement(buffer, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
+    }
+
+    private double parseDecimal(String value) {
+        if (value == null || value.isBlank()) {
+            return 0;
+        }
+        return Double.parseDouble(value.replace(',', '.'));
+    }
+
+    private String formatDecimal(double value, int scale) {
+        return String.format(Locale.ROOT, "%." + scale + "f", value).replace('.', ',');
+    }
+
     private String buildChatFallbackAnswer(String topic, String message, String curriculumContext) {
         String contextHint = truncate(stripHtml(curriculumContext), 280);
         return sanitizeAiAnswer("""
-                ChemAI đang ở chế độ dự phòng vì dịch vụ AI đang quá tải hoặc hết lượt request tạm thời.
+                ChemAI chưa nhận được phản hồi ổn định từ Gemini sau khi thử lại bằng model phụ.
 
-                Mình vẫn có thể giúp em theo cách cơ bản:
-                - Chủ đề: %s
-                - Câu hỏi của em: %s
-                - Trước hết, hãy gạch chân dữ kiện chính trong đề.
-                - Nếu là câu hỏi lý thuyết, hãy xác định khái niệm, hiện tượng, dấu hiệu nhận biết và ví dụ an toàn.
-                - Nếu là bài tính toán, hãy viết dữ kiện, đổi về mol nếu cần, lập phương trình hóa học đã cân bằng, rồi tính theo tỉ lệ mol.
-                - Nếu có phản ứng hóa học, nhớ kiểm tra chất tạo thành và cân bằng số nguyên tử hai vế.
+                Em thử gửi lại câu hỏi ngắn hơn hoặc bấm gửi lại sau ít phút nhé.
 
-                Gợi ý từ nội dung bài học đang có:
                 %s
 
-                Em có thể gửi lại câu hỏi ngắn hơn hoặc thử lại sau vài phút để ChemAI giải chi tiết bằng AI.
-                """.formatted(cleanTopic(topic), blankToNull(message) == null ? "Chưa có nội dung cụ thể." : message.trim(), contextHint));
+                Mình đang ở chế độ dự phòng nên sẽ chỉ gợi ý cách xử lý cơ bản thôi nha. Chủ đề là %s. Câu hỏi của em là: %s.
+                Trước hết, em gạch chân dữ kiện chính trong đề. Nếu là câu hỏi lý thuyết, mình xác định khái niệm, hiện tượng, dấu hiệu nhận biết và ví dụ an toàn.
+                Nếu là bài tính toán, mình viết dữ kiện, đổi về mol nếu cần, lập phương trình hóa học đã cân bằng, rồi tính theo tỉ lệ mol. Làm đúng nhịp này là đỡ rối liền, tin chuẩn em nhé.
+                Gợi ý từ nội dung bài học đang có: %s
+                """.formatted(
+                TTS_EXPLANATION_DELIMITER,
+                cleanTopic(topic),
+                blankToNull(message) == null ? "Chưa có nội dung cụ thể." : message.trim(),
+                contextHint
+        ));
     }
 
     private String buildImageChatFallbackAnswer(String topic, String message) {
         return sanitizeAiAnswer("""
-                ChemAI đang ở chế độ dự phòng vì dịch vụ đọc ảnh bằng AI đang quá tải hoặc hết lượt request tạm thời.
+                ChemAI chưa đọc được ảnh ổn định sau khi thử lại bằng model phụ.
 
-                Mình chưa thể đọc nội dung trong ảnh ở thời điểm này. Em có thể:
-                - Gõ lại nội dung đề hoặc phần dữ kiện chính.
-                - Chụp lại ảnh rõ nét hơn và thử gửi lại sau vài phút.
-                - Nếu là bài tính toán hóa học, hãy nhập các số liệu như khối lượng, thể tích khí, chất tham gia và yêu cầu cần tính.
+                Em chụp lại rõ hơn hoặc gõ phần dữ kiện chính giúp mình nhé.
 
-                Chủ đề dự đoán: %s
-                Câu hỏi thêm của em: %s
-                """.formatted(cleanTopic(topic), blankToNull(message) == null ? "Không có." : message.trim()));
+                %s
+
+                Mình chưa đọc chắc nội dung trong ảnh ở thời điểm này. Em có thể gõ lại đề hoặc chụp lại ảnh rõ nét hơn, đủ sáng hơn.
+                Nếu là bài tính toán hóa học, em nhập các số liệu như khối lượng, thể tích khí, chất tham gia và yêu cầu cần tính. Có dữ kiện rõ là mình xử lý ngon luôn.
+                Chủ đề dự đoán là %s. Câu hỏi thêm của em: %s.
+                """.formatted(
+                TTS_EXPLANATION_DELIMITER,
+                cleanTopic(topic),
+                blankToNull(message) == null ? "Không có." : message.trim()
+        ));
     }
 
     private GenerateExamResponse buildFallbackExam(GenerateExamRequest request) {
@@ -912,8 +1267,13 @@ public class AiService {
                 - Dùng LaTeX cho công thức và phương trình, đặt công thức quan trọng trong $$...$$.
                 - Với phân số phải dùng \\frac{...}{...}; với mũi tên phản ứng dùng \\rightarrow; với chỉ số dùng _{...}, ví dụ H_2, FeCl_2.
                 - Không dùng HTML như <sub>, <sup>, <br>.
+                - Không chép lại công thức OCR thô từ ảnh. Không để các ký hiệu hoặc biến bị tách thành từng dòng như "n", "H", "2", "O".
+                - Công thức phải gọn trên một dòng. Chỉ dùng LaTeX đơn giản trong $$...$$; nếu công thức quá phức tạp, viết dạng văn bản dễ đọc như n(H2), m(NaOH), H2O, CO2.
+                - Không dùng ký tự ẩn, ký hiệu lạ, MathML, Unicode zero-width, hoặc các chuỗi công thức bị vỡ dòng.
                 - Theo chương trình mới, nếu đề ghi "điều kiện chuẩn", "đkc" hoặc "đktc" mà không nêu nhiệt độ/áp suất khác, dùng V_m = 24,79 L/mol ở 25°C và 1 bar.
                 - Chỉ dùng 22,4 L/mol khi đề ghi rõ 0°C, 1 atm hoặc nói theo quy ước cũ.
+                - Ví dụ bắt buộc: nếu đề cho 5,6 L khí ở đktc/điều kiện chuẩn hiện nay thì phải tính n = 5,6 / 24,79 ≈ 0,226 mol; tuyệt đối không viết 5,6 / 22,4 = 0,25 mol.
+                - Trước khi kết luận, tự kiểm tra lại toàn bộ bài: nếu còn xuất hiện 22,4 L/mol trong ngữ cảnh đktc/đkc/điều kiện chuẩn hiện nay thì phải sửa sang 24,79 L/mol và tính lại kết quả.
                 - Không bịa chương trình học.
                 - Không dạy vượt quá chương trình nếu không cần thiết.
                 - Nếu câu hỏi ngoài phạm vi, hãy nói nhẹ nhàng rằng phần này sẽ học ở lớp cao hơn.
@@ -925,11 +1285,26 @@ public class AiService {
                 - Trình bày giống ChatGPT nhưng gọn: mỗi ý một dòng hoặc một đoạn ngắn, có thụt đầu dòng bằng danh sách đánh số.
                 - Với bài tính toán, phải có các mục rõ ràng: a) Phương trình, b) Tính số mol, c) Suy ra chất/đáp án.
                 - Mọi phương trình và phép toán quan trọng đặt riêng một dòng bằng $$...$$ để frontend căn giữa.
+                - Không dùng dấu $ đơn. Chỉ dùng $$...$$ khi cả công thức nằm gọn trong một block; nếu không chắc, viết công thức dạng text thường.
+                - Không dùng **...** trong phần hiển thị. Chỉ dùng văn bản thường, xuống dòng rõ ràng.
+                - Các mục đánh số 1., 2., 3., ... mỗi mục bắt buộc ở dòng riêng. Không viết 7., 8., 9. chung một dòng.
+                - Phải giải hết các ý của đề. Không dừng ở tiêu đề như "Giải hệ phương trình" khi chưa giải xong hệ và chưa kết luận.
                 - Không nhét công thức vào giữa đoạn văn dài. Sau mỗi công thức nên xuống dòng.
+                - Không dùng bullet cho phần hiển thị bài giải. Mỗi mục a), b), c), d) bắt buộc đứng ở đầu một dòng riêng, không viết nhiều mục trên cùng một dòng.
+                - Mỗi block công thức phải có một dòng trống trước và sau, ví dụ:
+                  a) Phương trình
+
+                  $$R + 2HCl \\rightarrow RCl_2 + H_2$$
+
+                  b) Tính số mol
+
+                  $$n_{H_2} = \\frac{V}{24,79} = \\frac{2,48}{24,79} = 0,10\\ \\text{mol}$$
                 - Phần hiển thị không dùng câu trend, không giải thích vì sao quá dài; chỉ ghi cách làm và kết quả.
                 - Sau phần hiển thị, viết đúng một dòng riêng: %s
                 - Sau dòng đó là phần giải thích kỹ hơn để hệ thống đọc bằng giọng nói. Phần này viết bằng văn nói tiếng Việt tự nhiên, không dùng LaTeX, không dùng Markdown.
                 - Phần đọc được phép dùng nhiều câu trend thân thiện với học sinh cấp 2: "tính ra được ... là ngon luôn", "tin chuẩn em nhé", "mời đoàn mình di chuyển đến phần...", "thế mà lại hay", "vượt mức pickleball", "chốt đơn kiến thức", "đỉnh nóc kịch trần", "không lòng vòng".
+                - Phần đọc có thể thêm tiếng cười nhẹ "ha ha" ở chỗ chuyển ý hoặc sau khi xong một bước quan trọng, tối đa 2-3 lần, tự nhiên và không lố.
+                - Khi đọc tên chất/nguyên tố, ưu tiên cách gọi theo chương trình mới và theo đúng nội dung hiển thị: hydrogen, oxygen, chlorine, hydrochloric acid, iron(II) chloride... Nếu nội dung dùng công thức, đọc chỉ số rõ ràng như H hai, O hai, H C lờ, Fe Cl hai; không tự chuyển về cách gọi cũ nếu không cần.
                 - Dùng câu trend đúng ngữ cảnh, mỗi đoạn 1 cụm là vừa; tuyệt đối không để phần hiển thị bị lố.
                 - Không thêm tiêu đề JSON, không lặp lại những ý không cần thiết.
 
@@ -984,8 +1359,13 @@ public class AiService {
                 - Dùng LaTeX cho công thức và phương trình, đặt công thức quan trọng trong $$...$$.
                 - Với phân số phải dùng \\frac{...}{...}; với mũi tên phản ứng dùng \\rightarrow; với chỉ số dùng _{...}, ví dụ H_2, FeCl_2.
                 - Không dùng HTML như <sub>, <sup>, <br>.
+                - Không chép lại công thức OCR thô từ ảnh. Không để các ký hiệu hoặc biến bị tách thành từng dòng như "n", "H", "2", "O".
+                - Công thức phải gọn trên một dòng. Chỉ dùng LaTeX đơn giản trong $$...$$; nếu công thức quá phức tạp, viết dạng văn bản dễ đọc như n(H2), m(NaOH), H2O, CO2.
+                - Không dùng ký tự ẩn, ký hiệu lạ, MathML, Unicode zero-width, hoặc các chuỗi công thức bị vỡ dòng.
                 - Theo chương trình mới, nếu đề ghi "điều kiện chuẩn", "đkc" hoặc "đktc" mà không nêu nhiệt độ/áp suất khác, dùng V_m = 24,79 L/mol ở 25°C và 1 bar.
                 - Chỉ dùng 22,4 L/mol khi đề ghi rõ 0°C, 1 atm hoặc nói theo quy ước cũ.
+                - Ví dụ bắt buộc: nếu đề cho 5,6 L khí ở đktc/điều kiện chuẩn hiện nay thì phải tính n = 5,6 / 24,79 ≈ 0,226 mol; tuyệt đối không viết 5,6 / 22,4 = 0,25 mol.
+                - Trước khi kết luận, tự kiểm tra lại toàn bộ bài: nếu còn xuất hiện 22,4 L/mol trong ngữ cảnh đktc/đkc/điều kiện chuẩn hiện nay thì phải sửa sang 24,79 L/mol và tính lại kết quả.
                 - Với bài tính toán, ghi công thức và phép thế số rõ ràng.
                 - Nếu có lab ảo phù hợp, gợi ý ngắn gọn ở cuối.
 
@@ -994,11 +1374,26 @@ public class AiService {
                 - Trình bày giống ChatGPT nhưng gọn: mỗi ý một dòng hoặc một đoạn ngắn, có thụt đầu dòng bằng danh sách đánh số.
                 - Với bài tính toán, phải có các mục rõ ràng: a) Phương trình, b) Tính số mol, c) Suy ra chất/đáp án.
                 - Mọi phương trình và phép toán quan trọng đặt riêng một dòng bằng $$...$$ để frontend căn giữa.
+                - Không dùng dấu $ đơn. Chỉ dùng $$...$$ khi cả công thức nằm gọn trong một block; nếu không chắc, viết công thức dạng text thường.
+                - Không dùng **...** trong phần hiển thị. Chỉ dùng văn bản thường, xuống dòng rõ ràng.
+                - Các mục đánh số 1., 2., 3., ... mỗi mục bắt buộc ở dòng riêng. Không viết 7., 8., 9. chung một dòng.
+                - Phải giải hết các ý của đề. Không dừng ở tiêu đề như "Giải hệ phương trình" khi chưa giải xong hệ và chưa kết luận.
                 - Không nhét công thức vào giữa đoạn văn dài. Sau mỗi công thức nên xuống dòng.
+                - Không dùng bullet cho phần hiển thị bài giải. Mỗi mục a), b), c), d) bắt buộc đứng ở đầu một dòng riêng, không viết nhiều mục trên cùng một dòng.
+                - Mỗi block công thức phải có một dòng trống trước và sau, ví dụ:
+                  a) Phương trình
+
+                  $$R + 2HCl \\rightarrow RCl_2 + H_2$$
+
+                  b) Tính số mol
+
+                  $$n_{H_2} = \\frac{V}{24,79} = \\frac{2,48}{24,79} = 0,10\\ \\text{mol}$$
                 - Phần hiển thị không dùng câu trend, không giải thích vì sao quá dài; chỉ ghi cách làm và kết quả.
                 - Sau phần hiển thị, viết đúng một dòng riêng: %s
                 - Sau dòng đó là phần giải thích kỹ hơn để hệ thống đọc bằng giọng nói. Phần này viết bằng văn nói tiếng Việt tự nhiên, không dùng LaTeX, không dùng Markdown.
                 - Phần đọc được phép dùng nhiều câu trend thân thiện với học sinh cấp 2: "tính ra được ... là ngon luôn", "tin chuẩn em nhé", "mời đoàn mình di chuyển đến phần...", "thế mà lại hay", "vượt mức pickleball", "chốt đơn kiến thức", "đỉnh nóc kịch trần", "không lòng vòng".
+                - Phần đọc có thể thêm tiếng cười nhẹ "ha ha" ở chỗ chuyển ý hoặc sau khi xong một bước quan trọng, tối đa 2-3 lần, tự nhiên và không lố.
+                - Khi đọc tên chất/nguyên tố, ưu tiên cách gọi theo chương trình mới và theo đúng nội dung hiển thị: hydrogen, oxygen, chlorine, hydrochloric acid, iron(II) chloride... Nếu nội dung dùng công thức, đọc chỉ số rõ ràng như H hai, O hai, H C lờ, Fe Cl hai; không tự chuyển về cách gọi cũ nếu không cần.
                 - Dùng câu trend đúng ngữ cảnh, mỗi đoạn 1 cụm là vừa; tuyệt đối không để phần hiển thị bị lố.
                 - Không thêm tiêu đề JSON, không lặp lại những ý không cần thiết.
 
@@ -1045,6 +1440,8 @@ public class AiService {
                 - Có câu tính toán định lượng phù hợp chương trình, ví dụ tính khối lượng, số mol, thể tích khí hoặc lượng chất theo phương trình hóa học nếu chủ đề cho phép.
                 - Theo chương trình mới, nếu dùng "điều kiện chuẩn", "đkc" hoặc "đktc" thì lấy V_m = 24,79 L/mol ở 25°C và 1 bar.
                 - Chỉ dùng 22,4 L/mol khi câu hỏi ghi rõ 0°C, 1 atm hoặc nói theo quy ước cũ.
+                - Ví dụ bắt buộc: nếu đề cho 5,6 L khí ở đktc/điều kiện chuẩn hiện nay thì đáp án đúng phải dựa trên n = 5,6 / 24,79 ≈ 0,226 mol, không phải 0,25 mol.
+                - Không được đặt 22,4 L/mol làm đáp án đúng cho câu hỏi đktc/đkc/điều kiện chuẩn hiện nay; nếu xuất hiện trong options thì chỉ được là phương án nhiễu sai.
                 - Nếu độ khó là HARD: phải có câu nhiều bước, dữ kiện nhiễu hợp lí, tính theo phương trình, nhận biết chất dư/chất hết hoặc suy luận từ nhiều dữ kiện; không được chỉ hỏi định nghĩa đơn giản.
                 - Nếu độ khó là MIXED: chia đều câu dễ, trung bình, khó; ít nhất 25%% câu ở mức khó.
                 - Distractors trong trắc nghiệm phải sát lỗi sai thường gặp, không quá lộ.
@@ -1156,6 +1553,7 @@ public class AiService {
                 if (question.getType() != AiQuestionType.MULTIPLE_CHOICE && question.getOptions() == null) {
                     question.setOptions(List.of());
                 }
+                validateModernGasConventionInGeneratedQuestion(question);
                 normalizedAnswerKey.add(AnswerKeyDTO.builder()
                         .questionIndex(i + 1)
                         .answer(question.getAnswer())
@@ -1168,6 +1566,13 @@ public class AiService {
             return response;
         } catch (JsonProcessingException ex) {
             throw new CustomExceptions.BadRequestException("AI generated invalid JSON: " + ex.getOriginalMessage());
+        }
+    }
+
+    private void validateModernGasConventionInGeneratedQuestion(GeneratedQuestionDTO question) {
+        String checkedAnswer = nullToBlank(question.getAnswer()) + " " + nullToBlank(question.getExplanation());
+        if (usesWrongOldGasMolarVolume(question.getQuestion(), checkedAnswer)) {
+            throw new CustomExceptions.BadRequestException("AI generated exam uses old gas molar volume 22.4 for modern standard conditions");
         }
     }
 
@@ -1273,6 +1678,8 @@ public class AiService {
             return "";
         }
         String cleaned = answer
+                .replace("\uFEFF", "")
+                .replaceAll("[\\u200B\\u200C\\u200D]", "")
                 .replaceAll("(?is)<sub[^>]*>(.*?)</sub>", "_{$1}")
                 .replaceAll("(?is)<sup[^>]*>(.*?)</sup>", "^{$1}")
                 .replaceAll("(?i)<br\\s*/?>", "\n")
@@ -1281,8 +1688,46 @@ public class AiService {
                 .replace("&amp;", "&")
                 .replace("&lt;", "<")
                 .replace("&gt;", ">")
+                .replaceAll("(?m)^\\s*\\$\\s*$", "")
                 .replaceAll("[ \\t]+\\n", "\n");
-        return normalizeChemText(cleaned).trim();
+        return removeBrokenMathFragmentLines(normalizeChemText(cleaned)).trim();
+    }
+
+    private String removeBrokenMathFragmentLines(String value) {
+        String[] lines = value.split("\\R", -1);
+        List<String> cleanedLines = new ArrayList<>();
+        int fragmentRun = 0;
+        for (String line : lines) {
+            String trimmed = line.trim();
+            boolean fragment = isBrokenMathFragmentLine(trimmed);
+            if (fragment) {
+                fragmentRun++;
+                if (fragmentRun >= 2) {
+                    continue;
+                }
+            } else {
+                fragmentRun = 0;
+            }
+            cleanedLines.add(line);
+        }
+        return String.join("\n", cleanedLines)
+                .replaceAll("\\n{3,}", "\n\n");
+    }
+
+    private boolean isBrokenMathFragmentLine(String line) {
+        if (line.isBlank()) {
+            return false;
+        }
+        if (line.matches("[a-zA-Z]")) {
+            return true;
+        }
+        if (line.matches("\\d")) {
+            return true;
+        }
+        if (line.matches("[,.;:_^{}()]+")) {
+            return true;
+        }
+        return line.length() <= 3 && line.matches("[a-zA-Z0-9,._^{}]+");
     }
 
     private String normalizeChemText(String value) {

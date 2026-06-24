@@ -29,6 +29,7 @@ public class AiProperties {
     @Data
     public static class Gemini {
         private String baseUrl = "https://generativelanguage.googleapis.com/v1beta/models";
+        private String fallbackModel = "gemini-2.5-flash-lite";
     }
 
     @Data
@@ -36,6 +37,8 @@ public class AiProperties {
         private String model = "gemini-2.5-flash-preview-tts";
         private String voiceName = "Achird";
         private Integer requestTimeoutSeconds = 60;
-        private Integer maxChars = 5000;
+        private Integer maxChars = 30000;
+        private Integer chunkChars = 5000;
+        private Integer maxChunks = 6;
     }
 }
