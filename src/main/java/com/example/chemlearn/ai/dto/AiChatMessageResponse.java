@@ -17,5 +17,6 @@ public class AiChatMessageResponse {
     private UUID id;
     private AiMessageRole role;
     private String content;
+    private String speechText;
     private Instant createdAt;
 }

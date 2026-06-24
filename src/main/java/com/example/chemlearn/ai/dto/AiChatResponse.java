@@ -16,5 +16,6 @@ public class AiChatResponse {
     private UUID sessionId;
     private String topic;
     private String answer;
+    private String speechText;
     private List<SuggestedLabDTO> suggestedLabs;
 }

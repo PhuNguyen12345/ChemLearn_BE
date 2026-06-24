@@ -52,6 +52,64 @@ public class GeminiAiProviderClient implements AiProviderClient {
         return requestGenerateContent(prompt, true, 0.2);
     }
 
+    @Override
+    public byte[] synthesizeSpeech(String text) {
+        validateConfig();
+        if (text == null || text.isBlank()) {
+            throw new CustomExceptions.BadRequestException("TTS text is required");
+        }
+
+        try {
+            Map<String, Object> generationConfig = new LinkedHashMap<>();
+            generationConfig.put("responseModalities", List.of("AUDIO"));
+            generationConfig.put("speechConfig", Map.of(
+                    "voiceConfig", Map.of(
+                            "prebuiltVoiceConfig", Map.of(
+                                    "voiceName", aiProperties.getTts().getVoiceName()
+                            )
+                    )
+            ));
+
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("contents", List.of(Map.of(
+                    "role", "user",
+                    "parts", List.of(Map.of("text", buildTtsPrompt(text)))
+            )));
+            body.put("generationConfig", generationConfig);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(buildTtsEndpoint()))
+                    .timeout(Duration.ofSeconds(aiProperties.getTts().getRequestTimeoutSeconds()))
+                    .header("Content-Type", "application/json")
+                    .header("x-goog-api-key", aiProperties.getApiKey())
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                    .build();
+
+            HttpClient client = HttpClient.newBuilder()
+                    .connectTimeout(Duration.ofSeconds(aiProperties.getTts().getRequestTimeoutSeconds()))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new CustomExceptions.BadRequestException("Gemini TTS API error: " + response.statusCode() + " - " + extractError(response.body()));
+            }
+
+            AudioData audioData = extractAudioData(response.body());
+            if (audioData.mimeType().toLowerCase().contains("wav")) {
+                return audioData.bytes();
+            }
+            if (audioData.mimeType().toLowerCase().contains("audio/l16")) {
+                return wrapPcmAsWav(audioData.bytes(), sampleRateFromMimeType(audioData.mimeType()), 1, 16);
+            }
+            return audioData.bytes();
+        } catch (IOException ex) {
+            throw new CustomExceptions.BadRequestException("Cannot call Gemini TTS API: " + ex.getMessage());
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new CustomExceptions.BadRequestException("Gemini TTS API request was interrupted");
+        }
+    }
+
     private String requestGenerateContent(String prompt, boolean jsonMode, double fallbackTemperature) {
         return requestGenerateContent(List.of(Map.of("text", prompt)), jsonMode, fallbackTemperature);
     }
@@ -116,6 +174,105 @@ public class GeminiAiProviderClient implements AiProviderClient {
                 : aiProperties.getModel();
         String model = URLEncoder.encode(configuredModel, StandardCharsets.UTF_8);
         return normalizedBaseUrl + "/" + model + ":generateContent";
+    }
+
+    private String buildTtsEndpoint() {
+        String baseUrl = aiProperties.getGemini().getBaseUrl();
+        String normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        String configuredModel = aiProperties.getTts().getModel().startsWith("models/")
+                ? aiProperties.getTts().getModel().substring("models/".length())
+                : aiProperties.getTts().getModel();
+        String model = URLEncoder.encode(configuredModel, StandardCharsets.UTF_8);
+        return normalizedBaseUrl + "/" + model + ":generateContent";
+    }
+
+    private String buildTtsPrompt(String text) {
+        return """
+                Đọc đoạn sau bằng giọng người Việt tự nhiên, thân thiện, rõ ràng, giống một gia sư Hóa/KHTN trẻ đang giải thích cho học sinh cấp 2.
+                Nhịp đọc vừa phải, ấm áp, có năng lượng. Các công thức hóa học đọc theo cách học sinh Việt Nam dễ hiểu.
+                Nếu trong nội dung có cụm trend như "tin chuẩn em nhé", "là ngon luôn", "thế mà lại hay", "mời đoàn mình di chuyển đến phần tiếp theo", hãy đọc tự nhiên, vui vừa phải, không làm quá.
+
+                Nội dung cần đọc:
+                %s
+                """.formatted(text.trim());
+    }
+
+    private AudioData extractAudioData(String responseBody) throws IOException {
+        JsonNode root = objectMapper.readTree(responseBody);
+        JsonNode parts = root.path("candidates").path(0).path("content").path("parts");
+        if (parts.isArray()) {
+            for (JsonNode part : parts) {
+                JsonNode inlineData = part.path("inlineData");
+                String base64Data = inlineData.path("data").asText();
+                if (!base64Data.isBlank()) {
+                    String mimeType = inlineData.path("mimeType").asText("audio/wav");
+                    return new AudioData(Base64.getDecoder().decode(base64Data), mimeType);
+                }
+            }
+        }
+        throw new CustomExceptions.BadRequestException("Gemini TTS returned an empty audio response");
+    }
+
+    private int sampleRateFromMimeType(String mimeType) {
+        if (mimeType == null) {
+            return 24000;
+        }
+        String marker = "rate=";
+        int markerIndex = mimeType.toLowerCase().indexOf(marker);
+        if (markerIndex < 0) {
+            return 24000;
+        }
+        int start = markerIndex + marker.length();
+        int end = start;
+        while (end < mimeType.length() && Character.isDigit(mimeType.charAt(end))) {
+            end++;
+        }
+        try {
+            return Integer.parseInt(mimeType.substring(start, end));
+        } catch (NumberFormatException ignored) {
+            return 24000;
+        }
+    }
+
+    private byte[] wrapPcmAsWav(byte[] pcm, int sampleRate, int channels, int bitsPerSample) {
+        int byteRate = sampleRate * channels * bitsPerSample / 8;
+        int blockAlign = channels * bitsPerSample / 8;
+        int dataSize = pcm.length;
+        int fileSize = 36 + dataSize;
+        byte[] wav = new byte[44 + dataSize];
+
+        writeAscii(wav, 0, "RIFF");
+        writeIntLE(wav, 4, fileSize);
+        writeAscii(wav, 8, "WAVE");
+        writeAscii(wav, 12, "fmt ");
+        writeIntLE(wav, 16, 16);
+        writeShortLE(wav, 20, 1);
+        writeShortLE(wav, 22, channels);
+        writeIntLE(wav, 24, sampleRate);
+        writeIntLE(wav, 28, byteRate);
+        writeShortLE(wav, 32, blockAlign);
+        writeShortLE(wav, 34, bitsPerSample);
+        writeAscii(wav, 36, "data");
+        writeIntLE(wav, 40, dataSize);
+        System.arraycopy(pcm, 0, wav, 44, dataSize);
+        return wav;
+    }
+
+    private void writeAscii(byte[] target, int offset, String value) {
+        byte[] bytes = value.getBytes(StandardCharsets.US_ASCII);
+        System.arraycopy(bytes, 0, target, offset, bytes.length);
+    }
+
+    private void writeIntLE(byte[] target, int offset, int value) {
+        target[offset] = (byte) (value & 0xff);
+        target[offset + 1] = (byte) ((value >> 8) & 0xff);
+        target[offset + 2] = (byte) ((value >> 16) & 0xff);
+        target[offset + 3] = (byte) ((value >> 24) & 0xff);
+    }
+
+    private void writeShortLE(byte[] target, int offset, int value) {
+        target[offset] = (byte) (value & 0xff);
+        target[offset + 1] = (byte) ((value >> 8) & 0xff);
     }
 
     private String extractText(String responseBody) throws IOException {
@@ -195,5 +352,8 @@ public class GeminiAiProviderClient implements AiProviderClient {
             return responseBody;
         }
         return responseBody;
+    }
+
+    private record AudioData(byte[] bytes, String mimeType) {
     }
 }

@@ -19,6 +19,7 @@ public class AiProperties {
     private String appUrl = "http://localhost:5173";
     private OpenRouter openrouter = new OpenRouter();
     private Gemini gemini = new Gemini();
+    private Tts tts = new Tts();
 
     @Data
     public static class OpenRouter {
@@ -28,5 +29,13 @@ public class AiProperties {
     @Data
     public static class Gemini {
         private String baseUrl = "https://generativelanguage.googleapis.com/v1beta/models";
+    }
+
+    @Data
+    public static class Tts {
+        private String model = "gemini-2.5-flash-preview-tts";
+        private String voiceName = "Achird";
+        private Integer requestTimeoutSeconds = 60;
+        private Integer maxChars = 5000;
     }
 }

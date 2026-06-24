@@ -6,7 +6,9 @@ import com.example.chemlearn.ai.service.AiService;
 import com.example.chemlearn.core.shared.constants.ApiPaths;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -24,6 +26,15 @@ public class AiController {
     @PostMapping("/chat")
     public AiChatResponse chat(@Valid @RequestBody AiChatRequest request) {
         return aiService.chat(request);
+    }
+
+    @PostMapping(value = "/tts", produces = "audio/wav")
+    public ResponseEntity<byte[]> synthesizeSpeech(@Valid @RequestBody AiTtsRequest request) {
+        byte[] audio = aiService.synthesizeSpeech(request);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=3600")
+                .contentType(MediaType.parseMediaType("audio/wav"))
+                .body(audio);
     }
 
     @PostMapping(value = "/chat-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

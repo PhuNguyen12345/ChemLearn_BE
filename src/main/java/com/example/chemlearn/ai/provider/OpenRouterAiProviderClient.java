@@ -39,6 +39,11 @@ public class OpenRouterAiProviderClient implements AiProviderClient {
         return requestCompletion(prompt, 0.2);
     }
 
+    @Override
+    public byte[] synthesizeSpeech(String text) {
+        throw new CustomExceptions.BadRequestException("OpenRouter TTS is not configured. Use ai.provider=gemini for Vietnamese AI voice.");
+    }
+
     private String requestCompletion(String prompt, double fallbackTemperature) {
         validateConfig();
 

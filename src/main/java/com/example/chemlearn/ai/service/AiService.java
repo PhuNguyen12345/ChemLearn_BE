@@ -41,6 +41,10 @@ public class AiService {
     private static final int MAX_CONTEXT_LESSONS = 4;
     private static final int MAX_RECOMMENDATIONS = 4;
     private static final long MAX_CHAT_IMAGE_BYTES = 8L * 1024 * 1024;
+    private static final String TTS_EXPLANATION_DELIMITER = "===TTS_EXPLANATION===";
+    private static final String CHAT_CACHE_VERSION = "chat-solution-only-tts-trends-v3";
+    private static final int MAX_VISIBLE_CHAT_LINES = 80;
+    private static final int MAX_VISIBLE_CHAT_CHARS = 6000;
 
     private final AiProviderClient aiProviderClient;
     private final AiProperties aiProperties;
@@ -71,13 +75,14 @@ public class AiService {
             if (cached.isPresent()) {
                 AiResponseCache cache = cached.get();
                 List<SuggestedLabDTO> cachedLabs = toSuggestedLabs(cache.getSuggestedLabs());
-                String cachedAnswer = sanitizeAiAnswer(cache.getAnswer());
-                saveMessage(session, AiMessageRole.ASSISTANT, cachedAnswer);
+                ChatAnswerParts cachedParts = toChatAnswerParts(cache.getAnswer());
+                saveMessage(session, AiMessageRole.ASSISTANT, cachedParts.toStoredContent());
                 touchSession(session);
                 return AiChatResponse.builder()
                         .sessionId(session.getId())
                         .topic(chatTopic)
-                        .answer(cachedAnswer)
+                        .answer(cachedParts.answer())
+                        .speechText(cachedParts.speechText())
                         .suggestedLabs(cachedLabs)
                         .build();
             }
@@ -87,18 +92,19 @@ public class AiService {
         List<SuggestedLabDTO> suggestedLabs = findSuggestedLabs(request.getGrade(), request.getBookType(), chatTopic);
         String prompt = buildChatPrompt(request, chatTopic, curriculumContext, suggestedLabs);
         boolean fallbackUsed = false;
-        String answer;
+        String rawAnswer;
         try {
-            answer = sanitizeAiAnswer(aiProviderClient.chat(prompt));
+            rawAnswer = aiProviderClient.chat(prompt);
         } catch (RuntimeException ex) {
             if (!shouldUseAiFallback(ex)) {
                 throw ex;
             }
             fallbackUsed = true;
-            answer = buildChatFallbackAnswer(chatTopic, request.getMessage(), curriculumContext);
+            rawAnswer = buildChatFallbackAnswer(chatTopic, request.getMessage(), curriculumContext);
         }
+        ChatAnswerParts answerParts = toChatAnswerParts(rawAnswer);
 
-        saveMessage(session, AiMessageRole.ASSISTANT, answer);
+        saveMessage(session, AiMessageRole.ASSISTANT, answerParts.toStoredContent());
         touchSession(session);
 
         if (aiProperties.isCacheEnabled() && !fallbackUsed) {
@@ -108,7 +114,7 @@ public class AiService {
             cache.setGrade(request.getGrade());
             cache.setBookType(request.getBookType());
             cache.setTopic(chatTopic);
-            cache.setAnswer(answer);
+            cache.setAnswer(answerParts.toStoredContent());
             cache.setSuggestedLabs(toCacheLabs(suggestedLabs));
             aiResponseCacheRepository.save(cache);
         }
@@ -116,7 +122,8 @@ public class AiService {
         return AiChatResponse.builder()
                 .sessionId(session.getId())
                 .topic(chatTopic)
-                .answer(answer)
+                .answer(answerParts.answer())
+                .speechText(answerParts.speechText())
                 .suggestedLabs(suggestedLabs)
                 .build();
     }
@@ -152,13 +159,14 @@ public class AiService {
             if (cached.isPresent()) {
                 AiResponseCache cache = cached.get();
                 List<SuggestedLabDTO> cachedLabs = toSuggestedLabs(cache.getSuggestedLabs());
-                String cachedAnswer = sanitizeAiAnswer(cache.getAnswer());
-                saveMessage(session, AiMessageRole.ASSISTANT, cachedAnswer);
+                ChatAnswerParts cachedParts = toChatAnswerParts(cache.getAnswer());
+                saveMessage(session, AiMessageRole.ASSISTANT, cachedParts.toStoredContent());
                 touchSession(session);
                 return AiChatResponse.builder()
                         .sessionId(session.getId())
                         .topic(chatTopic)
-                        .answer(cachedAnswer)
+                        .answer(cachedParts.answer())
+                        .speechText(cachedParts.speechText())
                         .suggestedLabs(cachedLabs)
                         .build();
             }
@@ -168,18 +176,19 @@ public class AiService {
         List<SuggestedLabDTO> suggestedLabs = findSuggestedLabs(grade, bookType, chatTopic);
         String prompt = buildImageChatPrompt(grade, bookType, chatTopic, userPrompt, curriculumContext, suggestedLabs);
         boolean fallbackUsed = false;
-        String answer;
+        String rawAnswer;
         try {
-            answer = sanitizeAiAnswer(aiProviderClient.chatWithImage(prompt, mimeType, imageBytes));
+            rawAnswer = aiProviderClient.chatWithImage(prompt, mimeType, imageBytes);
         } catch (RuntimeException ex) {
             if (!shouldUseAiFallback(ex)) {
                 throw ex;
             }
             fallbackUsed = true;
-            answer = buildImageChatFallbackAnswer(chatTopic, userPrompt);
+            rawAnswer = buildImageChatFallbackAnswer(chatTopic, userPrompt);
         }
+        ChatAnswerParts answerParts = toChatAnswerParts(rawAnswer);
 
-        saveMessage(session, AiMessageRole.ASSISTANT, answer);
+        saveMessage(session, AiMessageRole.ASSISTANT, answerParts.toStoredContent());
         touchSession(session);
 
         if (aiProperties.isCacheEnabled() && !fallbackUsed) {
@@ -189,7 +198,7 @@ public class AiService {
             cache.setGrade(grade);
             cache.setBookType(bookType);
             cache.setTopic(chatTopic);
-            cache.setAnswer(answer);
+            cache.setAnswer(answerParts.toStoredContent());
             cache.setSuggestedLabs(toCacheLabs(suggestedLabs));
             aiResponseCacheRepository.save(cache);
         }
@@ -197,7 +206,8 @@ public class AiService {
         return AiChatResponse.builder()
                 .sessionId(session.getId())
                 .topic(chatTopic)
-                .answer(answer)
+                .answer(answerParts.answer())
+                .speechText(answerParts.speechText())
                 .suggestedLabs(suggestedLabs)
                 .build();
     }
@@ -358,6 +368,18 @@ public class AiService {
         return aiChatMessageRepository.findBySession_IdOrderByCreatedAtAsc(session.getId()).stream()
                 .map(this::toMessageResponse)
                 .toList();
+    }
+
+    public byte[] synthesizeSpeech(AiTtsRequest request) {
+        String text = blankToNull(request.getText());
+        if (text == null) {
+            throw new CustomExceptions.BadRequestException("Text is required");
+        }
+        int maxChars = aiProperties.getTts().getMaxChars() == null ? 5000 : aiProperties.getTts().getMaxChars();
+        if (text.length() > maxChars) {
+            text = text.substring(0, maxChars).trim();
+        }
+        return aiProviderClient.synthesizeSpeech(text);
     }
 
     @Transactional
@@ -736,9 +758,9 @@ public class AiService {
         ));
         questions.add(fallbackMultipleChoice(
                 "Ở điều kiện tiêu chuẩn, 0,25 mol khí có thể tích bao nhiêu?",
-                List.of("2,24 lít", "5,6 lít", "11,2 lít", "22,4 lít"),
-                "5,6 lít",
-                "Ở ĐKTC, 1 mol khí chiếm 22,4 lít nên V = 0,25 x 22,4 = 5,6 lít.",
+                List.of("5,60 lít", "6,20 lít", "11,20 lít", "24,79 lít"),
+                "6,20 lít",
+                "Theo chương trình mới, ở điều kiện chuẩn 25°C và 1 bar, Vm = 24,79 L/mol nên V = 0,25 x 24,79 = 6,1975 ≈ 6,20 lít.",
                 "Tính toán hóa học"
         ));
         questions.add(fallbackEssay(
@@ -767,9 +789,42 @@ public class AiService {
                 "Câu trả lời cần chỉ ra lỗi và cách phòng tránh.",
                 topic
         ));
+        questions.add(fallbackMultipleChoice(
+                "Ở điều kiện chuẩn 25°C và 1 bar, 0,10 mol khí H2 có thể tích xấp xỉ bao nhiêu?",
+                List.of("2,24 lít", "2,48 lít", "22,4 lít", "24,79 lít"),
+                "2,48 lít",
+                "V = n x Vm = 0,10 x 24,79 = 2,479 lít ≈ 2,48 lít.",
+                "Tính toán hóa học"
+        ));
+        questions.add(fallbackMultipleChoice(
+                "Khi đề bài có cả chất tham gia A và B, bước nào giúp tránh tính sai lượng sản phẩm?",
+                List.of("So sánh số mol theo tỉ lệ phương trình để tìm chất hết", "Luôn lấy chất có khối lượng nhỏ hơn", "Bỏ qua hệ số phương trình", "Chỉ dùng đáp án trắc nghiệm để suy ra"),
+                "So sánh số mol theo tỉ lệ phương trình để tìm chất hết",
+                "Bài có nhiều chất tham gia thường cần xác định chất hết/chất dư trước khi tính sản phẩm.",
+                topic
+        ));
+        questions.add(fallbackMultipleChoice(
+                "Một chất có n = 0,15 mol và M = 56 g/mol. Khối lượng của chất đó là bao nhiêu?",
+                List.of("5,6 g", "8,4 g", "11,2 g", "37,3 g"),
+                "8,4 g",
+                "m = n x M = 0,15 x 56 = 8,4 g.",
+                "Tính toán hóa học"
+        ));
+        questions.add(fallbackEssay(
+                "Lập dàn ý giải một bài toán định lượng thuộc chủ đề " + topic + " có dữ kiện khối lượng và thể tích khí ở điều kiện chuẩn.",
+                "Cần ghi dữ kiện, đổi khối lượng hoặc thể tích khí về số mol, viết và cân bằng phương trình hóa học, dùng tỉ lệ mol để tính đại lượng cần tìm, rồi kết luận có đơn vị.",
+                "Với thể tích khí ở điều kiện chuẩn theo chương trình mới, dùng Vm = 24,79 L/mol nếu đề không nêu quy ước khác.",
+                topic
+        ));
+        questions.add(fallbackLabApplication(
+                "Trong một thí nghiệm thuộc chủ đề " + topic + ", nếu thấy khí thoát ra ít hơn dự đoán, hãy nêu hai nguyên nhân có thể xảy ra.",
+                "Có thể do chất phản ứng chưa đủ, phản ứng chưa hoàn toàn, khí bị thất thoát khi thu hoặc điều kiện thí nghiệm chưa phù hợp.",
+                "Câu vận dụng cần liên hệ hiện tượng quan sát với lượng chất và điều kiện phản ứng.",
+                topic
+        ));
 
         int count = Math.min(questionCountForExamType(request.getExamType()), questions.size());
-        List<GeneratedQuestionDTO> selectedQuestions = questions.subList(0, count);
+        List<GeneratedQuestionDTO> selectedQuestions = orderExamQuestions(questions.subList(0, count));
         List<AnswerKeyDTO> answerKey = new ArrayList<>();
         for (int i = 0; i < selectedQuestions.size(); i++) {
             GeneratedQuestionDTO question = selectedQuestions.get(i);
@@ -853,15 +908,30 @@ public class AiService {
                 Nguyên tắc:
                 - Trả lời bằng tiếng Việt.
                 - Giải thích dễ hiểu cho học sinh cấp 2.
-                - Không dùng Markdown như **in đậm**, tiêu đề #, bảng hoặc danh sách dùng dấu *.
-                - Không dùng LaTeX hoặc ký tự backslash. Viết công thức bằng văn bản thường, ví dụ n_Fe = m_Fe / M_Fe = 11,2 / 56 = 0,2 mol.
-                - Với công thức hóa học, viết dạng H2O, CO2, FeCl2, H2; không dùng chỉ số LaTeX.
-                - Không dùng HTML như <sub>, <sup>, <br>. Viết FeCl2, H2, n_Fe bằng văn bản thường.
+                - Dùng Markdown giống ChatGPT: đoạn văn ngắn, danh sách đánh số, chữ đậm cho ý chính.
+                - Dùng LaTeX cho công thức và phương trình, đặt công thức quan trọng trong $$...$$.
+                - Với phân số phải dùng \\frac{...}{...}; với mũi tên phản ứng dùng \\rightarrow; với chỉ số dùng _{...}, ví dụ H_2, FeCl_2.
+                - Không dùng HTML như <sub>, <sup>, <br>.
+                - Theo chương trình mới, nếu đề ghi "điều kiện chuẩn", "đkc" hoặc "đktc" mà không nêu nhiệt độ/áp suất khác, dùng V_m = 24,79 L/mol ở 25°C và 1 bar.
+                - Chỉ dùng 22,4 L/mol khi đề ghi rõ 0°C, 1 atm hoặc nói theo quy ước cũ.
                 - Không bịa chương trình học.
                 - Không dạy vượt quá chương trình nếu không cần thiết.
                 - Nếu câu hỏi ngoài phạm vi, hãy nói nhẹ nhàng rằng phần này sẽ học ở lớp cao hơn.
                 - Ưu tiên ví dụ an toàn, quen thuộc.
                 - Nếu có lab ảo liên quan, hãy gợi ý ngắn gọn.
+
+                Bắt buộc định dạng câu trả lời:
+                - Phần hiển thị trước dòng "%s" chỉ là bài giải, không giảng giải lan man, không chào hỏi.
+                - Trình bày giống ChatGPT nhưng gọn: mỗi ý một dòng hoặc một đoạn ngắn, có thụt đầu dòng bằng danh sách đánh số.
+                - Với bài tính toán, phải có các mục rõ ràng: a) Phương trình, b) Tính số mol, c) Suy ra chất/đáp án.
+                - Mọi phương trình và phép toán quan trọng đặt riêng một dòng bằng $$...$$ để frontend căn giữa.
+                - Không nhét công thức vào giữa đoạn văn dài. Sau mỗi công thức nên xuống dòng.
+                - Phần hiển thị không dùng câu trend, không giải thích vì sao quá dài; chỉ ghi cách làm và kết quả.
+                - Sau phần hiển thị, viết đúng một dòng riêng: %s
+                - Sau dòng đó là phần giải thích kỹ hơn để hệ thống đọc bằng giọng nói. Phần này viết bằng văn nói tiếng Việt tự nhiên, không dùng LaTeX, không dùng Markdown.
+                - Phần đọc được phép dùng nhiều câu trend thân thiện với học sinh cấp 2: "tính ra được ... là ngon luôn", "tin chuẩn em nhé", "mời đoàn mình di chuyển đến phần...", "thế mà lại hay", "vượt mức pickleball", "chốt đơn kiến thức", "đỉnh nóc kịch trần", "không lòng vòng".
+                - Dùng câu trend đúng ngữ cảnh, mỗi đoạn 1 cụm là vừa; tuyệt đối không để phần hiển thị bị lố.
+                - Không thêm tiêu đề JSON, không lặp lại những ý không cần thiết.
 
                 Câu hỏi:
                 %s
@@ -871,6 +941,8 @@ public class AiService {
                 cleanTopic(topic),
                 curriculumContext,
                 labContext,
+                TTS_EXPLANATION_DELIMITER,
+                TTS_EXPLANATION_DELIMITER,
                 request.getMessage()
         );
     }
@@ -908,11 +980,27 @@ public class AiService {
                 - Ưu tiên hướng dẫn từng bước: nhận dạng dữ kiện, kiến thức cần dùng, cách làm, kết luận.
                 - Không bịa dữ kiện không có trong ảnh.
                 - Không dạy vượt quá chương trình nếu không cần thiết; nếu ngoài phạm vi, hãy nói nhẹ nhàng.
-                - Không dùng Markdown như **in đậm**, tiêu đề #, bảng hoặc danh sách dùng dấu *.
-                - Không dùng LaTeX hoặc ký tự backslash.
-                - Không dùng HTML như <sub>, <sup>, <br>. Viết FeCl2, H2, n_Fe bằng văn bản thường.
-                - Với bài tính toán, ghi công thức và phép thế số rõ ràng, dùng công thức hóa học dạng văn bản như H2O, CO2, FeCl2.
+                - Dùng Markdown giống ChatGPT: đoạn văn ngắn, danh sách đánh số, chữ đậm cho ý chính.
+                - Dùng LaTeX cho công thức và phương trình, đặt công thức quan trọng trong $$...$$.
+                - Với phân số phải dùng \\frac{...}{...}; với mũi tên phản ứng dùng \\rightarrow; với chỉ số dùng _{...}, ví dụ H_2, FeCl_2.
+                - Không dùng HTML như <sub>, <sup>, <br>.
+                - Theo chương trình mới, nếu đề ghi "điều kiện chuẩn", "đkc" hoặc "đktc" mà không nêu nhiệt độ/áp suất khác, dùng V_m = 24,79 L/mol ở 25°C và 1 bar.
+                - Chỉ dùng 22,4 L/mol khi đề ghi rõ 0°C, 1 atm hoặc nói theo quy ước cũ.
+                - Với bài tính toán, ghi công thức và phép thế số rõ ràng.
                 - Nếu có lab ảo phù hợp, gợi ý ngắn gọn ở cuối.
+
+                Bắt buộc định dạng câu trả lời:
+                - Phần hiển thị trước dòng "%s" chỉ là bài giải, không giảng giải lan man, không chào hỏi.
+                - Trình bày giống ChatGPT nhưng gọn: mỗi ý một dòng hoặc một đoạn ngắn, có thụt đầu dòng bằng danh sách đánh số.
+                - Với bài tính toán, phải có các mục rõ ràng: a) Phương trình, b) Tính số mol, c) Suy ra chất/đáp án.
+                - Mọi phương trình và phép toán quan trọng đặt riêng một dòng bằng $$...$$ để frontend căn giữa.
+                - Không nhét công thức vào giữa đoạn văn dài. Sau mỗi công thức nên xuống dòng.
+                - Phần hiển thị không dùng câu trend, không giải thích vì sao quá dài; chỉ ghi cách làm và kết quả.
+                - Sau phần hiển thị, viết đúng một dòng riêng: %s
+                - Sau dòng đó là phần giải thích kỹ hơn để hệ thống đọc bằng giọng nói. Phần này viết bằng văn nói tiếng Việt tự nhiên, không dùng LaTeX, không dùng Markdown.
+                - Phần đọc được phép dùng nhiều câu trend thân thiện với học sinh cấp 2: "tính ra được ... là ngon luôn", "tin chuẩn em nhé", "mời đoàn mình di chuyển đến phần...", "thế mà lại hay", "vượt mức pickleball", "chốt đơn kiến thức", "đỉnh nóc kịch trần", "không lòng vòng".
+                - Dùng câu trend đúng ngữ cảnh, mỗi đoạn 1 cụm là vừa; tuyệt đối không để phần hiển thị bị lố.
+                - Không thêm tiêu đề JSON, không lặp lại những ý không cần thiết.
 
                 Câu hỏi thêm của học sinh:
                 %s
@@ -922,6 +1010,8 @@ public class AiService {
                 cleanTopic(topic),
                 curriculumContext,
                 labContext,
+                TTS_EXPLANATION_DELIMITER,
+                TTS_EXPLANATION_DELIMITER,
                 message
         );
     }
@@ -939,6 +1029,9 @@ public class AiService {
                 - Số câu: %s
                 - Số câu tính toán tối thiểu: %s
 
+                Chuẩn độ khó bắt buộc:
+                %s
+
                 Nội dung chương trình được phép dùng:
                 %s
 
@@ -947,7 +1040,14 @@ public class AiService {
                 - Tất cả câu hỏi phải bám trực tiếp chủ đề "%s".
                 - Nếu chủ đề là một chất/nguyên tố cụ thể như Sắt/Fe, mọi câu phải nhắc trực tiếp tới chất đó, hợp chất của nó, ứng dụng hoặc phản ứng của nó.
                 - Không đưa câu hỏi chung chung lệch chủ đề, ví dụ đề Sắt thì không hỏi riêng về biến đổi vật lí/hóa học nếu không gắn với sắt.
+                - Sắp xếp questions theo thứ tự: toàn bộ MULTIPLE_CHOICE trước, sau đó mới đến ESSAY và LAB_APPLICATION.
+                - Khoảng 60-70%% số câu là MULTIPLE_CHOICE; phần còn lại là ESSAY hoặc LAB_APPLICATION.
                 - Có câu tính toán định lượng phù hợp chương trình, ví dụ tính khối lượng, số mol, thể tích khí hoặc lượng chất theo phương trình hóa học nếu chủ đề cho phép.
+                - Theo chương trình mới, nếu dùng "điều kiện chuẩn", "đkc" hoặc "đktc" thì lấy V_m = 24,79 L/mol ở 25°C và 1 bar.
+                - Chỉ dùng 22,4 L/mol khi câu hỏi ghi rõ 0°C, 1 atm hoặc nói theo quy ước cũ.
+                - Nếu độ khó là HARD: phải có câu nhiều bước, dữ kiện nhiễu hợp lí, tính theo phương trình, nhận biết chất dư/chất hết hoặc suy luận từ nhiều dữ kiện; không được chỉ hỏi định nghĩa đơn giản.
+                - Nếu độ khó là MIXED: chia đều câu dễ, trung bình, khó; ít nhất 25%% câu ở mức khó.
+                - Distractors trong trắc nghiệm phải sát lỗi sai thường gặp, không quá lộ.
                 - Có trắc nghiệm, tự luận và câu vận dụng/lab nếu phù hợp.
                 - Câu hỏi rõ ràng, phù hợp học sinh cấp 2.
                 - Trả về duy nhất một JSON object hợp lệ, không thêm markdown, không thêm giải thích ngoài JSON.
@@ -986,26 +1086,47 @@ public class AiService {
                 request.getDifficulty(),
                 questionCountForExamType(request.getExamType()),
                 calculationQuestionCountForExamType(request.getExamType()),
+                difficultyInstruction(request.getDifficulty()),
                 curriculumContext,
                 cleanTopic(request.getTopic())
         );
     }
 
+    private String difficultyInstruction(ExamDifficulty difficulty) {
+        return switch (difficulty) {
+            case EASY -> "- EASY: hỏi nhận biết/thông hiểu cơ bản, mỗi câu chỉ cần 1 bước suy luận.";
+            case MEDIUM -> "- MEDIUM: có vận dụng, có câu tính toán 2 bước, có nhiễu gần lỗi sai thường gặp.";
+            case HARD -> """
+                    - HARD: đề phải khó rõ rệt nhưng vẫn đúng THCS.
+                    - Ít nhất một nửa câu trắc nghiệm cần 2 bước suy luận hoặc tính toán.
+                    - Câu tự luận/vận dụng cần nhiều bước: đổi mol, cân bằng phương trình, xác định tỉ lệ mol, chất dư/chất hết hoặc suy luận chất.
+                    - Không dùng câu hỏi định nghĩa quá dễ trừ khi là câu mở đầu.
+                    """;
+            case MIXED -> """
+                    - MIXED: 30% dễ, 40% trung bình, 30% khó.
+                    - Câu khó phải có tính toán hoặc suy luận nhiều dữ kiện.
+                    """;
+        };
+    }
+
     private int questionCountForExamType(ExamType examType) {
         if (examType == ExamType.QUIZ_15_MIN) {
-            return 5;
-        }
-        if (examType == ExamType.FORTY_FIVE_MINUTES) {
             return 8;
         }
-        return 10;
+        if (examType == ExamType.FORTY_FIVE_MINUTES) {
+            return 14;
+        }
+        return 20;
     }
 
     private int calculationQuestionCountForExamType(ExamType examType) {
         if (examType == ExamType.QUIZ_15_MIN) {
-            return 1;
+            return 2;
         }
-        return 2;
+        if (examType == ExamType.FORTY_FIVE_MINUTES) {
+            return 4;
+        }
+        return 6;
     }
 
     private GenerateExamResponse parseAndValidateExam(String rawJson) {
@@ -1017,6 +1138,7 @@ public class AiService {
             if (response.getQuestions() == null || response.getQuestions().isEmpty()) {
                 throw new CustomExceptions.BadRequestException("AI generated exam has no questions");
             }
+            response.setQuestions(orderExamQuestions(response.getQuestions()));
             List<AnswerKeyDTO> normalizedAnswerKey = new ArrayList<>();
             for (int i = 0; i < response.getQuestions().size(); i++) {
                 GeneratedQuestionDTO question = response.getQuestions().get(i);
@@ -1049,6 +1171,16 @@ public class AiService {
         }
     }
 
+    private List<GeneratedQuestionDTO> orderExamQuestions(List<GeneratedQuestionDTO> questions) {
+        return questions.stream()
+                .sorted(Comparator.comparingInt(question -> switch (question.getType()) {
+                    case MULTIPLE_CHOICE -> 0;
+                    case ESSAY -> 1;
+                    case LAB_APPLICATION -> 2;
+                }))
+                .toList();
+    }
+
     private String extractJsonObject(String value) {
         if (value == null) {
             throw new CustomExceptions.BadRequestException("AI generated invalid JSON");
@@ -1069,32 +1201,86 @@ public class AiService {
         return trimmed.substring(firstBrace, lastBrace + 1);
     }
 
+    private ChatAnswerParts toChatAnswerParts(String rawAnswer) {
+        String sanitized = sanitizeAiAnswer(rawAnswer);
+        if (sanitized.isBlank()) {
+            return new ChatAnswerParts("", "");
+        }
+
+        int delimiterIndex = sanitized.indexOf(TTS_EXPLANATION_DELIMITER);
+        if (delimiterIndex >= 0) {
+            String visible = sanitizeAiAnswer(sanitized.substring(0, delimiterIndex));
+            String speech = sanitizeAiAnswer(sanitized.substring(delimiterIndex + TTS_EXPLANATION_DELIMITER.length()));
+            visible = cleanupChatSectionLabel(visible);
+            speech = cleanupChatSectionLabel(speech);
+            if (visible.isBlank()) {
+                visible = conciseVisibleAnswer(speech);
+            }
+            if (speech.isBlank()) {
+                speech = visible;
+            }
+            return new ChatAnswerParts(conciseVisibleAnswer(visible), speech);
+        }
+
+        return new ChatAnswerParts(conciseVisibleAnswer(sanitized), sanitized);
+    }
+
+    private String conciseVisibleAnswer(String answer) {
+        String cleaned = cleanupChatSectionLabel(sanitizeAiAnswer(answer));
+        if (cleaned.isBlank()) {
+            return "";
+        }
+
+        List<String> lines = Arrays.stream(cleaned.split("\\R+"))
+                .map(String::trim)
+                .filter(line -> !line.isBlank())
+                .limit(MAX_VISIBLE_CHAT_LINES)
+                .toList();
+
+        String joined = String.join("\n", lines);
+        if (joined.length() <= MAX_VISIBLE_CHAT_CHARS) {
+            return joined;
+        }
+
+        int cutAt = joined.lastIndexOf('.', MAX_VISIBLE_CHAT_CHARS);
+        if (cutAt < MAX_VISIBLE_CHAT_CHARS / 2) {
+            cutAt = joined.lastIndexOf('\n', MAX_VISIBLE_CHAT_CHARS);
+        }
+        if (cutAt < MAX_VISIBLE_CHAT_CHARS / 2) {
+            cutAt = MAX_VISIBLE_CHAT_CHARS;
+        }
+        return joined.substring(0, cutAt).trim();
+    }
+
+    private String cleanupChatSectionLabel(String value) {
+        return value
+                .replaceAll("(?im)^\\s*(PHAN_HIEN_THI|PHAN_DOC|HIEN_THI|LOI_DOC|VISIBLE|SPEECH|SHORT_ANSWER|DETAILED_EXPLANATION)\\s*:?\\s*$", "")
+                .replaceAll("(?im)^\\s*(Phan hien thi|Phan doc|Tra loi ngan|Giai thich ky|Noi dung doc)\\s*:?\\s*$", "")
+                .trim();
+    }
+
+    private record ChatAnswerParts(String answer, String speechText) {
+        private String toStoredContent() {
+            if (speechText == null || speechText.isBlank() || speechText.equals(answer)) {
+                return answer == null ? "" : answer;
+            }
+            return (answer == null ? "" : answer) + "\n\n" + TTS_EXPLANATION_DELIMITER + "\n" + speechText;
+        }
+    }
+
     private String sanitizeAiAnswer(String answer) {
         if (answer == null) {
             return "";
         }
         String cleaned = answer
-                .replaceAll("(?is)<sub[^>]*>(.*?)</sub>", "_$1")
-                .replaceAll("(?is)<sup[^>]*>(.*?)</sup>", "^$1")
+                .replaceAll("(?is)<sub[^>]*>(.*?)</sub>", "_{$1}")
+                .replaceAll("(?is)<sup[^>]*>(.*?)</sup>", "^{$1}")
                 .replaceAll("(?i)<br\\s*/?>", "\n")
                 .replaceAll("(?is)<[^>]+>", "")
                 .replace("&nbsp;", " ")
                 .replace("&amp;", "&")
                 .replace("&lt;", "<")
                 .replace("&gt;", ">")
-                .replaceAll("\\\\frac\\{([^{}]+)}\\{([^{}]+)}", "($1)/($2)")
-                .replaceAll("\\\\text\\{([^{}]+)}", "$1")
-                .replace("\\left", "")
-                .replace("\\right", "")
-                .replace("\\times", " x ")
-                .replace("\\cdot", " . ")
-                .replace("\\_", "_")
-                .replace("$", "")
-                .replaceAll("\\*\\*([^*]+)\\*\\*", "$1")
-                .replaceAll("__([^_]+)__", "$1")
-                .replaceAll("(?m)^\\s{0,3}#{1,6}\\s+", "")
-                .replaceAll("(?m)^\\s{0,3}[-*]\\s+", "- ")
-                .replaceAll("\\\\([a-zA-Z]+)", "$1")
                 .replaceAll("[ \\t]+\\n", "\n");
         return normalizeChemText(cleaned).trim();
     }
@@ -1301,10 +1487,14 @@ public class AiService {
     }
 
     private AiChatMessageResponse toMessageResponse(AiChatMessage message) {
+        ChatAnswerParts answerParts = message.getRole() == AiMessageRole.ASSISTANT
+                ? toChatAnswerParts(message.getContent())
+                : null;
         return AiChatMessageResponse.builder()
                 .id(message.getId())
                 .role(message.getRole())
-                .content(message.getRole() == AiMessageRole.ASSISTANT ? sanitizeAiAnswer(message.getContent()) : message.getContent())
+                .content(answerParts == null ? message.getContent() : answerParts.answer())
+                .speechText(answerParts == null ? null : answerParts.speechText())
                 .createdAt(message.getCreatedAt())
                 .build();
     }
@@ -1359,7 +1549,7 @@ public class AiService {
     }
 
     private String buildCacheKey(Integer grade, BookType bookType, String topic, String normalizedQuestion) {
-        String raw = grade + "|" + bookType + "|" + normalizeForCache(cleanTopic(topic)) + "|" + normalizedQuestion;
+        String raw = CHAT_CACHE_VERSION + "|" + grade + "|" + bookType + "|" + normalizeForCache(cleanTopic(topic)) + "|" + normalizedQuestion;
         return sha256Hex(raw.getBytes(StandardCharsets.UTF_8));
     }
 

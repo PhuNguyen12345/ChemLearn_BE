@@ -9,26 +9,33 @@ public class MockAiProviderClient implements AiProviderClient {
     @Override
     public String chat(String prompt) {
         return """
-                Mình đang dùng Mock AI nên chưa tốn chi phí API. Với nội dung hiện tại, em hãy nhớ 3 bước:
-                1. Xác định khái niệm chính trong câu hỏi.
-                2. Liên hệ với bài học KHTN/Hóa học đang học.
-                3. Dùng ví dụ an toàn, quen thuộc để kiểm tra lại hiểu biết.
+                Mình đang dùng Mock AI nên chưa tốn chi phí API.
 
-                Nếu câu hỏi liên quan đến thí nghiệm, em nên mở lab được gợi ý để quan sát hiện tượng trước rồi quay lại giải thích bằng lời của mình.
+                **Cách làm nhanh**
+
+                1. Xác định chất hoặc hiện tượng chính trong đề.
+                2. Viết công thức/phương trình cần dùng bằng kí hiệu chuẩn, ví dụ:
+
+                $$n = \\frac{m}{M}$$
+
+                3. Thay số cẩn thận, chốt kết quả. Tin chuẩn em nhé.
+
+                ===TTS_EXPLANATION===
+                Khi gặp một câu hỏi Hóa học, em đọc đề thật chậm để tìm từ khóa chính trước. Sau đó em nối từ khóa đó với bài học đang học, ví dụ phản ứng hóa học, chất mới, số mol hoặc phương trình hóa học. Làm theo ba bước này là ngon luôn.
                 """;
     }
 
     @Override
     public String chatWithImage(String prompt, String mimeType, byte[] imageBytes) {
         return """
-                Mình đang dùng Mock AI nên chưa đọc ảnh thật. Khi bật Gemini, em có thể chụp ảnh đề bài và gửi lên đây.
+                Mình đang dùng Mock AI nên chưa đọc ảnh thật.
+                Khi bật Gemini, em có thể chụp ảnh đề bài và gửi lên đây.
+                Bi sẽ đọc đề, nhận diện chủ đề và trình bày lời giải có công thức đẹp như:
 
-                Cách ChemAI sẽ hỗ trợ:
-                1. Đọc nội dung đề trong ảnh.
-                2. Nhận diện chủ đề KHTN/Hóa học phù hợp.
-                3. Hướng dẫn từng bước giải, kèm nhắc lại kiến thức cần dùng.
+                $$R + 2HCl \\rightarrow RCl_2 + H_2$$
 
-                Nếu ảnh mờ hoặc thiếu đề, ChemAI sẽ nhắc em chụp lại rõ hơn.
+                ===TTS_EXPLANATION===
+                Với ảnh chụp đề bài, Bi sẽ cố gắng đọc dữ kiện trong ảnh trước. Nếu ảnh rõ, Bi sẽ tóm tắt đề, chỉ ra kiến thức cần dùng, rồi hướng dẫn từng bước giải. Nếu ảnh bị mờ hoặc thiếu dữ kiện, Bi sẽ nhắc em chụp lại rõ hơn để tránh giải sai.
                 """;
     }
 
@@ -83,5 +90,49 @@ public class MockAiProviderClient implements AiProviderClient {
                   ]
                 }
                 """;
+    }
+
+    @Override
+    public byte[] synthesizeSpeech(String text) {
+        return silentWav(400);
+    }
+
+    private byte[] silentWav(int durationMs) {
+        int sampleRate = 24000;
+        int channels = 1;
+        int bitsPerSample = 16;
+        int dataSize = sampleRate * channels * (bitsPerSample / 8) * durationMs / 1000;
+        byte[] wav = new byte[44 + dataSize];
+        writeAscii(wav, 0, "RIFF");
+        writeIntLE(wav, 4, 36 + dataSize);
+        writeAscii(wav, 8, "WAVE");
+        writeAscii(wav, 12, "fmt ");
+        writeIntLE(wav, 16, 16);
+        writeShortLE(wav, 20, 1);
+        writeShortLE(wav, 22, channels);
+        writeIntLE(wav, 24, sampleRate);
+        writeIntLE(wav, 28, sampleRate * channels * bitsPerSample / 8);
+        writeShortLE(wav, 32, channels * bitsPerSample / 8);
+        writeShortLE(wav, 34, bitsPerSample);
+        writeAscii(wav, 36, "data");
+        writeIntLE(wav, 40, dataSize);
+        return wav;
+    }
+
+    private void writeAscii(byte[] target, int offset, String value) {
+        byte[] bytes = value.getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        System.arraycopy(bytes, 0, target, offset, bytes.length);
+    }
+
+    private void writeIntLE(byte[] target, int offset, int value) {
+        target[offset] = (byte) (value & 0xff);
+        target[offset + 1] = (byte) ((value >> 8) & 0xff);
+        target[offset + 2] = (byte) ((value >> 16) & 0xff);
+        target[offset + 3] = (byte) ((value >> 24) & 0xff);
+    }
+
+    private void writeShortLE(byte[] target, int offset, int value) {
+        target[offset] = (byte) (value & 0xff);
+        target[offset + 1] = (byte) ((value >> 8) & 0xff);
     }
 }

@@ -6,4 +6,6 @@ public interface AiProviderClient {
     String chatWithImage(String prompt, String mimeType, byte[] imageBytes);
 
     String generateExam(String prompt);
+
+    byte[] synthesizeSpeech(String text);
 }
