@@ -3,6 +3,7 @@ package com.example.chemlearn.lms.controller;
 import com.example.chemlearn.lms.dto.core.AccountResponseDTO;
 import com.example.chemlearn.lms.dto.core.CreateAccountDTO;
 import com.example.chemlearn.lms.dto.core.UpdateAccountDTO;
+import com.example.chemlearn.lms.dto.core.UpdateGraduationYearDTO;
 import com.example.chemlearn.lms.service.AccountService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -53,6 +54,18 @@ public class UserController {
     public ResponseEntity<?> delete(@PathVariable UUID id) {
         service.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Admin override: cập nhật target_graduation_year cho học sinh.
+     * Dùng cho trường hợp đặc biệt: lưu ban, chuyển trường, điều chỉnh thủ công.
+     */
+    @PutMapping("/{id}/graduation-year")
+    public ResponseEntity<String> updateGraduationYear(
+            @PathVariable UUID id,
+            @Valid @RequestBody UpdateGraduationYearDTO dto) {
+        service.updateGraduationYear(id, dto);
+        return ResponseEntity.ok("Graduation year updated successfully");
     }
 }
 

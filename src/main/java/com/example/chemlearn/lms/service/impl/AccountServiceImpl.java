@@ -4,11 +4,13 @@ import com.example.chemlearn.core.entity.Parent;
 import com.example.chemlearn.core.entity.Student;
 import com.example.chemlearn.core.entity.Teacher;
 import com.example.chemlearn.core.entity.User;
+import com.example.chemlearn.core.util.GradeCalculator;
 import com.example.chemlearn.core.enums.AuthProvider;
 import com.example.chemlearn.core.enums.UserRole;
 import com.example.chemlearn.lms.dto.core.AccountResponseDTO;
 import com.example.chemlearn.lms.dto.core.CreateAccountDTO;
 import com.example.chemlearn.lms.dto.core.UpdateAccountDTO;
+import com.example.chemlearn.lms.dto.core.UpdateGraduationYearDTO;
 import com.example.chemlearn.lms.exception.CustomExceptions;
 import com.example.chemlearn.lms.repository.ParentRepository;
 import com.example.chemlearn.lms.repository.StudentRepository;
@@ -72,7 +74,12 @@ public class AccountServiceImpl implements AccountService {
         if(user.getRole().equals(UserRole.ROLE_STUDENT)){
             Student student = new Student();
             student.setUsers(user);
-            student.setGradeLevel(0);
+            // Fix: grade 0 violated CHECK constraint. Default to MIN_GRADE (6).
+            int defaultGrade = GradeCalculator.MIN_GRADE;
+            student.setGradeLevel(defaultGrade);                      // Dual-write: backward compat
+            student.setTargetGraduationYear(                          // Dual-write: new dynamic logic
+                    GradeCalculator.calculateTargetGraduationYear(defaultGrade)
+            );
             student.setLastActiveDate(LocalDate.now());
 
             studentRepository.save(student);
@@ -123,5 +130,28 @@ public class AccountServiceImpl implements AccountService {
             throw new CustomExceptions.ResourceNotFoundException("Account not found");
         }
         repo.deleteById(id);
+    }
+
+    /**
+     * Admin override: cập nhật target_graduation_year cho học sinh.
+     * Đồng thời cập nhật grade_level (dual-write) để giữ tương thích ngược.
+     */
+    @Override
+    public void updateGraduationYear(UUID studentUserId, UpdateGraduationYearDTO dto) {
+        Student student = studentRepository.findById(studentUserId)
+                .orElseThrow(() -> new CustomExceptions.ResourceNotFoundException(
+                        "Student not found with id: " + studentUserId));
+
+        int newTargetYear = dto.getTargetGraduationYear();
+        student.setTargetGraduationYear(newTargetYear);
+
+        // Dual-write: cập nhật grade_level cho tương thích ngược
+        int currentGrade = GradeCalculator.calculateCurrentGrade(newTargetYear);
+        // Clamp grade_level trong phạm vi hợp lệ cho DB CHECK constraint
+        int clampedGrade = Math.max(GradeCalculator.MIN_GRADE,
+                Math.min(currentGrade, GradeCalculator.MAX_GRADE));
+        student.setGradeLevel(clampedGrade);
+
+        studentRepository.save(student);
     }
 }

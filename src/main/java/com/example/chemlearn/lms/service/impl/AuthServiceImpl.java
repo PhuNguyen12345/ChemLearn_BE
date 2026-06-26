@@ -1,5 +1,7 @@
 package com.example.chemlearn.lms.service.impl;
 
+import com.example.chemlearn.core.util.GradeCalculator;
+
 import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
@@ -80,8 +82,8 @@ public class AuthServiceImpl implements AuthService {
         if (repo.existsByEmail(dto.getEmail())) {
             throw new CustomExceptions.BadRequestException("Email exists");
         }
-        if (dto.getGradeLevel() == null || dto.getGradeLevel() < 6 || dto.getGradeLevel() > 12) {
-            throw new CustomExceptions.BadRequestException("Grade level must be between 6 and 12");
+        if (dto.getGradeLevel() == null || dto.getGradeLevel() < GradeCalculator.MIN_GRADE || dto.getGradeLevel() > GradeCalculator.MAX_GRADE) {
+            throw new CustomExceptions.BadRequestException("Grade level must be between " + GradeCalculator.MIN_GRADE + " and " + GradeCalculator.MAX_GRADE);
         }
         if (dto.getGender() == null || dto.getGender().isBlank()) {
             throw new CustomExceptions.BadRequestException("Gender is required");
@@ -106,7 +108,10 @@ public class AuthServiceImpl implements AuthService {
         user.setGender(dto.getGender().trim());
 
         student.setUsers(user);
-        student.setGradeLevel(dto.getGradeLevel());
+        student.setGradeLevel(dto.getGradeLevel());  // Dual-write: backward compat
+        student.setTargetGraduationYear(              // Dual-write: new dynamic logic
+                GradeCalculator.calculateTargetGraduationYear(dto.getGradeLevel())
+        );
         student.setLastActiveDate(LocalDate.now());
 
         studentRepository.save(student);
@@ -528,8 +533,8 @@ public class AuthServiceImpl implements AuthService {
     }
 
     private User createUserFromGoogle(GoogleTokenInfo tokenInfo, Integer gradeLevel, String gender) {
-        if (gradeLevel == null || gradeLevel < 6 || gradeLevel > 12) {
-            throw new CustomExceptions.BadRequestException("Google signup requires grade level and gender");
+        if (gradeLevel == null || gradeLevel < GradeCalculator.MIN_GRADE || gradeLevel > GradeCalculator.MAX_GRADE) {
+            throw new CustomExceptions.BadRequestException("Google signup requires grade level (" + GradeCalculator.MIN_GRADE + "-" + GradeCalculator.MAX_GRADE + ") and gender");
         }
         if (gender == null || gender.isBlank()) {
             throw new CustomExceptions.BadRequestException("Google signup requires grade level and gender");
@@ -554,7 +559,10 @@ public class AuthServiceImpl implements AuthService {
 
         Student student = new Student();
         student.setUsers(user);
-        student.setGradeLevel(gradeLevel);
+        student.setGradeLevel(gradeLevel);                    // Dual-write: backward compat
+        student.setTargetGraduationYear(                      // Dual-write: new dynamic logic
+                GradeCalculator.calculateTargetGraduationYear(gradeLevel)
+        );
         student.setLastActiveDate(LocalDate.now());
         studentRepository.save(student);
 

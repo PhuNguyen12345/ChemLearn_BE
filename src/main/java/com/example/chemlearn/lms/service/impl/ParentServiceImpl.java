@@ -50,7 +50,9 @@ public class ParentServiceImpl implements ParentService {
                         studentUser.getEmail(),
                         studentUser.getAvatarUrl(),
                         studentEntity != null ? studentEntity.getSchoolName() : "N/A",
-                        studentEntity != null ? studentEntity.getGradeLevel() : 0
+                        studentEntity != null ? studentEntity.getCurrentGrade() : 0,
+                        studentEntity != null ? studentEntity.getTargetGraduationYear() : null,
+                        studentEntity != null ? studentEntity.getStudentStatus().name() : "ACTIVE"
                     ));
                 }
                 
