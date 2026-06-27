@@ -23,4 +23,6 @@ public class AdminChapterResponseDTO {
     private Instant createdAt;
     private UUID updatedBy;
     private Instant updatedAt;
+    private Integer gradeLevel;
+    private Boolean needPurchase;
 }

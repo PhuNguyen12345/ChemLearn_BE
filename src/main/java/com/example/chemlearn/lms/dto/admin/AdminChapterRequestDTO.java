@@ -23,4 +23,8 @@ public class AdminChapterRequestDTO {
     private Integer orderIndex;
 
     private Boolean published = true;
+
+    private Integer gradeLevel;
+
+    private Boolean needPurchase;
 }

@@ -67,6 +67,8 @@ public class AdminContentServiceImpl implements AdminContentService {
                 .createdAt(chapter.getCreatedAt())
                 .updatedBy(chapter.getUpdatedBy() != null ? chapter.getUpdatedBy().getId() : null)
                 .updatedAt(chapter.getUpdatedAt())
+                .gradeLevel(chapter.getGradeLevel())
+                .needPurchase(chapter.getNeedPurchase())
                 .build();
     }
 
@@ -142,7 +144,8 @@ public class AdminContentServiceImpl implements AdminContentService {
         chapter.setOwnerClass(null);
         chapter.setCreatedAt(Instant.now());
         chapter.setUpdatedAt(Instant.now());
-        chapter.setGradeLevel(9); // Default grade level
+        chapter.setGradeLevel(dto.getGradeLevel() != null ? dto.getGradeLevel() : 9);
+        chapter.setNeedPurchase(dto.getNeedPurchase() != null ? dto.getNeedPurchase() : false);
 
         Chapter savedChapter = chapterRepository.save(chapter);
         log.info("Chapter created: {} by admin: {}", savedChapter.getId(), adminUsername);
@@ -165,6 +168,12 @@ public class AdminContentServiceImpl implements AdminContentService {
         }
         if (dto.getPublished() != null) {
             chapter.setPublished(dto.getPublished());
+        }
+        if (dto.getGradeLevel() != null) {
+            chapter.setGradeLevel(dto.getGradeLevel());
+        }
+        if (dto.getNeedPurchase() != null) {
+            chapter.setNeedPurchase(dto.getNeedPurchase());
         }
         chapter.setMaterialScope(MaterialScope.GLOBAL);
         chapter.setOwnerClass(null);
