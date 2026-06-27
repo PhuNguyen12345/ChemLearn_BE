@@ -54,6 +54,9 @@ public class AccountServiceImpl implements AccountService {
         if (repo.existsByUsername(dto.getUsername())) {
             throw new CustomExceptions.BadRequestException("Username already exists");
         }
+        if (repo.existsByEmail(dto.getEmail())) {
+            throw new CustomExceptions.BadRequestException("Email already exists");
+        }
         User user = new User();
         user.setUsername(dto.getUsername());
         user.setEmail(dto.getEmail());

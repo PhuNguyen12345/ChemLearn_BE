@@ -2,6 +2,7 @@ package com.example.chemlearn.lms.repository;
 
 import com.example.chemlearn.core.entity.Student;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.UUID;
 
@@ -13,6 +14,9 @@ public interface StudentRepository extends JpaRepository<Student, UUID> {
     List<Student> findByParentId(UUID parentId);
     Optional<Student> findByUsers_Username(String username);
     Optional<Student> findByUsers_Id(UUID id);
+
+    @Query("select s from Student s join fetch s.users u where u.isActive = true")
+    List<Student> findActiveStudentsWithUsers();
 
     // Leaderboard: Top N
     org.springframework.data.domain.Page<Student> findAllByOrderByExperienceDesc(org.springframework.data.domain.Pageable pageable);

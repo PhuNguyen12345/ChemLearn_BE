@@ -14,6 +14,7 @@ import com.example.chemlearn.lms.repository.ChapterRepository;
 import com.example.chemlearn.lms.repository.LessonRepository;
 import com.example.chemlearn.lms.repository.MiniQuizQuestionRepository;
 import com.example.chemlearn.lms.service.AdminContentService;
+import com.example.chemlearn.lms.service.AutoMailNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class AdminContentServiceImpl implements AdminContentService {
     private final LessonRepository lessonRepository;
     private final MiniQuizQuestionRepository miniQuizQuestionRepository;
     private final UserRepository userRepository;
+    private final AutoMailNotificationService autoMailNotificationService;
 
     // ==================== HELPER METHODS ====================
 
@@ -242,6 +244,7 @@ public class AdminContentServiceImpl implements AdminContentService {
 
         log.info("Lesson created: {} in chapter: {} by admin: {}", 
                  savedLesson.getId(), chapter.getId(), adminUsername);
+        autoMailNotificationService.notifyGlobalLessonCreated(savedLesson);
 
         return convertLessonToDto(savedLesson);
     }
@@ -272,6 +275,7 @@ public class AdminContentServiceImpl implements AdminContentService {
 
         Lesson updatedLesson = lessonRepository.save(lesson);
         log.info("Lesson updated: {} by admin: {}", updatedLesson.getId(), adminUsername);
+        autoMailNotificationService.notifyGlobalLessonUpdated(updatedLesson);
 
         return convertLessonToDto(updatedLesson);
     }

@@ -11,6 +11,7 @@ import com.example.chemlearn.pvp.dto.GameStateResponse;
 import com.example.chemlearn.pvp.dto.QuestionPayload;
 import com.example.chemlearn.pvp.enums.BattleStatus;
 import com.example.chemlearn.pvp.model.BattleRoom;
+import com.example.chemlearn.pvp.model.PetState;
 import com.example.chemlearn.pvp.model.PlayerSlot;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Manages the lifecycle of a battle: start, turn transitions, timeouts, and end game.
@@ -40,6 +43,10 @@ public class BattleLifecycleService {
     private static final int WINNER_COINS = 50;
     private static final int LOSER_XP = 20;
     private static final int LOSER_COINS = 10;
+    private static final double SKILL_MULTIPLIER = 1.5;
+    private static final double AUTOMATED_CORRECT_RATE = 0.62;
+    private static final int AUTOMATED_MIN_DELAY_MS = 1800;
+    private static final int AUTOMATED_MAX_DELAY_MS = 6200;
 
     private final SimpMessagingTemplate messagingTemplate;
     private final QuestionBankItemRepository questionBankItemRepository;
@@ -86,6 +93,8 @@ public class BattleLifecycleService {
 
         log.info("[Room {}] Turn started for player {}. Question: {}",
                 room.getRoomId(), room.getCurrentTurnPlayer().getUsername(), question.getId());
+
+        scheduleAutomatedActionIfNeeded(room, payload);
     }
 
     /**
@@ -98,7 +107,7 @@ public class BattleLifecycleService {
         GameStateResponse state = buildGameState(room, actionResult, damageDealt);
         broadcast(room.getRoomId(), state);
 
-        java.util.concurrent.CompletableFuture.runAsync(() -> {
+        CompletableFuture.runAsync(() -> {
             try {
                 Thread.sleep(2500);
             } catch (InterruptedException e) {
@@ -172,49 +181,125 @@ public class BattleLifecycleService {
     // --- Private helpers ---
 
     private void persistRewards(PlayerSlot winner, PlayerSlot loser) {
+        applyBattleReward(winner, loser, true);
+        applyBattleReward(loser, winner, false);
+    }
+
+    private void applyBattleReward(PlayerSlot player, PlayerSlot opponent, boolean won) {
+        if (player.isAutomated()) {
+            return;
+        }
+
         try {
-            Student winnerStudent = studentRepository.findById(UUID.fromString(winner.getStudentId()))
-                    .orElseThrow(() -> new RuntimeException("Winner student not found: " + winner.getStudentId()));
-            Student loserStudent = studentRepository.findById(UUID.fromString(loser.getStudentId()))
-                    .orElseThrow(() -> new RuntimeException("Loser student not found: " + loser.getStudentId()));
+            Student student = studentRepository.findById(UUID.fromString(player.getStudentId()))
+                    .orElseThrow(() -> new RuntimeException("Student not found: " + player.getStudentId()));
 
-            winnerStudent.setExperience(winnerStudent.getExperience() + WINNER_XP);
-            winnerStudent.setCoins(winnerStudent.getCoins() + WINNER_COINS);
-            winnerStudent.setPvpWins(winnerStudent.getPvpWins() + 1);
+            int xpGained = won ? WINNER_XP : LOSER_XP;
+            int coinsGained = won ? WINNER_COINS : LOSER_COINS;
 
-            loserStudent.setExperience(loserStudent.getExperience() + LOSER_XP);
-            loserStudent.setCoins(loserStudent.getCoins() + LOSER_COINS);
+            student.setExperience(valueOrZero(student.getExperience()) + xpGained);
+            student.setCoins(valueOrZero(student.getCoins()) + coinsGained);
+            if (won) {
+                student.setPvpWins(valueOrZero(student.getPvpWins()) + 1);
+            }
 
-            studentRepository.save(winnerStudent);
-            studentRepository.save(loserStudent);
+            studentRepository.save(student);
 
-            // Log XP gains
-            XpLog winLog = new XpLog();
-            winLog.setStudent(winnerStudent);
-            winLog.setAmount(WINNER_XP);
-            winLog.setSource(com.example.chemlearn.gamification.enums.XpSource.PVP_WIN);
-            winLog.setDescription("PVP Battle Win vs " + loser.getDisplayName());
-            winLog.setCreatedAt(Instant.now());
-            xpLogRepository.save(winLog);
+            XpLog xpLog = new XpLog();
+            xpLog.setStudent(student);
+            xpLog.setAmount(xpGained);
+            xpLog.setSource(won
+                    ? com.example.chemlearn.gamification.enums.XpSource.PVP_WIN
+                    : com.example.chemlearn.gamification.enums.XpSource.PVP_LOSS);
+            xpLog.setDescription("PVP Battle " + (won ? "Win" : "Loss") + " vs " + opponent.getDisplayName());
+            xpLog.setCreatedAt(Instant.now());
+            xpLogRepository.save(xpLog);
 
-            XpLog loseLog = new XpLog();
-            loseLog.setStudent(loserStudent);
-            loseLog.setAmount(LOSER_XP);
-            loseLog.setSource(com.example.chemlearn.gamification.enums.XpSource.PVP_LOSS);
-            loseLog.setDescription("PVP Battle Loss vs " + winner.getDisplayName());
-            loseLog.setCreatedAt(Instant.now());
-            xpLogRepository.save(loseLog);
-
-            // Track PLAY_PVP daily quest progress
             try {
-                questService.updateProgress(winnerStudent.getId(), "PLAY_PVP", 1);
-                questService.updateProgress(loserStudent.getId(), "PLAY_PVP", 1);
+                questService.updateProgress(student.getId(), "PLAY_PVP", 1);
             } catch (Exception e) {
                 log.error("Failed to track PLAY_PVP quest progress", e);
             }
         } catch (Exception e) {
-            log.error("Failed to persist battle rewards", e);
+            log.error("Failed to persist battle reward for {}", player.getUsername(), e);
         }
+    }
+
+    private int valueOrZero(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private void scheduleAutomatedActionIfNeeded(BattleRoom room, QuestionPayload payload) {
+        PlayerSlot current = room.getCurrentTurnPlayer();
+        if (!current.isAutomated()) {
+            return;
+        }
+
+        int delayMs = ThreadLocalRandom.current().nextInt(AUTOMATED_MIN_DELAY_MS, AUTOMATED_MAX_DELAY_MS + 1);
+        UUID questionId = payload.getQuestionId();
+        CompletableFuture.runAsync(() -> {
+            try {
+                Thread.sleep(delayMs);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            resolveAutomatedAction(room.getRoomId(), questionId);
+        });
+    }
+
+    private synchronized void resolveAutomatedAction(String roomId, UUID questionId) {
+        BattleRoom room = battleRoomStore.findById(roomId).orElse(null);
+        if (room == null || room.getStatus() != BattleStatus.IN_PROGRESS) {
+            return;
+        }
+        if (room.getCurrentQuestion() == null || !room.getCurrentQuestion().getQuestionId().equals(questionId)) {
+            return;
+        }
+
+        PlayerSlot attacker = room.getCurrentTurnPlayer();
+        if (!attacker.isAutomated()) {
+            return;
+        }
+
+        PlayerSlot defender = room.getOpponent(attacker.getStudentId());
+        PetState attackerPet = attacker.getPetState();
+        PetState defenderPet = defender.getPetState();
+
+        String selectedOption = chooseAutomatedAnswer(room.getCurrentQuestion());
+        boolean isCorrect = room.getCurrentQuestion().getCorrectOption().equalsIgnoreCase(selectedOption);
+
+        if (isCorrect) {
+            int damage = (int) Math.round(attackerPet.getAttackDamage() * SKILL_MULTIPLIER);
+            defenderPet.applyDamage(damage);
+
+            log.info("[Room {}] {} answered correctly. {} deals {} damage to {}. Defender HP: {}/{}",
+                    room.getRoomId(), attacker.getUsername(), attackerPet.getPetName(),
+                    damage, defenderPet.getPetName(), defenderPet.getCurrentHp(), defenderPet.getMaxHp());
+
+            if (!defenderPet.isAlive()) {
+                endGame(room, attacker.getStudentId(), "HP_ZERO");
+                return;
+            }
+
+            nextTurn(room, "CORRECT", damage);
+        } else {
+            log.info("[Room {}] {} answered wrong. Turn forfeited.", room.getRoomId(), attacker.getUsername());
+            nextTurn(room, "WRONG", 0);
+        }
+    }
+
+    private String chooseAutomatedAnswer(QuestionPayload question) {
+        String correctOption = normalizeOptionKey(question.getCorrectOption());
+        if (ThreadLocalRandom.current().nextDouble() < AUTOMATED_CORRECT_RATE) {
+            return correctOption;
+        }
+
+        List<String> optionKeys = List.of("A", "B", "C", "D");
+        List<String> wrongOptions = optionKeys.stream()
+                .filter(option -> !option.equalsIgnoreCase(correctOption))
+                .toList();
+        return wrongOptions.get(ThreadLocalRandom.current().nextInt(wrongOptions.size()));
     }
 
     private QuestionBankItem pickRandomQuestion() {
