@@ -178,7 +178,7 @@ public class AutoMailNotificationService {
         notifyShopItem(item, "Cập nhật shop ChemLearn", intro);
     }
 
-    @Scheduled(cron = "${app.mail.daily-reminder.cron:0 0 7,20 * * *}", zone = "${app.mail.scheduler-zone:Asia/Ho_Chi_Minh}")
+    @Scheduled(cron = "${app.mail.daily-reminder.cron:0 0 20 * * *}", zone = "${app.mail.scheduler-zone:Asia/Ho_Chi_Minh}")
     public void sendDailyReminderBatch() {
         if (!automaticEnabled) {
             return;
