@@ -11,4 +11,6 @@ public class GoogleLoginRequestDTO {
     private Integer gradeLevel;
 
     private String gender;
+
+    private String schoolName;
 }

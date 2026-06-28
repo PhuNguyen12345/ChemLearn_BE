@@ -457,7 +457,7 @@ public class AuthServiceImpl implements AuthService {
                 user.setProviderSubject(tokenInfo.getSub());
                 user = repo.save(user);
             } else {
-                user = createUserFromGoogle(tokenInfo, dto.getGradeLevel(), dto.getGender());
+                user = createUserFromGoogle(tokenInfo, dto.getGradeLevel(), dto.getGender(), dto.getSchoolName());
             }
         }
 
@@ -565,12 +565,12 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
-    private User createUserFromGoogle(GoogleTokenInfo tokenInfo, Integer gradeLevel, String gender) {
+    private User createUserFromGoogle(GoogleTokenInfo tokenInfo, Integer gradeLevel, String gender, String schoolName) {
         if (gradeLevel == null || gradeLevel < GradeCalculator.MIN_GRADE || gradeLevel > GradeCalculator.MAX_GRADE) {
-            throw new CustomExceptions.BadRequestException("Google signup requires grade level (" + GradeCalculator.MIN_GRADE + "-" + GradeCalculator.MAX_GRADE + ") and gender");
+            throw new CustomExceptions.BadRequestException("GOOGLE_PROFILE_SETUP_REQUIRED");
         }
         if (gender == null || gender.isBlank()) {
-            throw new CustomExceptions.BadRequestException("Google signup requires grade level and gender");
+            throw new CustomExceptions.BadRequestException("GOOGLE_PROFILE_SETUP_REQUIRED");
         }
 
         User user = new User();
@@ -596,6 +596,9 @@ public class AuthServiceImpl implements AuthService {
         student.setTargetGraduationYear(                      // Dual-write: new dynamic logic
                 GradeCalculator.calculateTargetGraduationYear(gradeLevel)
         );
+        if (schoolName != null && !schoolName.isBlank()) {
+            student.setSchoolName(schoolName.trim());
+        }
         student.setLastActiveDate(LocalDate.now());
         studentRepository.save(student);
 
