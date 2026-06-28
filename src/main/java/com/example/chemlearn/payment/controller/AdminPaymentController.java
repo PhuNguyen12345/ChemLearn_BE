@@ -2,7 +2,10 @@ package com.example.chemlearn.payment.controller;
 
 import com.example.chemlearn.core.entity.User;
 import com.example.chemlearn.core.enums.UserRole;
+import com.example.chemlearn.core.entity.Student;
 import com.example.chemlearn.lms.repository.UserRepository;
+import com.example.chemlearn.lms.repository.StudentRepository;
+import com.example.chemlearn.payment.dto.AdminPaidStudentSubscriptionResponse;
 import com.example.chemlearn.payment.dto.LearningPackageResponse;
 import com.example.chemlearn.payment.dto.UserPackageEntitlementResponse;
 import com.example.chemlearn.payment.entity.LearningPackage;
@@ -35,9 +38,12 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
+import java.util.Map;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -49,6 +55,7 @@ public class AdminPaymentController {
     private final UserPackageEntitlementRepository entitlementRepository;
     private final PaymentTransactionRepository paymentTransactionRepository;
     private final UserRepository userRepository;
+    private final StudentRepository studentRepository;
 
     @GetMapping("/packages")
     public List<LearningPackageResponse> getPackages() {
@@ -107,6 +114,52 @@ public class AdminPaymentController {
                         List.of(EntitlementStatus.ACTIVE, EntitlementStatus.PENDING, EntitlementStatus.CANCELLED, EntitlementStatus.EXPIRED)
                 ).stream()
                 .map(this::toEntitlementResponse)
+                .toList();
+    }
+
+    @GetMapping("/paid-student-subscriptions")
+    public List<AdminPaidStudentSubscriptionResponse> getPaidStudentSubscriptions() {
+        Map<UUID, PaymentTransaction> paidTransactionsById = paymentTransactionRepository.findAll().stream()
+                .filter(transaction -> PaymentStatus.PAID.equals(transaction.getStatus()))
+                .filter(transaction -> transaction.getAmount() != null && transaction.getAmount() > 0)
+                .collect(Collectors.toMap(PaymentTransaction::getId, Function.identity(), (left, right) -> left));
+
+        if (paidTransactionsById.isEmpty()) {
+            return List.of();
+        }
+
+        List<UserPackageEntitlement> paidEntitlements = entitlementRepository.findAll().stream()
+                .filter(entitlement -> entitlement.getPaymentTransactionId() != null)
+                .filter(entitlement -> paidTransactionsById.containsKey(entitlement.getPaymentTransactionId()))
+                .toList();
+
+        List<UUID> studentIds = paidEntitlements.stream()
+                .map(UserPackageEntitlement::getUserId)
+                .distinct()
+                .toList();
+
+        Map<UUID, User> usersById = userRepository.findAllById(studentIds).stream()
+                .collect(Collectors.toMap(User::getId, Function.identity(), (left, right) -> left));
+
+        Map<UUID, Student> studentsById = studentRepository.findAllById(studentIds).stream()
+                .collect(Collectors.toMap(Student::getId, Function.identity(), (left, right) -> left));
+
+        Map<String, LearningPackage> packagesByCode = learningPackageRepository.findAll().stream()
+                .collect(Collectors.toMap(LearningPackage::getPackageCode, Function.identity(), (left, right) -> left));
+
+        return paidEntitlements.stream()
+                .filter(entitlement -> {
+                    User user = usersById.get(entitlement.getUserId());
+                    return user != null && UserRole.ROLE_STUDENT.equals(user.getRole());
+                })
+                .sorted((left, right) -> compareByRecentPayment(left, right, paidTransactionsById))
+                .map(entitlement -> toPaidStudentSubscriptionResponse(
+                        entitlement,
+                        paidTransactionsById.get(entitlement.getPaymentTransactionId()),
+                        usersById.get(entitlement.getUserId()),
+                        studentsById.get(entitlement.getUserId()),
+                        packagesByCode.get(entitlement.getPackageCode())
+                ))
                 .toList();
     }
 
@@ -192,6 +245,33 @@ public class AdminPaymentController {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Student email is required");
     }
 
+    private int compareByRecentPayment(
+            UserPackageEntitlement left,
+            UserPackageEntitlement right,
+            Map<UUID, PaymentTransaction> paidTransactionsById
+    ) {
+        LocalDateTime leftDate = transactionSortDate(paidTransactionsById.get(left.getPaymentTransactionId()));
+        LocalDateTime rightDate = transactionSortDate(paidTransactionsById.get(right.getPaymentTransactionId()));
+
+        if (leftDate == null && rightDate == null) {
+            return 0;
+        }
+        if (leftDate == null) {
+            return 1;
+        }
+        if (rightDate == null) {
+            return -1;
+        }
+        return rightDate.compareTo(leftDate);
+    }
+
+    private LocalDateTime transactionSortDate(PaymentTransaction transaction) {
+        if (transaction == null) {
+            return null;
+        }
+        return transaction.getPaidAt() != null ? transaction.getPaidAt() : transaction.getCreatedAt();
+    }
+
     private void applyPackageRequest(LearningPackage learningPackage, PackageRequest request) {
         learningPackage.setPackageName(request.getPackageName().trim());
         learningPackage.setGradeLevel(request.getGradeLevel());
@@ -253,6 +333,61 @@ public class AdminPaymentController {
                 .cancelledAt(entitlement.getCancelledAt())
                 .cancellationReason(entitlement.getCancellationReason())
                 .metadataJson(entitlement.getMetadataJson())
+                .build();
+    }
+
+    private AdminPaidStudentSubscriptionResponse toPaidStudentSubscriptionResponse(
+            UserPackageEntitlement entitlement,
+            PaymentTransaction transaction,
+            User user,
+            Student student,
+            LearningPackage learningPackage
+    ) {
+        return AdminPaidStudentSubscriptionResponse.builder()
+                .entitlementId(entitlement.getId())
+                .entitlementStatus(entitlement.getStatus() == null ? null : entitlement.getStatus().name())
+                .startAt(entitlement.getStartAt())
+                .endAt(entitlement.getEndAt())
+                .cancelledAt(entitlement.getCancelledAt())
+                .cancellationReason(entitlement.getCancellationReason())
+                .metadataJson(entitlement.getMetadataJson())
+                .entitlementCreatedAt(entitlement.getCreatedAt())
+                .entitlementUpdatedAt(entitlement.getUpdatedAt())
+                .studentId(user == null ? entitlement.getUserId() : user.getId())
+                .username(user == null ? null : user.getUsername())
+                .fullName(user == null ? null : user.getFullName())
+                .email(user == null ? null : user.getEmail())
+                .phoneNumber(user == null ? null : user.getPhoneNumber())
+                .gender(user == null ? null : user.getGender())
+                .avatarUrl(user == null ? null : user.getAvatarUrl())
+                .accountActive(user == null ? null : user.getIsActive())
+                .accountCreatedAt(user == null ? null : user.getCreatedAt())
+                .gradeLevel(student == null ? null : student.getGradeLevel())
+                .currentGrade(student == null ? null : student.getCurrentGrade())
+                .targetGraduationYear(student == null ? null : student.getTargetGraduationYear())
+                .schoolName(student == null ? null : student.getSchoolName())
+                .totalPoints(student == null ? null : student.getTotalPoints())
+                .experience(student == null ? null : student.getExperience())
+                .currentStreak(student == null ? null : student.getCurrentStreak())
+                .coins(student == null ? null : student.getCoins())
+                .pvpWins(student == null ? null : student.getPvpWins())
+                .lastActiveDate(student == null ? null : student.getLastActiveDate())
+                .packageCode(entitlement.getPackageCode())
+                .packageName(learningPackage == null ? null : learningPackage.getPackageName())
+                .packageGradeLevel(learningPackage == null ? null : learningPackage.getGradeLevel())
+                .packageDescription(learningPackage == null ? null : learningPackage.getDescription())
+                .packageBasePrice(learningPackage == null ? null : learningPackage.getBasePrice())
+                .packageDurationDays(learningPackage == null ? null : learningPackage.getDurationDays())
+                .packageBenefitsJson(learningPackage == null ? null : learningPackage.getBenefitsJson())
+                .paymentTransactionId(transaction == null ? entitlement.getPaymentTransactionId() : transaction.getId())
+                .orderCode(transaction == null ? null : transaction.getOrderCode())
+                .amount(transaction == null ? null : transaction.getAmount())
+                .paymentStatus(transaction == null || transaction.getStatus() == null ? null : transaction.getStatus().name())
+                .paymentLinkId(transaction == null ? null : transaction.getPaymentLinkId())
+                .buyerName(transaction == null ? null : transaction.getBuyerName())
+                .buyerEmail(transaction == null ? null : transaction.getBuyerEmail())
+                .paidAt(transaction == null ? null : transaction.getPaidAt())
+                .transactionCreatedAt(transaction == null ? null : transaction.getCreatedAt())
                 .build();
     }
 
