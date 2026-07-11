@@ -15,6 +15,7 @@ public class LessonDetailDTO {
     private String title;
     private String content;
     private Integer estimatedMinutes;
+    private String videoUrl;
     private List<MiniQuizQuestionDTO> miniQuizQuestions;
 }
 

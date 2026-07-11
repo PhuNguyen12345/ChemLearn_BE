@@ -30,5 +30,7 @@ public class AdminLessonRequestDTO {
 
     private Boolean published = true;
 
+    private String videoUrl;
+
     private List<AdminMiniQuizQuestionDTO> miniQuizQuestions;
 }
