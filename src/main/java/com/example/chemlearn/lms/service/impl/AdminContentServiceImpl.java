@@ -14,6 +14,7 @@ import com.example.chemlearn.lms.repository.ChapterRepository;
 import com.example.chemlearn.lms.repository.LessonRepository;
 import com.example.chemlearn.lms.repository.MiniQuizQuestionRepository;
 import com.example.chemlearn.lms.service.AdminContentService;
+import com.example.chemlearn.lms.service.AutoMailNotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class AdminContentServiceImpl implements AdminContentService {
     private final LessonRepository lessonRepository;
     private final MiniQuizQuestionRepository miniQuizQuestionRepository;
     private final UserRepository userRepository;
+    private final AutoMailNotificationService autoMailNotificationService;
 
     // ==================== HELPER METHODS ====================
 
@@ -65,6 +67,8 @@ public class AdminContentServiceImpl implements AdminContentService {
                 .createdAt(chapter.getCreatedAt())
                 .updatedBy(chapter.getUpdatedBy() != null ? chapter.getUpdatedBy().getId() : null)
                 .updatedAt(chapter.getUpdatedAt())
+                .gradeLevel(chapter.getGradeLevel())
+                .needPurchase(chapter.getNeedPurchase())
                 .build();
     }
 
@@ -141,7 +145,8 @@ public class AdminContentServiceImpl implements AdminContentService {
         chapter.setOwnerClass(null);
         chapter.setCreatedAt(Instant.now());
         chapter.setUpdatedAt(Instant.now());
-        chapter.setGradeLevel(9); // Default grade level
+        chapter.setGradeLevel(dto.getGradeLevel() != null ? dto.getGradeLevel() : 9);
+        chapter.setNeedPurchase(dto.getNeedPurchase() != null ? dto.getNeedPurchase() : false);
 
         Chapter savedChapter = chapterRepository.save(chapter);
         log.info("Chapter created: {} by admin: {}", savedChapter.getId(), adminUsername);
@@ -164,6 +169,12 @@ public class AdminContentServiceImpl implements AdminContentService {
         }
         if (dto.getPublished() != null) {
             chapter.setPublished(dto.getPublished());
+        }
+        if (dto.getGradeLevel() != null) {
+            chapter.setGradeLevel(dto.getGradeLevel());
+        }
+        if (dto.getNeedPurchase() != null) {
+            chapter.setNeedPurchase(dto.getNeedPurchase());
         }
         chapter.setMaterialScope(MaterialScope.GLOBAL);
         chapter.setOwnerClass(null);
@@ -244,6 +255,7 @@ public class AdminContentServiceImpl implements AdminContentService {
 
         log.info("Lesson created: {} in chapter: {} by admin: {}", 
                  savedLesson.getId(), chapter.getId(), adminUsername);
+        autoMailNotificationService.notifyGlobalLessonCreated(savedLesson);
 
         return convertLessonToDto(savedLesson);
     }
@@ -275,6 +287,7 @@ public class AdminContentServiceImpl implements AdminContentService {
 
         Lesson updatedLesson = lessonRepository.save(lesson);
         log.info("Lesson updated: {} by admin: {}", updatedLesson.getId(), adminUsername);
+        autoMailNotificationService.notifyGlobalLessonUpdated(updatedLesson);
 
         return convertLessonToDto(updatedLesson);
     }

@@ -12,6 +12,8 @@ public class StudentProfileDTO {
     private String phoneNumber;
     private String gender;
     private Integer gradeLevel;
+    private Integer targetGraduationYear;
+    private String studentStatus; // ACTIVE, GRADUATED, NOT_YET_ENROLLED
     private Instant joinedAt;
     
     // Parent Info

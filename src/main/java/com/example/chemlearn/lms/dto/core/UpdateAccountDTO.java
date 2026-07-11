@@ -30,6 +30,19 @@ public class UpdateAccountDTO {
 
     private Boolean enabled;
     private UserRole role;
+
+    private String phoneNumber;
+    private String gender;
+
+    // Student fields
+    private Integer gradeLevel;
+    private String schoolName;
+
+    // Teacher fields
+    private String bio;
+    private String specialization;
+    private String degree;
+    private String workplace;
 }
 
 

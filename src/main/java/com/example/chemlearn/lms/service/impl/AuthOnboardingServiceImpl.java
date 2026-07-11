@@ -16,9 +16,9 @@ import com.example.chemlearn.lms.repository.ParentRepository;
 import com.example.chemlearn.lms.repository.TeacherRepository;
 import com.example.chemlearn.lms.repository.UserRepository;
 import com.example.chemlearn.lms.service.AuthOnboardingService;
+import com.example.chemlearn.lms.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,9 +39,7 @@ public class AuthOnboardingServiceImpl implements AuthOnboardingService {
     private final UserRepository userRepository;
     private final TeacherRepository teacherRepository;
     private final ParentRepository parentRepository;
-
-    @Value("${app.frontend.base-url:http://localhost:5173}")
-    private String frontendBaseUrl;
+    private final EmailService emailService;
 
     @Override
     @Transactional
@@ -204,18 +202,8 @@ public class AuthOnboardingServiceImpl implements AuthOnboardingService {
 
         Invite savedInvite = inviteRepository.save(invite);
 
-        // Send email (with fallback logging)
-        sendInviteEmail(savedInvite);
+        emailService.sendInviteEmail(savedInvite.getEmail(), savedInvite.getRole(), savedInvite.getToken());
 
         return savedInvite;
-    }
-
-    private void sendInviteEmail(Invite invite) {
-        String inviteUrl = frontendBaseUrl + "/invite?token=" + invite.getToken();
-        log.info("Email service is disabled. Invite link generated for {}: {}", invite.getEmail(), inviteUrl);
-        System.out.println("=================================================");
-        System.out.println("INVITE LINK GENERATED FOR EMAIL: " + invite.getEmail());
-        System.out.println("LINK: " + inviteUrl);
-        System.out.println("=================================================");
     }
 }

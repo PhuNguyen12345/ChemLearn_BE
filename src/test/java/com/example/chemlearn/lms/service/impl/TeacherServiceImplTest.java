@@ -21,6 +21,7 @@ import com.example.chemlearn.lms.repository.QuizRepository;
 import com.example.chemlearn.lms.repository.StudyClassAssignmentRepository;
 import com.example.chemlearn.lms.repository.StudyClassRepository;
 import com.example.chemlearn.lms.repository.UserRepository;
+import com.example.chemlearn.lms.service.AutoMailNotificationService;
 import com.example.chemlearn.lms.service.StudyClassCodeGenerator;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.Test;
@@ -50,6 +51,7 @@ class TeacherServiceImplTest {
     private final StudyClassCodeGenerator studyClassCodeGenerator = mock(StudyClassCodeGenerator.class);
     private final AttemptAnswerRepository attemptAnswerRepository = mock(AttemptAnswerRepository.class);
     private final EntityManager entityManager = mock(EntityManager.class);
+    private final AutoMailNotificationService autoMailNotificationService = mock(AutoMailNotificationService.class);
 
     private final TeacherServiceImpl service = new TeacherServiceImpl(
             chapterRepository,
@@ -64,7 +66,8 @@ class TeacherServiceImplTest {
             studyClassRepository,
             studyClassCodeGenerator,
             attemptAnswerRepository,
-            entityManager
+            entityManager,
+            autoMailNotificationService
     );
 
     @Test

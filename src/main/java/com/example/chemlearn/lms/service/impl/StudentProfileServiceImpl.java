@@ -51,7 +51,9 @@ public class StudentProfileServiceImpl implements StudentProfileService {
         dto.setEmail(user.getEmail());
         dto.setPhoneNumber(user.getPhoneNumber());
         dto.setGender(user.getGender());
-        dto.setGradeLevel(student.getGradeLevel());
+        dto.setGradeLevel(student.getCurrentGrade());
+        dto.setTargetGraduationYear(student.getTargetGraduationYear());
+        dto.setStudentStatus(student.getStudentStatus().name());
         dto.setJoinedAt(user.getCreatedAt());
 
         if (parent != null) {

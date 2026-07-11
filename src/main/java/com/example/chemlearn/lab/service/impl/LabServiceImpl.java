@@ -46,7 +46,7 @@ public class LabServiceImpl implements LabService {
             if (!userRepository.existsById(authorId)) {
                 throw new RuntimeException("Không tìm thấy người dùng có id tương ứng.");
             }
-            labPage = labRepository.findMySandboxLabs(authorId,keyword, category,pageable);
+            labPage = labRepository.findMySandboxLabs(LabType.SANDBOX, authorId, keyword, category, pageable);
         }
 
         else if (type == LabType.ASSIGNMENT) {
@@ -56,7 +56,7 @@ public class LabServiceImpl implements LabService {
             labPage = labRepository.findMyAssignmentLabs(authorId, keyword, category, pageable);
         }
         else {
-            labPage = labRepository.findPremadeLabs(keyword, category, pageable);
+            labPage = labRepository.findPremadeLabs(LabType.PREMADE, keyword, category, pageable);
         }
         List<Lab> pageContent = labPage.getContent();
         List<LabSummaryResponse> responseContent = labSummaryResponseMapper.toDtoList(pageContent);

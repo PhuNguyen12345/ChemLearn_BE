@@ -13,5 +13,7 @@ public class ChildProfileDTO {
     private String email;
     private String schoolName;
     private Integer gradeLevel;
+    private Integer targetGraduationYear;
+    private String studentStatus; // ACTIVE, GRADUATED, NOT_YET_ENROLLED
     private String avatarUrl;
 }

@@ -38,6 +38,7 @@ import com.example.chemlearn.gamification.enums.ItemType;
 import com.example.chemlearn.gamification.repository.ItemRepository;
 import com.example.chemlearn.gamification.repository.PetSpeciesRepository;
 import com.example.chemlearn.gamification.repository.EggDropRateRepository;
+import com.example.chemlearn.lab.entity.InventoryItem;
 
 import lombok.RequiredArgsConstructor;
 
@@ -75,6 +76,7 @@ public class Module2DataSeeder {
     private final ItemRepository itemRepository;
     private final PetSpeciesRepository petSpeciesRepository;
     private final EggDropRateRepository eggDropRateRepository;
+    private final com.example.chemlearn.lab.repository.InventoryRepository inventoryRepository;
     private Set<String> pvpQuestionPrompts;
 
     @Bean
@@ -638,6 +640,53 @@ public class Module2DataSeeder {
 
             // Seed monster details and chemistry questions for map nodes
             seedMonsterQuestionsAndDetails();
+
+            // Seed 22 Inventory Items for Virtual Lab
+            seedInventoryItems();
+            
+            // Update existing Inventory Items with explicit HEX iconFill colors
+            updateInventoryIconFills();
+
+            // Seed missing special acids if they don't exist
+            inventoryRepository.findByItemCode("hcl_dac").ifPresentOrElse(
+                existing -> {
+                    existing.setIconColor("text-stone-200");
+                    existing.setIconFill("#f1f5f9");
+                    inventoryRepository.save(existing);
+                },
+                () -> {
+                    InventoryItem hclDac = new InventoryItem();
+                    hclDac.setItemCode("hcl_dac");
+                    hclDac.setName("Axit HCl (Đặc)");
+                    hclDac.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+                    hclDac.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+                    hclDac.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.ACID);
+                    hclDac.setIconName("Droplet");
+                    hclDac.setIconColor("text-stone-200");
+                    hclDac.setIconFill("#f1f5f9");
+                    inventoryRepository.save(hclDac);
+                }
+            );
+
+            inventoryRepository.findByItemCode("h2so4_dac").ifPresentOrElse(
+                existing -> {
+                    existing.setIconColor("text-stone-200");
+                    existing.setIconFill("#f1f5f9");
+                    inventoryRepository.save(existing);
+                },
+                () -> {
+                    InventoryItem h2so4Dac = new InventoryItem();
+                    h2so4Dac.setItemCode("h2so4_dac");
+                    h2so4Dac.setName("Axit H2SO4 (Đặc)");
+                    h2so4Dac.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+                    h2so4Dac.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+                    h2so4Dac.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.ACID);
+                    h2so4Dac.setIconName("Droplet");
+                    h2so4Dac.setIconColor("text-stone-200");
+                    h2so4Dac.setIconFill("#f1f5f9");
+                    inventoryRepository.save(h2so4Dac);
+                }
+            );
         };
     }
 
@@ -747,151 +796,183 @@ public class Module2DataSeeder {
         miniQuizQuestionRepository.save(question);
     }
 
+    private Lab getOrCreateLab(String title) {
+        return labRepository.findByTitle(title).orElse(new Lab());
+    }
+
+    private void upsertLabConfiguration(Lab lab, Map<String, Object> config, Map<String, Object> viewport) {
+        LabConfiguration conf = labConfigurationRepository.findByLabId(lab.getId())
+                .orElseGet(() -> {
+                    LabConfiguration newConf = new LabConfiguration();
+                    newConf.setLab(lab);
+                    newConf.setInitialWorkspace(new ArrayList<>());
+                    return newConf;
+                });
+        conf.setConfig(config);
+        conf.setViewport(viewport);
+        labConfigurationRepository.save(conf);
+    }
+
     private void seedVirtualLabs(User admin, User teacher, Student student, User studentUser, StudyClass targetClass) {
-        if (labConfigurationRepository.count() > 0) {
-            return; // Already seeded configurations
-        }
+        // Sử dụng cơ chế UPSERT (Cập nhật nếu đã có, tạo mới nếu chưa có) để bảo toàn dữ liệu học sinh
 
-        // Clear existing labs to prevent duplicates if any existed without config
-        if (labRepository.count() > 0) {
-            userLabProgressRepository.deleteAll();
-            labConfigurationRepository.deleteAll();
-            studyClassAssignmentRepository.deleteAll();
-            labRepository.deleteAll();
-        }
-
-        // 1. [PREMADE] Chuẩn độ Axit - Bazơ cơ bản
-        Lab lab1 = new Lab();
-        lab1.setTitle("Chuẩn độ Axit - Bazơ cơ bản");
-        lab1.setDescription("Thực hành phản ứng trung hòa giữa dung dịch HCl và NaOH. Quan sát sự đổi màu của chất chỉ thị Phenolphtalein.");
-        lab1.setCategory(LabCategory.AXIT_BAZO);
+        // 1. [PREMADE] Điều chế Hidro (Lớp 8)
+        Lab lab1 = getOrCreateLab("Điều chế khí Hidro");
+        lab1.setTitle("Điều chế khí Hidro");
+        lab1.setDescription("Thực hành phản ứng giữa kim loại Kẽm (Zn) và Axit Clohidric (HCl) để sinh ra khí Hidro.");
+        lab1.setCategory(LabCategory.KIM_LOAI);
         lab1.setDifficulty(Difficulty.EASY);
         lab1.setType(LabType.PREMADE);
         lab1.setAuthorId(admin.getId());
         lab1.setMaxScore(0);
         lab1 = labRepository.save(lab1);
-        seedLabConfiguration(lab1, new HashMap<>(), Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
+        upsertLabConfiguration(lab1, 
+                Map.of("allowed_chemicals", List.of("beaker", "test_tube", "bunsen_burner", "zn_grain", "hcl")), 
+                Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
 
-        // 2. [PREMADE] Nhiệt nhôm và Tính chất của Sắt
-        Lab lab2 = new Lab();
-        lab2.setTitle("Nhiệt nhôm và Tính chất của Sắt");
-        lab2.setDescription("Mô phỏng phản ứng nhiệt nhôm kinh điển và kiểm tra tính chất hóa học của kim loại Sắt với các loại axit khác nhau.");
-        lab2.setCategory(LabCategory.KIM_LOAI);
+        // 2. [PREMADE] Tính chất hoá học của nước (Lớp 8)
+        Lab lab2 = getOrCreateLab("Tính chất hoá học của Nước");
+        lab2.setTitle("Tính chất hoá học của Nước");
+        lab2.setDescription("Khảo sát phản ứng mãnh liệt của Natri (Na) với nước, sau đó dùng Phenolphtalein để kiểm chứng dung dịch sinh ra có tính kiềm.");
+        lab2.setCategory(LabCategory.GENERAL);
         lab2.setDifficulty(Difficulty.MEDIUM);
         lab2.setType(LabType.PREMADE);
         lab2.setAuthorId(admin.getId());
         lab2.setMaxScore(0);
         lab2 = labRepository.save(lab2);
-        seedLabConfiguration(lab2, new HashMap<>(), Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
+        upsertLabConfiguration(lab2, 
+                Map.of("allowed_chemicals", List.of("beaker", "test_tube", "bunsen_burner", "sodium", "water", "phenolphthalein")), 
+                Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
 
-        // 3. [PREMADE] Thuốc tím KMnO4 và quá trình Oxi hóa
-        Lab lab3 = new Lab();
-        lab3.setTitle("Thuốc tím KMnO4 và quá trình Oxi hóa");
-        lab3.setDescription("Thực hành chuẩn độ Oxi hóa - Khử với dung dịch thuốc tím trong các môi trường Axit, Bazơ, Trung tính.");
-        lab3.setCategory(LabCategory.OXI_HOA_KHU);
-        lab3.setDifficulty(Difficulty.HARD);
+        // 3. [PREMADE] Phân loại chất bằng quỳ tím (Lớp 9)
+        Lab lab3 = getOrCreateLab("Phân loại chất bằng chất chỉ thị");
+        lab3.setTitle("Phân loại chất bằng chất chỉ thị");
+        lab3.setDescription("Dùng Quỳ tím và Phenolphtalein để nhận biết môi trường Axit (HCl) và Bazơ (NaOH).");
+        lab3.setCategory(LabCategory.AXIT_BAZO);
+        lab3.setDifficulty(Difficulty.EASY);
         lab3.setType(LabType.PREMADE);
         lab3.setAuthorId(admin.getId());
         lab3.setMaxScore(0);
         lab3 = labRepository.save(lab3);
-        seedLabConfiguration(lab3, new HashMap<>(), Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
+        upsertLabConfiguration(lab3, 
+                Map.of("allowed_chemicals", List.of("beaker", "test_tube", "bunsen_burner", "hcl", "naoh_sol", "phenolphthalein", "litmus_paper")), 
+                Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
 
-        // 4. [ASSIGNMENT] Kiểm tra Thực hành: Phân biệt dung dịch
-        Lab lab4 = new Lab();
-        lab4.setTitle("Kiểm tra Thực hành: Phân biệt dung dịch");
-        lab4.setDescription("Bằng phương pháp hóa học, hãy phân biệt 3 lọ dung dịch không dán nhãn chứa: HCl, NaOH và NaCl. Kéo thả các lọ hóa chất và dụng cụ ra bàn làm việc, thực hiện phản ứng và sắp xếp chúng theo đúng thứ tự.");
-        lab4.setCategory(LabCategory.AXIT_BAZO);
-        lab4.setDifficulty(Difficulty.HARD);
-        lab4.setType(LabType.ASSIGNMENT);
-        lab4.setAuthorId(teacher.getId());
-        lab4.setMaxScore(100);
+        // 4. [PREMADE] Phản ứng trao đổi trong dung dịch (Lớp 9)
+        Lab lab4 = getOrCreateLab("Phản ứng trao đổi trong dung dịch");
+        lab4.setTitle("Phản ứng trao đổi trong dung dịch");
+        lab4.setDescription("Quan sát phản ứng trao đổi tạo kết tủa trắng đặc trưng. Thử nghiệm với các cặp muối: AgNO3 - NaCl và BaCl2 - Na2SO4.");
+        lab4.setCategory(LabCategory.KET_TUA);
+        lab4.setDifficulty(Difficulty.MEDIUM);
+        lab4.setType(LabType.PREMADE);
+        lab4.setAuthorId(admin.getId());
+        lab4.setMaxScore(0);
         lab4 = labRepository.save(lab4);
-        seedLabConfiguration(lab4,
+        upsertLabConfiguration(lab4, 
+                Map.of("allowed_chemicals", List.of("beaker", "test_tube", "bunsen_burner", "bacl2", "na2so4", "agno3", "nacl")), 
+                Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
+
+        // 5. [ASSIGNMENT] Kiểm tra Thực hành: Phân biệt dung dịch
+        Lab lab5 = getOrCreateLab("Kiểm tra Thực hành: Phân biệt dung dịch");
+        lab5.setTitle("Kiểm tra Thực hành: Phân biệt dung dịch");
+        lab5.setDescription("Bằng phương pháp hóa học, hãy phân biệt 3 lọ dung dịch không dán nhãn chứa: HCl, NaOH và NaCl. Kéo thả các lọ hóa chất và dụng cụ ra bàn làm việc, thực hiện phản ứng và sắp xếp chúng theo đúng thứ tự.");
+        lab5.setCategory(LabCategory.AXIT_BAZO);
+        lab5.setDifficulty(Difficulty.HARD);
+        lab5.setType(LabType.ASSIGNMENT);
+        lab5.setAuthorId(teacher.getId());
+        lab5.setMaxScore(100);
+        lab5 = labRepository.save(lab5);
+        upsertLabConfiguration(lab5,
                 Map.of("allowHints", false, "durationMinutes", 15, "showReactionToast", false),
                 Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0)
         );
 
-        // Assign to Class (Chỉ thực hiện nếu có class)
+        // Assign to Class (Chỉ thực hiện nếu có class và chưa có assignment này)
         if (targetClass != null) {
-            StudyClassAssignment assignment = new StudyClassAssignment();
-            assignment.setStudyClassField(targetClass);
-            assignment.setTitle("Kiểm tra Thực hành: Phân biệt dung dịch (15 phút)");
-            assignment.setLab(lab4);
-            assignment.setDueDate(Instant.now().plus(7, ChronoUnit.DAYS));
-            studyClassAssignmentRepository.save(assignment);
+            boolean hasAssignment = false;
+            for (StudyClassAssignment a : studyClassAssignmentRepository.findAll()) {
+                if (a.getLab() != null && a.getLab().getId().equals(lab5.getId())) {
+                    hasAssignment = true;
+                    break;
+                }
+            }
+            if (!hasAssignment) {
+                StudyClassAssignment assignment = new StudyClassAssignment();
+                assignment.setStudyClassField(targetClass);
+                assignment.setTitle("Kiểm tra Thực hành: Phân biệt dung dịch (15 phút)");
+                assignment.setLab(lab5);
+                assignment.setDueDate(Instant.now().plus(7, ChronoUnit.DAYS));
+                studyClassAssignmentRepository.save(assignment);
+            }
         }
 
-        // 5. [SANDBOX] Bàn thực hành tự do của tôi
-        Lab lab5 = new Lab();
-        lab5.setTitle("Phòng thí nghiệm tự do của " + studentUser.getFullName());
-        lab5.setDescription("Phòng thí nghiệm tự do của bạn. Hãy thoả sức sáng tạo.");
-        lab5.setCategory(LabCategory.GENERAL);
-        lab5.setType(LabType.SANDBOX);
-        lab5.setAuthorId(student.getUsers().getId());
-        lab5.setMaxScore(0);
-        lab5 = labRepository.save(lab5);
-        seedLabConfiguration(lab5, new HashMap<>(), Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
+        // 6. [SANDBOX] Bàn thực hành tự do của tôi
+        Lab lab6 = getOrCreateLab("Phòng thí nghiệm tự do của " + studentUser.getFullName());
+        lab6.setTitle("Phòng thí nghiệm tự do của " + studentUser.getFullName());
+        lab6.setDescription("Phòng thí nghiệm tự do của bạn. Hãy thoả sức sáng tạo.");
+        lab6.setCategory(LabCategory.GENERAL);
+        lab6.setType(LabType.SANDBOX);
+        lab6.setAuthorId(student.getUsers().getId());
+        lab6.setMaxScore(0);
+        lab6 = labRepository.save(lab6);
+        upsertLabConfiguration(lab6, new HashMap<>(), Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.0));
 
         // 6. Seed UserLabProgress cho học sinh
         // Progress cho bài lab 1 (Đang làm)
-        UserLabProgress p1 = new UserLabProgress();
-        p1.setStudent(student);
-        p1.setLab(lab1);
-        p1.setStatus("IN_PROGRESS");
-        p1.setProgressPercent(33);
-        p1.setCurrentScore(10);
-        p1.setCompletedActions(List.of("DRAG_FLASK_TO_WORKSPACE", "HCl_NaOH"));
-        p1.setCurrentWorkspace(List.of(
-                Map.of(
-                        "content", "NaCl + H₂O",
-                        "templateId", "beaker",
-                        "liquidContent", "NaCl + H₂O",
-                        "liquidColor", "rgba(200, 230, 255, 0.7)",
-                        "x", 300.0,
-                        "y", 250.0
-                )
-        ));
-        p1.setViewport(Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.2));
-        p1.setIsFinished(false);
-        p1.setStartedAt(Instant.now());
-        p1.setLastEditedAt(Instant.now());
-        userLabProgressRepository.save(p1);
+        if (userLabProgressRepository.findByStudentIdAndLabId(student.getId(), lab1.getId()).isEmpty()) {
+            UserLabProgress p1 = new UserLabProgress();
+            p1.setStudent(student);
+            p1.setLab(lab1);
+            p1.setStatus("IN_PROGRESS");
+            p1.setProgressPercent(33);
+            p1.setCurrentScore(10);
+            p1.setCompletedActions(List.of("DRAG_FLASK_TO_WORKSPACE", "Zn_HCl"));
+            p1.setCurrentWorkspace(List.of(
+                    Map.of(
+                            "content", "ZnCl₂ + H₂↑",
+                            "templateId", "beaker",
+                            "liquidContent", "ZnCl₂",
+                            "liquidColor", "rgba(241, 245, 249, 0.7)",
+                            "x", 300.0,
+                            "y", 250.0
+                    )
+            ));
+            p1.setViewport(Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.2));
+            p1.setIsFinished(false);
+            p1.setStartedAt(Instant.now());
+            p1.setLastEditedAt(Instant.now());
+            userLabProgressRepository.save(p1);
+        }
 
         // Progress cho bài lab 2 (Đã xong)
-        UserLabProgress p2 = new UserLabProgress();
-        p2.setStudent(student);
-        p2.setLab(lab2);
-        p2.setStatus("COMPLETED");
-        p2.setProgressPercent(100);
-        p2.setCurrentScore(50);
-        p2.setCompletedActions(List.of("DRAG_FLASK_TO_WORKSPACE", "Fe_HCl", "HEAT_FLASK"));
-        p2.setCurrentWorkspace(List.of(
-                Map.of(
-                        "content", "FeCl₂ + H₂↑",
-                        "templateId", "beaker",
-                        "liquidContent", "FeCl₂",
-                        "liquidColor", "rgba(187, 247, 208, 0.7)",
-                        "isHeated", true,
-                        "x", 400.0,
-                        "y", 300.0
-                )
-        ));
-        p2.setViewport(Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.5));
-        p2.setIsFinished(true);
-        p2.setSubmittedAt(Instant.now().minus(1, ChronoUnit.DAYS));
-        p2.setStartedAt(Instant.now());
-        p2.setLastEditedAt(Instant.now());
-        userLabProgressRepository.save(p2);
+        if (userLabProgressRepository.findByStudentIdAndLabId(student.getId(), lab2.getId()).isEmpty()) {
+            UserLabProgress p2 = new UserLabProgress();
+            p2.setStudent(student);
+            p2.setLab(lab2);
+            p2.setStatus("COMPLETED");
+            p2.setProgressPercent(100);
+            p2.setCurrentScore(50);
+            p2.setCompletedActions(List.of("DRAG_FLASK_TO_WORKSPACE", "Na_H2O", "NaOH_Phenol"));
+            p2.setCurrentWorkspace(List.of(
+                    Map.of(
+                            "content", "NaOH + Phenol",
+                            "templateId", "beaker",
+                            "liquidContent", "NaOH",
+                            "liquidColor", "rgba(236, 72, 153, 0.7)",
+                            "x", 400.0,
+                            "y", 300.0
+                    )
+            ));
+            p2.setViewport(Map.of("offset", Map.of("x", 0, "y", 0), "zoom_scale", 1.5));
+            p2.setIsFinished(true);
+            p2.setSubmittedAt(Instant.now().minus(1, ChronoUnit.DAYS));
+            p2.setStartedAt(Instant.now());
+            p2.setLastEditedAt(Instant.now());
+            userLabProgressRepository.save(p2);
+        }
     }
 
-    private void seedLabConfiguration(Lab lab, Map<String, Object> config, Map<String, Object> viewport) {
-        LabConfiguration conf = new LabConfiguration();
-        conf.setLab(lab);
-        conf.setConfig(config);
-        conf.setViewport(viewport);
-        conf.setInitialWorkspace(new ArrayList<>());
-        labConfigurationRepository.save(conf);
-    }
+    // Không cần hàm seedLabConfiguration cũ nữa vì đã thay bằng upsertLabConfiguration
 
     private void seedEggDropRate(Item eggItem, PetSpecies species, int weight) {
         EggDropRate rate = new EggDropRate();
@@ -1060,5 +1141,305 @@ public class Module2DataSeeder {
         q.setCorrectOption(correct);
         q.setExplanation(explanation);
         mapNodeQuestionRepository.save(q);
+    }
+
+    private void seedInventoryItems() {
+        if (inventoryRepository.count() > 0) return;
+
+        List<InventoryItem> items = new ArrayList<>();
+
+        InventoryItem beaker = new InventoryItem();
+        beaker.setItemCode("beaker");
+        beaker.setName("Cốc thủy tinh");
+        beaker.setType(com.example.chemlearn.lab.enums.ItemType.CONTAINER);
+        beaker.setIconName("Beaker");
+        beaker.setIconColor("text-blue-500");
+        items.add(beaker);
+
+        InventoryItem testTube = new InventoryItem();
+        testTube.setItemCode("test_tube");
+        testTube.setName("Ống nghiệm");
+        testTube.setType(com.example.chemlearn.lab.enums.ItemType.CONTAINER);
+        testTube.setIconName("TestTube");
+        testTube.setIconColor("text-sky-400");
+        items.add(testTube);
+
+        InventoryItem bunsenBurner = new InventoryItem();
+        bunsenBurner.setItemCode("bunsen_burner");
+        bunsenBurner.setName("Đèn cồn");
+        bunsenBurner.setType(com.example.chemlearn.lab.enums.ItemType.EQUIPMENT);
+        bunsenBurner.setIconName("Flame");
+        bunsenBurner.setIconColor("text-orange-500");
+        items.add(bunsenBurner);
+
+        InventoryItem sodium = new InventoryItem();
+        sodium.setItemCode("sodium");
+        sodium.setName("Natri (Na)");
+        sodium.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        sodium.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        sodium.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.METAL);
+        sodium.setIconName("Square");
+        sodium.setIconColor("text-slate-300");
+        sodium.setIconFill("#cbd5e1"); // Slate 300
+        items.add(sodium);
+
+        InventoryItem copper = new InventoryItem();
+        copper.setItemCode("copper");
+        copper.setName("Đồng (Cu)");
+        copper.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        copper.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        copper.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.METAL);
+        copper.setIconName("Square");
+        copper.setIconColor("text-orange-700");
+        copper.setIconFill("#c2410c"); // Orange 700
+        items.add(copper);
+
+        InventoryItem fePowder = new InventoryItem();
+        fePowder.setItemCode("fe_powder");
+        fePowder.setName("Bột sắt (Fe)");
+        fePowder.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        fePowder.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        fePowder.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.METAL);
+        fePowder.setIconName("CircleDot");
+        fePowder.setIconColor("text-gray-600");
+        fePowder.setIconFill("#4b5563"); // Gray 600
+        items.add(fePowder);
+
+        InventoryItem znGrain = new InventoryItem();
+        znGrain.setItemCode("zn_grain");
+        znGrain.setName("Kẽm (Zn)");
+        znGrain.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        znGrain.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        znGrain.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.METAL);
+        znGrain.setIconName("CircleDot");
+        znGrain.setIconColor("text-slate-400");
+        znGrain.setIconFill("#94a3b8"); // Slate 400
+        items.add(znGrain);
+
+        InventoryItem caco3 = new InventoryItem();
+        caco3.setItemCode("caco3");
+        caco3.setName("Đá vôi (CaCO3)");
+        caco3.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        caco3.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        caco3.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLID);
+        caco3.setIconName("Square");
+        caco3.setIconColor("text-stone-200");
+        caco3.setIconFill("#e7e5e4"); // Stone 200
+        items.add(caco3);
+
+        com.example.chemlearn.lab.entity.InventoryItem kmno4 = new com.example.chemlearn.lab.entity.InventoryItem();
+        kmno4.setItemCode("kmno4");
+        kmno4.setName("Thuốc tím (KMnO4)");
+        kmno4.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        kmno4.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        kmno4.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLID);
+        kmno4.setIconName("CircleDot");
+        kmno4.setIconColor("text-fuchsia-800");
+        kmno4.setIconFill("#86198f"); // Fuchsia 800
+        items.add(kmno4);
+
+        InventoryItem nacl = new InventoryItem();
+        nacl.setItemCode("nacl");
+        nacl.setName("Muối ăn (NaCl)");
+        nacl.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        nacl.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        nacl.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLID);
+        nacl.setIconName("CircleDot");
+        nacl.setIconColor("text-white");
+        nacl.setIconFill("#ffffff"); // White
+        items.add(nacl);
+
+        InventoryItem na2co3 = new InventoryItem();
+        na2co3.setItemCode("na2co3");
+        na2co3.setName("Natri Cacbonat");
+        na2co3.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        na2co3.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        na2co3.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLID);
+        na2co3.setIconName("CircleDot");
+        na2co3.setIconColor("text-white");
+        na2co3.setIconFill("#f8fafc"); // Slate 50
+        items.add(na2co3);
+
+        InventoryItem cao = new InventoryItem();
+        cao.setItemCode("cao");
+        cao.setName("Vôi sống (CaO)");
+        cao.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        cao.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        cao.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.OXIDE);
+        cao.setIconName("Square");
+        cao.setIconColor("text-stone-300");
+        cao.setIconFill("#d6d3d1"); // Stone 300
+        items.add(cao);
+
+        InventoryItem water = new InventoryItem();
+        water.setItemCode("water");
+        water.setName("Nước cất");
+        water.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        water.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        water.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SOLVENT);
+        water.setIconName("Droplet");
+        water.setIconColor("text-blue-300");
+        items.add(water);
+
+        InventoryItem hcl = new InventoryItem();
+        hcl.setItemCode("hcl");
+        hcl.setName("Axit HCl");
+        hcl.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        hcl.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        hcl.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.ACID);
+        hcl.setIconName("Droplet");
+        hcl.setIconColor("text-stone-200");
+        items.add(hcl);
+
+        InventoryItem hclDac = new InventoryItem();
+        hclDac.setItemCode("hcl_dac");
+        hclDac.setName("Axit HCl (Đặc)");
+        hclDac.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        hclDac.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        hclDac.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.ACID);
+        hclDac.setIconName("Droplet");
+        hclDac.setIconColor("text-red-500");
+        hclDac.setIconFill("currentColor");
+        items.add(hclDac);
+
+        InventoryItem h2so4Dac = new InventoryItem();
+        h2so4Dac.setItemCode("h2so4_dac");
+        h2so4Dac.setName("Axit H2SO4 (Đặc)");
+        h2so4Dac.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        h2so4Dac.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        h2so4Dac.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.ACID);
+        h2so4Dac.setIconName("Droplet");
+        h2so4Dac.setIconColor("text-red-600");
+        h2so4Dac.setIconFill("currentColor");
+        items.add(h2so4Dac);
+
+        InventoryItem h2c2o4 = new InventoryItem();
+        h2c2o4.setItemCode("h2c2o4");
+        h2c2o4.setName("Axit Oxalic");
+        h2c2o4.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        h2c2o4.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        h2c2o4.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.ACID);
+        h2c2o4.setIconName("Droplet");
+        h2c2o4.setIconColor("text-stone-200");
+        items.add(h2c2o4);
+
+        InventoryItem naohSol = new InventoryItem();
+        naohSol.setItemCode("naoh_sol");
+        naohSol.setName("Dung dịch NaOH");
+        naohSol.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        naohSol.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        naohSol.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.ALKALI);
+        naohSol.setIconName("Droplet");
+        naohSol.setIconColor("text-stone-200");
+        items.add(naohSol);
+
+        InventoryItem cuso4 = new InventoryItem();
+        cuso4.setItemCode("cuso4");
+        cuso4.setName("Dung dịch CuSO4");
+        cuso4.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        cuso4.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        cuso4.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLUTION);
+        cuso4.setIconName("Droplet");
+        cuso4.setIconColor("text-blue-500");
+        cuso4.setIconFill("currentColor");
+        items.add(cuso4);
+
+        InventoryItem bacl2 = new InventoryItem();
+        bacl2.setItemCode("bacl2");
+        bacl2.setName("Dung dịch BaCl2");
+        bacl2.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        bacl2.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        bacl2.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLUTION);
+        bacl2.setIconName("Droplet");
+        bacl2.setIconColor("text-stone-200");
+        items.add(bacl2);
+
+        InventoryItem na2so4 = new InventoryItem();
+        na2so4.setItemCode("na2so4");
+        na2so4.setName("Dung dịch Na2SO4");
+        na2so4.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        na2so4.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        na2so4.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLUTION);
+        na2so4.setIconName("Droplet");
+        na2so4.setIconColor("text-stone-200");
+        items.add(na2so4);
+
+        InventoryItem fecl3 = new InventoryItem();
+        fecl3.setItemCode("fecl3");
+        fecl3.setName("Dung dịch FeCl3");
+        fecl3.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        fecl3.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        fecl3.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLUTION);
+        fecl3.setIconName("Droplet");
+        fecl3.setIconColor("text-amber-600");
+        fecl3.setIconFill("currentColor");
+        items.add(fecl3);
+
+        InventoryItem agno3 = new InventoryItem();
+        agno3.setItemCode("agno3");
+        agno3.setName("Dung dịch AgNO3");
+        agno3.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        agno3.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        agno3.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.SALT_SOLUTION);
+        agno3.setIconName("Droplet");
+        agno3.setIconColor("text-stone-200");
+        items.add(agno3);
+
+        InventoryItem phenolphthalein = new InventoryItem();
+        phenolphthalein.setItemCode("phenolphthalein");
+        phenolphthalein.setName("Phenolphtalein");
+        phenolphthalein.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        phenolphthalein.setState(com.example.chemlearn.lab.enums.PhysicalState.LIQUID);
+        phenolphthalein.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.INDICATOR);
+        phenolphthalein.setIconName("Droplet");
+        phenolphthalein.setIconColor("text-stone-200");
+        items.add(phenolphthalein);
+
+        InventoryItem litmusPaper = new InventoryItem();
+        litmusPaper.setItemCode("litmus_paper");
+        litmusPaper.setName("Giấy quỳ tím");
+        litmusPaper.setType(com.example.chemlearn.lab.enums.ItemType.CHEMICAL);
+        litmusPaper.setState(com.example.chemlearn.lab.enums.PhysicalState.SOLID);
+        litmusPaper.setSubCategory(com.example.chemlearn.lab.enums.SubCategory.INDICATOR);
+        litmusPaper.setIconName("Square");
+        litmusPaper.setIconColor("text-purple-300");
+        litmusPaper.setIconFill("#d8b4fe"); // Purple 300
+        items.add(litmusPaper);
+
+        inventoryRepository.saveAll(items);
+    }
+
+    private void updateInventoryIconFills() {
+        List<InventoryItem> allItems = inventoryRepository.findAll();
+        for (InventoryItem item : allItems) {
+            switch (item.getItemCode()) {
+                // Rắn (Solid)
+                case "sodium": item.setIconFill("#cbd5e1"); break;
+                case "copper": item.setIconFill("#c2410c"); break;
+                case "fe_powder": item.setIconFill("#4b5563"); break;
+                case "zn_grain": item.setIconFill("#94a3b8"); break;
+                case "caco3": item.setIconFill("#e7e5e4"); break;
+                case "kmno4": item.setIconFill("#86198f"); break;
+                case "nacl": item.setIconFill("#ffffff"); break;
+                case "na2co3": item.setIconFill("#f8fafc"); break;
+                case "cao": item.setIconFill("#d6d3d1"); break;
+                case "litmus_paper": item.setIconFill("#d8b4fe"); break;
+                
+                // Lỏng (Liquid)
+                case "water": item.setIconFill("#60a5fa"); break; // Blue 400
+                case "hcl": item.setIconFill("#f1f5f9"); break; // Slate 100 (Trong suốt)
+                case "hcl_dac": item.setIconFill("#f1f5f9"); break;
+                case "h2so4_dac": item.setIconFill("#f1f5f9"); break;
+                case "h2c2o4": item.setIconFill("#f1f5f9"); break;
+                case "naoh_sol": item.setIconFill("#f1f5f9"); break;
+                case "cuso4": item.setIconFill("#3b82f6"); break; // Blue 500
+                case "bacl2": item.setIconFill("#f1f5f9"); break;
+                case "na2so4": item.setIconFill("#f1f5f9"); break;
+                case "fecl3": item.setIconFill("#d97706"); break; // Amber 600
+                case "agno3": item.setIconFill("#f1f5f9"); break;
+                case "phenolphthalein": item.setIconFill("#f1f5f9"); break;
+            }
+        }
+        inventoryRepository.saveAll(allItems);
     }
 }
