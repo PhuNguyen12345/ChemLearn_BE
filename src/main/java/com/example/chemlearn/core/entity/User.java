@@ -93,4 +93,8 @@ public class User {
         if (authProvider == null) authProvider = AuthProvider.LOCAL;
     }
 
+    public void setEmail(String email) {
+        this.email = email != null ? email.trim().toLowerCase(java.util.Locale.ROOT) : null;
+    }
+
 }

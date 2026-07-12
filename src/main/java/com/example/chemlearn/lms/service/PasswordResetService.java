@@ -41,7 +41,7 @@ public class PasswordResetService {
     @Transactional
     public void requestPasswordReset(String email) {
         String normalizedEmail = otpRateLimitService.normalizeEmail(email);
-        User user = userRepository.findByEmail(normalizedEmail).orElse(null);
+        User user = userRepository.findByEmailIgnoreCase(normalizedEmail).orElse(null);
         if (user == null) {
             log.warn("Password reset requested for unknown email: {}", normalizedEmail);
             return;
@@ -73,7 +73,7 @@ public class PasswordResetService {
 
         String normalizedEmail = otpRateLimitService.normalizeEmail(email);
 
-        User user = userRepository.findByEmail(normalizedEmail)
+        User user = userRepository.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new CustomExceptions.BadRequestException("Mã OTP không hợp lệ hoặc đã hết hạn."));
 
         OtpVerification otp = otpVerificationRepository

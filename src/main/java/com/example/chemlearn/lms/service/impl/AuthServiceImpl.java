@@ -82,7 +82,7 @@ public class AuthServiceImpl implements AuthService {
         if (repo.existsByUsername(dto.getUsername())) {
             throw new CustomExceptions.BadRequestException("Username exists");
         }
-        if (repo.existsByEmail(dto.getEmail())) {
+        if (repo.existsByEmailIgnoreCase(dto.getEmail())) {
             throw new CustomExceptions.BadRequestException("Email exists");
         }
         if (dto.getGradeLevel() == null || dto.getGradeLevel() < GradeCalculator.MIN_GRADE || dto.getGradeLevel() > GradeCalculator.MAX_GRADE) {
@@ -146,11 +146,11 @@ public class AuthServiceImpl implements AuthService {
         if (repo.existsByUsername(dto.getUsername())) {
             throw new CustomExceptions.BadRequestException("Username exists");
         }
-        if (repo.existsByEmail(dto.getEmail())) {
+        if (repo.existsByEmailIgnoreCase(dto.getEmail())) {
             throw new CustomExceptions.BadRequestException("Email exists");
         }
 
-        accessRequestRepository.findByEmail(dto.getEmail()).ifPresent(existing -> {
+        accessRequestRepository.findByEmailIgnoreCase(dto.getEmail()).ifPresent(existing -> {
             if ("PENDING".equals(existing.getStatus())) {
                 throw new CustomExceptions.BadRequestException("A pending access request already exists for this email");
             }
@@ -190,7 +190,7 @@ public class AuthServiceImpl implements AuthService {
             parentRepository.save(parent);
         }
 
-        AccessRequest request = accessRequestRepository.findByEmail(dto.getEmail()).orElseGet(AccessRequest::new);
+        AccessRequest request = accessRequestRepository.findByEmailIgnoreCase(dto.getEmail()).orElseGet(AccessRequest::new);
         request.setEmail(dto.getEmail());
         request.setRole(role);
         request.setFullName(user.getFullName());
@@ -248,7 +248,7 @@ public class AuthServiceImpl implements AuthService {
         if (repo.existsByUsername(dto.getUsername())) {
             throw new CustomExceptions.BadRequestException("Username exists");
         }
-        if (repo.existsByEmail(dto.getEmail())) {
+        if (repo.existsByEmailIgnoreCase(dto.getEmail())) {
             throw new CustomExceptions.BadRequestException("Email exists");
         }
         otpRateLimitService.assertCanSend(normalizedEmail);
@@ -313,7 +313,7 @@ public class AuthServiceImpl implements AuthService {
         if (repo.existsByUsername(regDto.getUsername())) {
             throw new CustomExceptions.BadRequestException("Username is no longer available");
         }
-        if (repo.existsByEmail(regDto.getEmail())) {
+        if (repo.existsByEmailIgnoreCase(regDto.getEmail())) {
             throw new CustomExceptions.BadRequestException("Email is no longer available");
         }
 
@@ -451,7 +451,7 @@ public class AuthServiceImpl implements AuthService {
         User user = repo.findByProviderSubject(tokenInfo.getSub()).orElse(null);
 
         if (user == null) {
-            user = repo.findByEmail(tokenInfo.getEmail()).orElse(null);
+            user = repo.findByEmailIgnoreCase(tokenInfo.getEmail()).orElse(null);
             if (user != null) {
                 user.setAuthProvider(AuthProvider.GOOGLE);
                 user.setProviderSubject(tokenInfo.getSub());

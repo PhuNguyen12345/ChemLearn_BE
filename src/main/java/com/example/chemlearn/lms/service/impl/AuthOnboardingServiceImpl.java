@@ -44,12 +44,12 @@ public class AuthOnboardingServiceImpl implements AuthOnboardingService {
     @Override
     @Transactional
     public void submitAccessRequest(AccessRequestCreateDTO dto) {
-        if (userRepository.existsByEmail(dto.getEmail())) {
+        if (userRepository.existsByEmailIgnoreCase(dto.getEmail())) {
             throw new CustomExceptions.BadRequestException("Email is already registered");
         }
 
         // Check if there is already a PENDING access request for this email
-        accessRequestRepository.findByEmail(dto.getEmail()).ifPresent(req -> {
+        accessRequestRepository.findByEmailIgnoreCase(dto.getEmail()).ifPresent(req -> {
             if ("PENDING".equals(req.getStatus())) {
                 throw new CustomExceptions.BadRequestException("A pending access request already exists for this email");
             }
@@ -84,7 +84,7 @@ public class AuthOnboardingServiceImpl implements AuthOnboardingService {
         if (userRepository.existsByUsername(dto.getUsername())) {
             throw new CustomExceptions.BadRequestException("Username already exists");
         }
-        if (userRepository.existsByEmail(invite.getEmail())) {
+        if (userRepository.existsByEmailIgnoreCase(invite.getEmail())) {
             throw new CustomExceptions.BadRequestException("Email already registered");
         }
 
@@ -121,7 +121,7 @@ public class AuthOnboardingServiceImpl implements AuthOnboardingService {
         inviteRepository.save(invite);
 
         // Also update any matching access request status to APPROVED
-        accessRequestRepository.findByEmail(invite.getEmail()).ifPresent(req -> {
+        accessRequestRepository.findByEmailIgnoreCase(invite.getEmail()).ifPresent(req -> {
             req.setStatus("APPROVED");
             accessRequestRepository.save(req);
         });
@@ -142,7 +142,7 @@ public class AuthOnboardingServiceImpl implements AuthOnboardingService {
             throw new CustomExceptions.BadRequestException("Request is not pending");
         }
 
-        User user = userRepository.findByEmail(request.getEmail())
+        User user = userRepository.findByEmailIgnoreCase(request.getEmail())
                 .orElseThrow(() -> new CustomExceptions.BadRequestException("Pending account not found for this request"));
 
         user.setIsActive(true);
@@ -165,7 +165,7 @@ public class AuthOnboardingServiceImpl implements AuthOnboardingService {
         request.setStatus("REJECTED");
         accessRequestRepository.save(request);
 
-        userRepository.findByEmail(request.getEmail()).ifPresent(user -> {
+        userRepository.findByEmailIgnoreCase(request.getEmail()).ifPresent(user -> {
             user.setIsActive(false);
             userRepository.save(user);
         });
@@ -180,12 +180,12 @@ public class AuthOnboardingServiceImpl implements AuthOnboardingService {
     @Transactional
     public Invite createInvite(String email, String role) {
         // Check if user already exists
-        if (userRepository.existsByEmail(email)) {
+        if (userRepository.existsByEmailIgnoreCase(email)) {
             throw new CustomExceptions.BadRequestException("User with this email already exists");
         }
 
         // If a pending invite exists, delete or expire it
-        inviteRepository.findByEmail(email).ifPresent(invite -> {
+        inviteRepository.findByEmailIgnoreCase(email).ifPresent(invite -> {
             if ("PENDING".equals(invite.getStatus())) {
                 invite.setStatus("EXPIRED");
                 inviteRepository.save(invite);

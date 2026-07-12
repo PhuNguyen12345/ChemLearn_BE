@@ -56,4 +56,8 @@ public class Invite {
     private void preUpdate() {
         updatedAt = Instant.now();
     }
+
+    public void setEmail(String email) {
+        this.email = email != null ? email.trim().toLowerCase(java.util.Locale.ROOT) : null;
+    }
 }

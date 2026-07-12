@@ -35,7 +35,7 @@ public class AccountLinkService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
         
         // Ensure target user exists and has correct role
-        User targetUser = userRepository.findByEmail(dto.getEmail())
+        User targetUser = userRepository.findByEmailIgnoreCase(dto.getEmail())
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy tài khoản với email này trong hệ thống."));
         
         if (initiator.getRole() == UserRole.ROLE_STUDENT && targetUser.getRole() != UserRole.ROLE_PARENT) {
@@ -91,7 +91,7 @@ public class AccountLinkService {
             throw new RuntimeException("Yêu cầu liên kết này đã bị từ chối.");
         }
 
-        User targetUser = userRepository.findByEmail(request.getTargetEmail())
+        User targetUser = userRepository.findByEmailIgnoreCase(request.getTargetEmail())
                 .orElseThrow(() -> new RuntimeException("Tài khoản người nhận không tồn tại."));
 
         User initiator = userRepository.findById(request.getInitiatorId())

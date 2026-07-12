@@ -118,24 +118,25 @@ public class Module2DataSeeder {
 
             // ── Parent: Thor (For testing) ─────────────────────────────────────
             accountRepository.findByUsername("thor")
-                    .orElseGet(() -> {
-                        User u = new User();
-                        u.setUsername("thor");
-                        u.setFullName("Thần Sấm Thor");
-                        u.setEmail("thor123deptrai@gmail.com");
-                        u.setPassword(hash("123456"));
-                        u.setRole(UserRole.ROLE_PARENT);
-                        u.setIsActive(true);
-                        u = accountRepository.save(u);
+                    .orElseGet(() -> accountRepository.findByEmail("thor123deptrai@gmail.com")
+                            .orElseGet(() -> {
+                                User u = new User();
+                                u.setUsername("thor");
+                                u.setFullName("Thần Sấm Thor");
+                                u.setEmail("thor123deptrai@gmail.com");
+                                u.setPassword(hash("123456"));
+                                u.setRole(UserRole.ROLE_PARENT);
+                                u.setIsActive(true);
+                                u = accountRepository.save(u);
 
-                        Parent parent = new Parent();
-                        parent.setUsers(u);
-                        parent.setPhoneNumber("0909090909");
-                        parent.setJobTitle("Siêu anh hùng");
-                        parentRepository.save(parent);
+                                Parent parent = new Parent();
+                                parent.setUsers(u);
+                                parent.setPhoneNumber("0909090909");
+                                parent.setJobTitle("Siêu anh hùng");
+                                parentRepository.save(parent);
 
-                        return u;
-                    });
+                                return u;
+                            }));
 
 
             // ── Student 1: student (Main student) ─────────────────────────────
