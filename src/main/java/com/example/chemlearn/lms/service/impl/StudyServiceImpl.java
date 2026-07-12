@@ -62,7 +62,7 @@ public class StudyServiceImpl implements StudyService {
                                                 question.getOptionC(),
                                                 question.getOptionD()))
                                 .toList();
-                return new LessonDetailDTO(lesson.getId(), lesson.getChapter().getId(), lesson.getChapter().getTitle(), lesson.getTitle(), lesson.getTextContent(), lesson.getDurationMinutes(), miniQuestions);
+                return new LessonDetailDTO(lesson.getId(), lesson.getChapter().getId(), lesson.getChapter().getTitle(), lesson.getTitle(), lesson.getTextContent(), lesson.getDurationMinutes(), lesson.getVideoUrl(), miniQuestions);
         }
 
         @Override

@@ -88,6 +88,7 @@ public class AdminContentServiceImpl implements AdminContentService {
                 .durationMinutes(lesson.getDurationMinutes())
                 .orderIndex(lesson.getOrderIndex())
                 .published(lesson.getPublished())
+                .videoUrl(lesson.getVideoUrl())
                 .miniQuizQuestions(miniQuizQuestions)
                 .createdBy(lesson.getCreatedBy() != null ? lesson.getCreatedBy().getId() : null)
                 .createdAt(lesson.getCreatedAt())
@@ -235,6 +236,7 @@ public class AdminContentServiceImpl implements AdminContentService {
         lesson.setDurationMinutes(dto.getDurationMinutes() != null ? dto.getDurationMinutes() : 15);
         lesson.setOrderIndex(dto.getOrderIndex() != null ? dto.getOrderIndex() : 0);
         lesson.setPublished(dto.getPublished() != null ? dto.getPublished() : true);
+        lesson.setVideoUrl(dto.getVideoUrl());
         lesson.setCreatedBy(admin);
         lesson.setUpdatedBy(admin);
         lesson.setMaterialScope(MaterialScope.GLOBAL);
@@ -277,6 +279,7 @@ public class AdminContentServiceImpl implements AdminContentService {
         if (dto.getPublished() != null) {
             lesson.setPublished(dto.getPublished());
         }
+        lesson.setVideoUrl(dto.getVideoUrl());
         lesson.setMaterialScope(MaterialScope.GLOBAL);
         lesson.setOwnerClass(null);
         lesson.setUpdatedBy(admin);
