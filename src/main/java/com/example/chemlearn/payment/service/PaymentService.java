@@ -23,5 +23,4 @@ public interface PaymentService {
 
     UserPackageEntitlementResponse getCurrentUserEntitlement(String packageCode);
 
-    UserPackageEntitlementResponse cancelCurrentUserEntitlement(java.util.UUID entitlementId);
 }

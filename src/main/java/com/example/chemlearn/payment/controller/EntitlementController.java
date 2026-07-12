@@ -33,8 +33,4 @@ public class EntitlementController {
         return ResponseEntity.ok(paymentService.getCurrentUserEntitlement(packageCode));
     }
 
-    @PatchMapping("/{entitlementId}/cancel")
-    public ResponseEntity<UserPackageEntitlementResponse> cancelMyEntitlement(@PathVariable UUID entitlementId) {
-        return ResponseEntity.ok(paymentService.cancelCurrentUserEntitlement(entitlementId));
-    }
 }

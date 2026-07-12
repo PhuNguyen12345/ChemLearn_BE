@@ -229,33 +229,7 @@ public class PaymentServiceImpl implements PaymentService {
         return toEntitlementResponse(entitlement);
     }
 
-    @Override
-    @Transactional
-    public UserPackageEntitlementResponse cancelCurrentUserEntitlement(UUID entitlementId) {
-        UUID currentUserId = SecurityUtils.getCurrentUserId();
-        UserPackageEntitlement entitlement = userPackageEntitlementRepository.findById(entitlementId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Entitlement not found"));
 
-        if (!entitlement.getUserId().equals(currentUserId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Entitlement does not belong to current user");
-        }
-
-        entitlement = expireIfNeeded(entitlement);
-        if (!grantsAccess(entitlement)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Entitlement is already expired");
-        }
-
-        if (entitlement.getStatus() == EntitlementStatus.CANCELLED) {
-            return toEntitlementResponse(entitlement);
-        }
-
-        entitlement.setStatus(EntitlementStatus.CANCELLED);
-        entitlement.setCancelledAt(java.time.LocalDateTime.now());
-        entitlement.setCancellationReason("Cancelled by user");
-        entitlement.setMetadataJson(buildCancellationMetadata(entitlement));
-        entitlement = userPackageEntitlementRepository.save(entitlement);
-        return toEntitlementResponse(entitlement);
-    }
 
     private CheckoutResponseData toResponse(PaymentTransaction transaction) {
         return CheckoutResponseData.builder()
