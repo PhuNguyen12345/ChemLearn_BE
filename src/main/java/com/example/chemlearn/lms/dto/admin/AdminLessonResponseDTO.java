@@ -22,6 +22,7 @@ public class AdminLessonResponseDTO {
     private Integer durationMinutes;
     private Integer orderIndex;
     private Boolean published;
+    private String videoUrl;
     private List<AdminMiniQuizQuestionDTO> miniQuizQuestions;
     private UUID createdBy;
     private Instant createdAt;

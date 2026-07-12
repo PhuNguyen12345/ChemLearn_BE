@@ -262,6 +262,7 @@ public class StudentClassServiceImpl implements StudentClassService {
             lesson.getTitle(),
             lesson.getTextContent(),
             lesson.getDurationMinutes(),
+            lesson.getVideoUrl(),
             miniQuestions
         );
     }
